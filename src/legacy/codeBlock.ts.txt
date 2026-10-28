@@ -1,0 +1,31 @@
+export type CodeBlockParts = {
+  fence: "```" | "~~~";
+  language: string;
+  code: string;
+};
+
+export function parseCodeBlock(text: string): CodeBlockParts {
+  const lines = text.split("\n");
+  const first = lines[0]?.trim() ?? "";
+  const match = first.match(/^(```|~~~)\s*(.*)$/);
+  if (!match) {
+    return { fence: "```", language: "", code: text };
+  }
+
+  const fence = match[1] as "```" | "~~~";
+  const language = match[2].trim();
+  let end = lines.length;
+  if (lines[end - 1]?.trim() === fence) {
+    end -= 1;
+  }
+  return {
+    fence,
+    language,
+    code: lines.slice(1, end).join("\n"),
+  };
+}
+
+export function serializeCodeBlock({ fence, language, code }: CodeBlockParts): string {
+  const body = code.replace(/\n$/, "");
+  return `${fence}${language}\n${body}\n${fence}`;
+}

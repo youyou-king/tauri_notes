@@ -1,0 +1,56 @@
+/*
+ * Design tokens.
+ *
+ * Layer order is declared here so future component CSS can opt into layers
+ * without changing the cascade contract.
+ */
+@layer theme, tokens, base, components, layout, critical;
+
+@layer tokens {
+  :root {
+    --color-bg-app: var(--bg);
+    --color-bg-panel: var(--bg-panel);
+    --color-bg-elevated: var(--bg-elevated);
+    --color-bg-hover: var(--bg-hover);
+    --color-border: var(--border);
+    --color-text: var(--text);
+    --color-text-muted: var(--muted);
+    --color-accent: var(--accent);
+    --danger: #e06c75;
+    --success: #7fbf8f;
+
+    --map-canvas-bg: #0f1218;
+    --map-dot: #2a3345;
+    --map-control-bg: #171c26;
+    --map-control-hover: #212936;
+    --map-minimap-bg: #11151d;
+    --map-minimap-mask: rgba(8, 11, 16, 0.72);
+    --map-edge: #344056;
+    --map-node-bg: #171c26;
+    --map-node-bg-selected: #1d2b43;
+    --map-root-bg: #202a3c;
+    --map-node-border: #344056;
+    --map-root-border: #4d5f82;
+    --map-node-border-selected: #7aa2ff;
+    --map-node-text: #dbe2ef;
+  }
+
+  :root[data-theme="light"] {
+    --danger: #b4232f;
+    --success: #2f7d4f;
+    --map-canvas-bg: #f4f6fa;
+    --map-dot: #d5dce8;
+    --map-control-bg: #ffffff;
+    --map-control-hover: #eef2f8;
+    --map-minimap-bg: #ffffff;
+    --map-minimap-mask: rgba(244, 246, 250, 0.72);
+    --map-edge: #b9c6dc;
+    --map-node-bg: #ffffff;
+    --map-node-bg-selected: #eaf0ff;
+    --map-root-bg: #eef2fa;
+    --map-node-border: #cfd8e6;
+    --map-root-border: #b9c6dc;
+    --map-node-border-selected: #3b6cf6;
+    --map-node-text: #242932;
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "root": {
+    "id": "node_001",
+    "title": "统一虚拟化块编辑器",
+    "children": [
+      {
+        "id": "node_002",
+        "title": "大文档策略",
+        "children": []
+      }
+    ]
+  }
+}

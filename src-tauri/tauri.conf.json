@@ -1,0 +1,41 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Tauri Notes",
+  "version": "0.1.0",
+  "identifier": "com.example.tauri-notes",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [],
+    "security": {
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": ["$HOME/**"]
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "icon": ["icons/icon.ico", "icons/icon.png"],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser"
+      }
+    },
+    "fileAssociations": [
+      {
+        "ext": ["note"],
+        "name": "Tauri Notes Knowledge Base",
+        "description": "Tauri Notes knowledge base",
+        "role": "Editor",
+        "mimeType": "application/x-tauri-notes"
+      }
+    ]
+  }
+}

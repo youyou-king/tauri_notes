@@ -1,0 +1,211 @@
+import { useEffect, useRef } from "react";
+import type { Block } from "../types";
+
+const HEADING_SIZES = [32, 32, 25, 20, 18, 16, 15];
+
+function headingSize(text: string): number {
+  const level = Math.min(6, text.match(/^#+/)?.[0].length ?? 1);
+  return HEADING_SIZES[level];
+}
+
+function listContinuation(value: string, caret: number): string | null {
+  const lineStart = value.lastIndexOf("\n", caret - 1) + 1;
+  const line = value.slice(lineStart);
+  const match = line.match(/^(\s*)([-*+]|\d+[.)])\s+/);
+  if (!match) {
+    return null;
+  }
+  const indent = match[1];
+  const marker = match[2];
+  if (/^\d/.test(marker)) {
+    const number = Number.parseInt(marker, 10);
+    const punctuation = marker.endsWith(")") ? ")" : ".";
+    return `\n${indent}${number + 1}${punctuation} `;
+  }
+  return `\n${indent}${marker} `;
+}
+
+export default function BlockEditor({
+  block,
+  saving,
+  onDirty,
+  onSave,
+  onEnter,
+  onNavigate,
+  onMergePrevious,
+  onCancel,
+}: {
+  block: Block;
+  saving: boolean;
+  onDirty: () => void;
+  onSave: (text: string) => void | Promise<void>;
+  onEnter: (before: string, after: string) => void | Promise<void>;
+  onNavigate: (direction: "prev" | "next", text: string) => void;
+  onMergePrevious: (text: string) => void;
+  onCancel: () => void;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  const composing = useRef(false);
+  const committed = useRef(false);
+  const dirty = useRef(false);
+
+  function resize() {
+    const node = ref.current;
+    if (!node) {
+      return;
+    }
+    node.style.height = "auto";
+    node.style.height = `${Math.max(42, node.scrollHeight)}px`;
+  }
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) {
+      return;
+    }
+    resize();
+    node.focus();
+    const end = node.value.length;
+    node.setSelectionRange(end, end);
+  }, []);
+
+  function commit() {
+    if (committed.current || composing.current) {
+      return;
+    }
+    committed.current = true;
+    void onSave(ref.current?.value ?? block.text);
+  }
+
+  return (
+    <div className="block-editor">
+      <textarea
+        ref={ref}
+        className="block-textarea"
+        defaultValue={block.text}
+        rows={1}
+        placeholder={block.text ? undefined : "输入内容，Enter 新建块…"}
+        spellCheck={false}
+        disabled={saving}
+        style={
+          block.kind === "heading"
+            ? {
+                fontSize: `${headingSize(block.text)}px`,
+                lineHeight: 1.3,
+                fontWeight: 700,
+                color: "#f1f3f8",
+              }
+            : undefined
+        }
+        onCompositionStart={() => {
+          composing.current = true;
+        }}
+        onCompositionEnd={() => {
+          composing.current = false;
+          resize();
+        }}
+        onInput={() => {
+          resize();
+          if (!dirty.current) {
+            dirty.current = true;
+            onDirty();
+          }
+        }}
+        onBlur={commit}
+        onKeyDown={(event) => {
+          const node = event.currentTarget;
+          const atStart = node.selectionStart === 0 && node.selectionEnd === 0;
+          const atEnd =
+            node.selectionStart === node.value.length &&
+            node.selectionEnd === node.value.length;
+
+          if (event.key === "Escape") {
+            event.preventDefault();
+            onCancel();
+            return;
+          }
+          if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+            event.preventDefault();
+            event.currentTarget.blur();
+            return;
+          }
+          if (
+            event.key === "Backspace" &&
+            atStart &&
+            !event.shiftKey &&
+            !composing.current
+          ) {
+            event.preventDefault();
+            committed.current = true;
+            onMergePrevious(node.value);
+            return;
+          }
+          if (
+            event.key === "ArrowUp" &&
+            atStart &&
+            !event.shiftKey &&
+            !composing.current
+          ) {
+            event.preventDefault();
+            committed.current = true;
+            onNavigate("prev", node.value);
+            return;
+          }
+          if (
+            event.key === "ArrowDown" &&
+            atEnd &&
+            !event.shiftKey &&
+            !composing.current
+          ) {
+            event.preventDefault();
+            committed.current = true;
+            onNavigate("next", node.value);
+            return;
+          }
+          if (
+            event.key === "Enter" &&
+            event.shiftKey &&
+            (block.kind === "list" || block.kind === "quote") &&
+            !event.altKey &&
+            !composing.current
+          ) {
+            event.preventDefault();
+            const start = node.selectionStart;
+            const end = node.selectionEnd;
+            const insertion =
+              block.kind === "quote"
+                ? "\n> "
+                : listContinuation(node.value, start) ?? "\n- ";
+            node.setRangeText(insertion, start, end, "end");
+            resize();
+            if (!dirty.current) {
+              dirty.current = true;
+              onDirty();
+            }
+            return;
+          }
+          if (
+            event.key === "Enter" &&
+            !event.shiftKey &&
+            !event.altKey &&
+            !composing.current
+          ) {
+            event.preventDefault();
+            const start = node.selectionStart;
+            const end = node.selectionEnd;
+            const before = node.value.slice(0, start);
+            const after = node.value.slice(end);
+            committed.current = true;
+            resize();
+            void onEnter(before, after);
+          }
+        }}
+      />
+      <div className="block-editor-hint">
+        {saving
+          ? "保存中…"
+          : "Enter 新块 · Shift+Enter 换行 · Ctrl+Enter 保存 · Esc 取消"}
+      </div>
+    </div>
+  );
+}

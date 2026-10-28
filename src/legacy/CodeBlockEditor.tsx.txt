@@ -1,0 +1,134 @@
+import { useEffect, useRef } from "react";
+import { EditorState, StateEffect } from "@codemirror/state";
+import {
+  EditorView,
+  highlightActiveLine,
+  keymap,
+  lineNumbers,
+} from "@codemirror/view";
+import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
+import type { Block } from "../types";
+import { parseCodeBlock, serializeCodeBlock } from "../lib/codeBlock";
+import { loadLanguageExtension } from "../lib/codeLanguage";
+import { codeEditorTheme, codeSyntaxHighlighting } from "../lib/codeTheme";
+
+export default function CodeBlockEditor({
+  block,
+  onDirty,
+  onSave,
+  onCancel,
+}: {
+  block: Block;
+  onDirty: () => void;
+  onSave: (text: string) => void | Promise<void>;
+  onCancel: () => void;
+}) {
+  const hostRef = useRef<HTMLDivElement>(null);
+  const viewRef = useRef<EditorView | null>(null);
+  const committed = useRef(false);
+  const dirty = useRef(false);
+  const ready = useRef(false);
+  const parts = parseCodeBlock(block.text);
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) {
+      return;
+    }
+
+    function commit() {
+      const view = viewRef.current;
+      if (!view || committed.current) {
+        return;
+      }
+      committed.current = true;
+      void onSave(
+        serializeCodeBlock({
+          fence: parts.fence,
+          language: parts.language,
+          code: view.state.doc.toString(),
+        }),
+      );
+    }
+
+    const view = new EditorView({
+      parent: host,
+      state: EditorState.create({
+        doc: parts.code,
+        extensions: [
+          lineNumbers(),
+          highlightActiveLine(),
+          history(),
+          codeSyntaxHighlighting,
+          EditorView.lineWrapping,
+          keymap.of([
+            {
+              key: "Mod-Enter",
+              run: () => {
+                commit();
+                return true;
+              },
+            },
+            {
+              key: "Escape",
+              run: () => {
+                onCancel();
+                return true;
+              },
+            },
+            ...defaultKeymap,
+            ...historyKeymap,
+          ]),
+          EditorView.updateListener.of((update) => {
+            if (update.docChanged && !dirty.current) {
+              dirty.current = true;
+              onDirty();
+            }
+          }),
+          EditorView.domEventHandlers({
+            blur: () => {
+              if (ready.current) {
+                commit();
+              }
+              return false;
+            },
+          }),
+          codeEditorTheme,
+        ],
+      }),
+    });
+    viewRef.current = view;
+    view.focus();
+    const readyFrame = requestAnimationFrame(() => {
+      ready.current = true;
+    });
+
+    void loadLanguageExtension(parts.language)
+      .then((extension) => {
+        if (extension && viewRef.current === view) {
+          view.dispatch({ effects: StateEffect.appendConfig.of(extension) });
+        }
+      })
+      .catch(() => {
+        // 未支持的语言保持纯文本编辑。
+      });
+
+    return () => {
+      cancelAnimationFrame(readyFrame);
+      view.destroy();
+      viewRef.current = null;
+    };
+    // 只在块切换时重建。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [block.id]);
+
+  return (
+    <div className="code-block-editor">
+      <div className="code-block-label">
+        CODE {parts.language ? `· ${parts.language}` : ""}
+      </div>
+      <div ref={hostRef} />
+      <div className="block-editor-hint">Ctrl+Enter 保存 · Esc 取消</div>
+    </div>
+  );
+}

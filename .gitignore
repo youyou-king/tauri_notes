@@ -1,0 +1,7 @@
+node_modules
+node_modules_old
+dist
+src-tauri/target
+.webview2
+.tmp
+*.log

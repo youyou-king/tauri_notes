@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "id": "board_bacadefc901c45108ef00849c7a19a47",
+  "title": "对照板",
+  "items": [
+    {
+      "id": "viewport_e0554fe8c31d4c179e22aeaa3ed1a02f",
+      "reference": {
+        "blockId": "block_5fb485ba8eb6490095b1906a9ed23198",
+        "lastDocId": "map_001/node_001",
+        "lastTitle": "统一虚拟化块编辑器",
+        "fingerprint": "db28cc88"
+      },
+      "span": 1,
+      "height": 360.0,
+      "zoom": 1.0,
+      "collapsed": false
+    }
+  ]
+}

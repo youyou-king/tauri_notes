@@ -1,0 +1,589 @@
+import { useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import type {
+  Block,
+  BlockDocument,
+  MapView,
+  NodeView,
+  WorkspaceView,
+} from "../types";
+
+export type DocumentSession = {
+  doc: BlockDocument | null;
+  dirty: boolean;
+  saving: boolean;
+  error: string | null;
+  editingBlockId: string | null;
+  selection: number[];
+  beginEdit: (blockId: string, index: number) => void;
+  extendSelection: (index: number) => void;
+  markDirty: () => void;
+  saveBlock: (
+    blockId: string,
+    index: number,
+    text: string,
+  ) => Promise<void>;
+  splitBlock: (
+    blockId: string,
+    index: number,
+    before: string,
+    after: string,
+  ) => Promise<void>;
+  mergeWithPrevious: (index: number, currentText: string) => Promise<void>;
+  saveTextRun: (
+    startIndex: number,
+    endIndex: number,
+    text: string,
+  ) => Promise<void>;
+  newBlock: () => void;
+  undo: () => Promise<void>;
+  redo: () => Promise<void>;
+  deleteSelected: () => Promise<void>;
+  pasteMarkdown: (markdown: string) => Promise<void>;
+  copySelection: () => Promise<void>;
+  cancelEdit: () => void;
+};
+
+export function useDocumentSession({
+  workspace,
+  map,
+  node,
+  active,
+  onDirtyChange,
+}: {
+  workspace: WorkspaceView | null;
+  map: MapView | null;
+  node: NodeView | null;
+  active: boolean;
+  onDirtyChange: (dirty: boolean) => void;
+}): DocumentSession {
+  const [doc, setDoc] = useState<BlockDocument | null>(null);
+  const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
+  const [selection, setSelection] = useState<number[]>([]);
+  const [selectionAnchor, setSelectionAnchor] = useState<number | null>(null);
+  const [undoStack, setUndoStack] = useState<BlockDocument[]>([]);
+  const [redoStack, setRedoStack] = useState<BlockDocument[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setDoc(null);
+    setDirty(false);
+    setError(null);
+    setEditingBlockId(null);
+    setSelection([]);
+    setSelectionAnchor(null);
+    setUndoStack([]);
+    setRedoStack([]);
+
+    if (!workspace || !map || !node || !node.hasDocument) {
+      return;
+    }
+
+    invoke<BlockDocument>("index_document", {
+      workspace: workspace.root,
+      mapId: map.id,
+      nodeId: node.id,
+    })
+      .then((next) => {
+        if (!cancelled) {
+          setDoc(next);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setDoc(null);
+          setError(String(err));
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [workspace?.root, map?.id, node?.id, node?.hasDocument]);
+
+  useEffect(() => {
+    onDirtyChange(dirty);
+  }, [dirty, onDirtyChange]);
+
+  function resetAfterWrite(next: BlockDocument, pushUndo: boolean) {
+    if (pushUndo && doc) {
+      setUndoStack((stack) => [...stack.slice(-99), doc]);
+      setRedoStack([]);
+    }
+    setDoc(next);
+    setDirty(false);
+    setEditingBlockId(null);
+  }
+
+  async function saveBlock(blockId: string, _index: number, text: string) {
+    if (!workspace || !map || !node || !doc) {
+      return;
+    }
+
+    const resolvedIndex = doc.blocks.findIndex((block) => block.id === blockId);
+    if (resolvedIndex < 0) {
+      return;
+    }
+
+    if (blockId.startsWith("new_")) {
+      if (!text.trim()) {
+        setDoc((current) =>
+          current
+            ? {
+                ...current,
+                blocks: current.blocks.filter((block) => block.id !== blockId),
+              }
+            : current,
+        );
+        setEditingBlockId(null);
+        setDirty(false);
+        return;
+      }
+
+      const previous = {
+        ...doc,
+        blocks: doc.blocks.filter((block) => block.id !== blockId),
+      };
+      const at = resolvedIndex;
+      setSaving(true);
+      setError(null);
+      try {
+        const next = await invoke<BlockDocument>("insert_blocks", {
+          workspace: workspace.root,
+          mapId: map.id,
+          nodeId: node.id,
+          atIndex: at,
+          markdown: text,
+        });
+        setUndoStack((stack) => [...stack.slice(-99), previous]);
+        setRedoStack([]);
+        setDoc(next);
+        setEditingBlockId(null);
+        setDirty(false);
+      } catch (err) {
+        setError(String(err));
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
+
+    if (doc.blocks[resolvedIndex]?.text === text) {
+      setEditingBlockId((current) => (current === blockId ? null : current));
+      setDirty(false);
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      const next = await invoke<BlockDocument>("save_block", {
+        workspace: workspace.root,
+        mapId: map.id,
+        nodeId: node.id,
+        blockIndex: resolvedIndex,
+        text,
+      });
+      resetAfterWrite(next, true);
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function newBlock() {
+    if (!doc) {
+      return;
+    }
+    const block: Block = {
+      id: `new_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      kind: "paragraph",
+      text: "",
+    };
+    setSelection([]);
+    setSelectionAnchor(null);
+    setDoc({ ...doc, blocks: [...doc.blocks, block] });
+    setEditingBlockId(block.id);
+    setDirty(false);
+  }
+
+  async function splitBlock(
+    blockId: string,
+    _index: number,
+    before: string,
+    after: string,
+  ) {
+    if (!workspace || !map || !node || !doc) {
+      return;
+    }
+    const resolvedIndex = doc.blocks.findIndex((block) => block.id === blockId);
+    if (resolvedIndex < 0) {
+      return;
+    }
+    if (blockId.startsWith("new_")) {
+      if (!`${before}${after}`.trim()) {
+        return;
+      }
+      await saveBlock(blockId, resolvedIndex, `${before}${after}`);
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      const next = await invoke<BlockDocument>("split_block", {
+        workspace: workspace.root,
+        mapId: map.id,
+        nodeId: node.id,
+        blockIndex: resolvedIndex,
+        before,
+        after,
+      });
+      setUndoStack((stack) => [...stack.slice(-99), doc]);
+      setRedoStack([]);
+      setDirty(false);
+
+      if (after.trim()) {
+        setDoc(next);
+        const nextIndex = before.trim() ? resolvedIndex + 1 : resolvedIndex;
+        setEditingBlockId(next.blocks[nextIndex]?.id ?? null);
+        return;
+      }
+
+      const block: Block = {
+        id: `new_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        kind: "paragraph",
+        text: "",
+      };
+      const insertAt = Math.min(
+        before.trim() ? resolvedIndex + 1 : resolvedIndex,
+        next.blocks.length,
+      );
+      const blocks = [...next.blocks];
+      blocks.splice(insertAt, 0, block);
+      setDoc({ ...next, blocks });
+      setEditingBlockId(block.id);
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveTextRun(
+    startIndex: number,
+    endIndex: number,
+    text: string,
+  ) {
+    if (!workspace || !map || !node || !doc) {
+      return;
+    }
+    const realEnd = Math.min(endIndex, doc.blocks.length - 1);
+    if (startIndex < 0 || realEnd < startIndex) {
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      const next = await invoke<BlockDocument>("save_block_range", {
+        workspace: workspace.root,
+        mapId: map.id,
+        nodeId: node.id,
+        startIndex,
+        endIndex: realEnd,
+        text,
+      });
+      const previous = {
+        ...doc,
+        blocks: doc.blocks.filter((block) => !block.id.startsWith("new_")),
+      };
+      setUndoStack((stack) => [...stack.slice(-99), previous]);
+      setRedoStack([]);
+      setDoc(next);
+      setEditingBlockId(null);
+      setDirty(false);
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function mergeWithPrevious(index: number, currentText: string) {
+    if (!workspace || !map || !node || !doc || index <= 0) {
+      return;
+    }
+    const previous = doc.blocks[index - 1];
+    const current = doc.blocks[index];
+    if (!previous || previous.id.startsWith("new_")) {
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      const next = await invoke<BlockDocument>("merge_blocks", {
+        workspace: workspace.root,
+        mapId: map.id,
+        nodeId: node.id,
+        blockIndex: index,
+        currentText,
+      });
+      setUndoStack((stack) => [...stack.slice(-99), doc]);
+      setRedoStack([]);
+      setDoc(next);
+      setDirty(false);
+      setEditingBlockId(next.blocks[index - 1]?.id ?? current?.id ?? null);
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function writeWhole(content: string, current: BlockDocument | null) {
+    if (!workspace || !map || !node) {
+      return;
+    }
+    try {
+      const next = await invoke<BlockDocument>("write_document", {
+        workspace: workspace.root,
+        mapId: map.id,
+        nodeId: node.id,
+        content,
+      });
+      setDoc(next);
+      setEditingBlockId(null);
+      setDirty(false);
+      if (current) {
+        setRedoStack((stack) => [...stack.slice(-99), current]);
+      }
+    } catch (err) {
+      setError(String(err));
+    }
+  }
+
+  async function undo() {
+    if (!doc || undoStack.length === 0) {
+      return;
+    }
+    const target = undoStack[undoStack.length - 1];
+    setUndoStack((stack) => stack.slice(0, -1));
+    await writeWhole(target.content, doc);
+  }
+
+  async function redo() {
+    if (!doc || redoStack.length === 0) {
+      return;
+    }
+    const target = redoStack[redoStack.length - 1];
+    setRedoStack((stack) => stack.slice(0, -1));
+    setUndoStack((stack) => [...stack.slice(-99), doc]);
+    await writeWhole(target.content, null);
+  }
+
+  async function copySelection() {
+    if (!doc || selection.length === 0) {
+      return;
+    }
+    const text = [...selection]
+      .sort((a, b) => a - b)
+      .map((index) => doc.blocks[index]?.text ?? "")
+      .filter(Boolean)
+      .join("\n\n");
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const textarea = window.document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      window.document.body.appendChild(textarea);
+      textarea.select();
+      window.document.execCommand("copy");
+      textarea.remove();
+    }
+  }
+
+  async function deleteSelected() {
+    if (!workspace || !map || !node || !doc || selection.length === 0) {
+      return;
+    }
+    if (!window.confirm(`删除选中的 ${selection.length} 个块？`)) {
+      return;
+    }
+    const next = await invoke<BlockDocument>("delete_blocks", {
+      workspace: workspace.root,
+      mapId: map.id,
+      nodeId: node.id,
+      blockIndices: [...selection].sort((a, b) => a - b),
+    }).catch((err) => {
+      setError(String(err));
+      return null;
+    });
+    if (!next) {
+      return;
+    }
+    resetAfterWrite(next, true);
+    setSelection([]);
+    setSelectionAnchor(null);
+  }
+
+  async function pasteMarkdown(markdown: string) {
+    if (!workspace || !map || !node || !doc || !markdown.trim()) {
+      return;
+    }
+    const at =
+      selection.length > 0 ? Math.min(...selection) : doc.blocks.length;
+    const next = await invoke<BlockDocument>("insert_blocks", {
+      workspace: workspace.root,
+      mapId: map.id,
+      nodeId: node.id,
+      atIndex: at,
+      markdown,
+    }).catch((err) => {
+      setError(String(err));
+      return null;
+    });
+    if (!next) {
+      return;
+    }
+    resetAfterWrite(next, true);
+    setSelection([]);
+    setSelectionAnchor(null);
+  }
+
+  function beginEdit(blockId: string, index: number) {
+    setSelectionAnchor(index);
+    setSelection([]);
+    setEditingBlockId(blockId);
+  }
+
+  function extendSelection(index: number) {
+    setEditingBlockId(null);
+    if (selectionAnchor === null) {
+      setSelectionAnchor(index);
+      setSelection([index]);
+      return;
+    }
+    const start = Math.min(selectionAnchor, index);
+    const end = Math.max(selectionAnchor, index);
+    setSelection(
+      Array.from({ length: end - start + 1 }, (_, offset) => start + offset),
+    );
+  }
+
+  useEffect(() => {
+    if (!active) {
+      return;
+    }
+
+    function isTyping(): boolean {
+      const element = window.document.activeElement;
+      return (
+        element instanceof HTMLTextAreaElement ||
+        element instanceof HTMLInputElement ||
+        (element instanceof HTMLElement && !!element.closest(".cm-editor"))
+      );
+    }
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape" && !isTyping()) {
+        setSelection([]);
+        setSelectionAnchor(null);
+        return;
+      }
+      if (
+        event.key === "Delete" &&
+        selection.length > 0 &&
+        !isTyping()
+      ) {
+        event.preventDefault();
+        void deleteSelected();
+        return;
+      }
+      if (!(event.ctrlKey || event.metaKey)) {
+        return;
+      }
+      const key = event.key.toLowerCase();
+      if (key === "s") {
+        event.preventDefault();
+        const element = window.document.activeElement;
+        if (element instanceof HTMLTextAreaElement) {
+          element.blur();
+        }
+        return;
+      }
+      if (isTyping()) {
+        return;
+      }
+      if (key === "z") {
+        event.preventDefault();
+        if (event.shiftKey) {
+          void redo();
+        } else {
+          void undo();
+        }
+      } else if (key === "y") {
+        event.preventDefault();
+        void redo();
+      } else if (key === "c" && selection.length > 0) {
+        event.preventDefault();
+        void copySelection();
+      } else if (key === "a") {
+        event.preventDefault();
+        if (doc) {
+          setSelectionAnchor(0);
+          setSelection(doc.blocks.map((_, index) => index));
+        }
+      }
+    }
+
+    function onPaste(event: ClipboardEvent) {
+      if (isTyping()) {
+        return;
+      }
+      const text = event.clipboardData?.getData("text/plain");
+      if (!text) {
+        return;
+      }
+      event.preventDefault();
+      void pasteMarkdown(text);
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("paste", onPaste);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("paste", onPaste);
+    };
+  });
+
+  return {
+    doc,
+    dirty,
+    saving,
+    error,
+    editingBlockId,
+    selection,
+    beginEdit,
+    extendSelection,
+    markDirty: () => setDirty(true),
+    saveBlock,
+    splitBlock,
+    mergeWithPrevious,
+    saveTextRun,
+    newBlock,
+    undo,
+    redo,
+    deleteSelected,
+    pasteMarkdown,
+    copySelection,
+    cancelEdit: () => setEditingBlockId(null),
+  };
+}
