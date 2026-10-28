@@ -1,10 +1,10 @@
 import { Extension, Node, mergeAttributes } from "@tiptap/core";
 import type { JSONContent } from "@tiptap/core";
-import { invoke } from "@tauri-apps/api/core";
 import { DOMSerializer } from "@tiptap/pm/model";
 import { importedBlocksToDocument } from "../editor/importedMarkdown";
+import { referenceService } from "../application/referenceService";
+import { documentService } from "../application/documentService";
 import type { Editor } from "@tiptap/core";
-import type { StoredBlock } from "../domain/importedDocument";
 
 export const LAYOUT_BLOCK_TYPES = [
   "paragraph",
@@ -211,15 +211,8 @@ export const ViewportBlock = Node.create({
       dom.append(head, body);
 
       const openPicker = () => {
-        void invoke<
-          Array<{
-            blockId: string;
-            documentId: string;
-            documentTitle: string;
-            blockType: string;
-            preview: string;
-          }>
-        >("list_reference_targets", { workspace: workspaceRoot })
+        void referenceService
+          .listTargets(workspaceRoot)
           .then((targets) => {
             body.replaceChildren();
             if (targets.length === 0) {
@@ -245,12 +238,13 @@ export const ViewportBlock = Node.create({
               if (!target) {
                 return;
               }
-              void invoke("relink_reference", {
-                workspace: workspaceRoot,
-                referenceId: currentReference,
-                targetDocumentId: target.documentId,
-                targetBlockId: target.blockId,
-              })
+              void referenceService
+                .relink(
+                  workspaceRoot,
+                  currentReference,
+                  target.documentId,
+                  target.blockId,
+                )
                 .then(() => load(currentReference))
                 .catch((error) => {
                   body.textContent = String(error);
@@ -283,17 +277,8 @@ export const ViewportBlock = Node.create({
           body.textContent = "未绑定引用";
           return;
         }
-        void invoke<{
-          documentTitle: string;
-          blockId: string;
-          plainText: string;
-          contentJson: string;
-          blockType: string;
-          documentId: string;
-        }>("load_reference_preview", {
-          workspace: workspaceRoot,
-          referenceId,
-        })
+        void referenceService
+          .preview(workspaceRoot, referenceId)
           .then((preview) => {
             targetBlockId = preview.blockId;
             title.textContent = preview.documentTitle;
@@ -337,19 +322,8 @@ export const ViewportBlock = Node.create({
           load(currentReference);
           return;
         }
-        void invoke<
-          Array<{
-            blockId: string;
-            documentId: string;
-            documentTitle: string;
-            blockType: string;
-            plainText: string;
-            contentJson: string;
-          }>
-        >("load_blocks_preview", {
-          workspace: workspaceRoot,
-          blockIds,
-        })
+        void documentService
+          .loadBlocksPreview(workspaceRoot, blockIds)
           .then(async (previews) => {
             if (previews.length === 0) {
               body.textContent = "选中的块不存在";
@@ -468,10 +442,8 @@ export const ViewportBlock = Node.create({
           previewEditor?.destroy();
           previewEditor = null;
           list.textContent = "加载文档…";
-          void invoke<StoredBlock[]>("load_document_blocks", {
-            workspace: workspaceRoot,
-            documentId,
-          })
+          void documentService
+            .loadBlocks(workspaceRoot, documentId)
             .then(async (blocks) => {
               if (blocks.length === 0) {
                 list.textContent = "（空文档）";
@@ -496,10 +468,8 @@ export const ViewportBlock = Node.create({
             });
         };
 
-        void invoke<Array<{ id: string; title: string }>>(
-          "list_imported_documents",
-          { workspace: workspaceRoot },
-        )
+        void documentService
+          .list(workspaceRoot)
           .then((documents) => {
             docSelect.replaceChildren();
             documents.forEach((documentInfo) => {

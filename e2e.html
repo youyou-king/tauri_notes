@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tauri Notes E2E</title>
+    <script>
+      const workspace = {
+        root: "C:\\e2e\\demo.note",
+        title: "演示知识库",
+        maps: [
+          {
+            id: "map-demo",
+            title: "演示导图",
+            root: {
+              id: "node-root",
+              title: "演示导图",
+              hasDocument: false,
+              children: [
+                { id: "node-idea", title: "测试想法", hasDocument: true, children: [] },
+              ],
+            },
+          },
+        ],
+      };
+      const mindMap = {
+        id: "map-demo",
+        title: "演示导图",
+        root: {
+          id: "map:map-demo",
+          title: "演示导图",
+          hasDocument: false,
+          documentId: null,
+          headingBlockId: null,
+          positionX: 0,
+          positionY: 0,
+          children: [
+            {
+              id: "node-idea",
+              title: "测试想法",
+              hasDocument: true,
+              documentId: "map-demo/node-idea",
+              headingBlockId: null,
+              positionX: 180,
+              positionY: 0,
+              children: [],
+            },
+          ],
+        },
+      };
+      const outline = {
+        title: "演示知识库",
+        maps: [mindMap],
+        unfiled: [],
+      };
+
+      let callbackId = 1;
+      const callbacks = new Map();
+
+      window.__TAURI_INTERNALS__ = {
+        metadata: {
+          currentWindow: { label: "main" },
+          currentWebview: { label: "main" },
+        },
+        transformCallback(callback, once) {
+          const id = callbackId++;
+          callbacks.set(id, { callback, once });
+          return id;
+        },
+        unregisterCallback(id) {
+          callbacks.delete(id);
+        },
+        convertFileSrc(path) {
+          return path;
+        },
+        async invoke(command, args) {
+          switch (command) {
+            case "take_pending_note_file":
+            case "startup_note_file":
+              return null;
+            case "demo_workspace":
+              return workspace.root;
+            case "open_note_workspace":
+            case "open_workspace":
+              return workspace;
+            case "load_outline":
+              return outline;
+            case "load_mind_map":
+              return mindMap;
+            case "list_imported_documents":
+            case "load_document_tree":
+            case "load_document_blocks":
+            case "list_boards_db":
+            case "search_blocks_db":
+              return [];
+            case "get_imported_document_title":
+              return "测试文档";
+            case "plugin:event|listen":
+              return 1;
+            case "plugin:event|unlisten":
+              return null;
+            case "plugin:window|set_title":
+              return null;
+            default:
+              return null;
+          }
+        },
+      };
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

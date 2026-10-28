@@ -1,14 +1,15 @@
 mod assets;
 mod board_import;
 mod board_store;
+mod commands;
 mod database;
 mod document;
 mod document_store;
 mod importer;
 mod map_store;
 mod references;
+mod services;
 mod sqlite;
-mod theme_store;
 mod workspace;
 
 use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
@@ -326,9 +327,9 @@ pub fn run() {
             references::load_reference_preview,
             references::list_reference_targets,
             references::relink_reference,
-            theme_store::list_custom_themes,
-            theme_store::save_custom_theme,
-            theme_store::delete_custom_theme
+            commands::theme::list_custom_themes,
+            commands::theme::save_custom_theme,
+            commands::theme::delete_custom_theme
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

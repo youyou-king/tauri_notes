@@ -1,0 +1,6 @@
+@layer theme, vendor, tokens, base, components, layout, critical;
+
+@import "dockview-react/dist/styles/dockview.css" layer(vendor);
+@import "@xyflow/react/dist/style.css" layer(vendor);
+@import "./ui/design-system/tokens/tokens.css" layer(tokens);
+@import "./styles.css" layer(components);

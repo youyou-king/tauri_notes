@@ -16,7 +16,25 @@ internal static class Setup
     [STAThread]
     private static void Main(string[] args)
     {
-        bool silent = args.Length > 0 && args[0].Equals("/S", StringComparison.OrdinalIgnoreCase);
+        bool silent = false;
+        string overrideDir = null;
+        bool noDesktop = false;
+        bool noStartMenu = false;
+        bool noAssociate = false;
+        bool noRegistry = false;
+        bool noLaunch = false;
+        bool progressTest = false;
+        foreach (string arg in args)
+        {
+            if (arg.Equals("/S", StringComparison.OrdinalIgnoreCase)) silent = true;
+            else if (arg.Equals("/PROGRESSTEST", StringComparison.OrdinalIgnoreCase)) progressTest = true;
+            else if (arg.StartsWith("/D=", StringComparison.OrdinalIgnoreCase)) overrideDir = arg.Substring(3).Trim('"');
+            else if (arg.Equals("/NODESKTOP", StringComparison.OrdinalIgnoreCase)) noDesktop = true;
+            else if (arg.Equals("/NOSTARTMENU", StringComparison.OrdinalIgnoreCase)) noStartMenu = true;
+            else if (arg.Equals("/NOASSOC", StringComparison.OrdinalIgnoreCase)) noAssociate = true;
+            else if (arg.Equals("/NOREG", StringComparison.OrdinalIgnoreCase)) noRegistry = true;
+            else if (arg.Equals("/NOLAUNCH", StringComparison.OrdinalIgnoreCase)) noLaunch = true;
+        }
         Application.EnableVisualStyles();
         try
         {
@@ -35,44 +53,104 @@ internal static class Setup
                     }
                 }
             }
-            InstallOptions options = silent
+            InstallOptions options = (silent || progressTest)
                 ? new InstallOptions
                 {
-                    Directory = defaultDir,
-                    DesktopShortcut = true,
-                    StartMenuShortcut = true,
-                    AssociateNote = true
+                    Directory = string.IsNullOrWhiteSpace(overrideDir) ? defaultDir : overrideDir,
+                    DesktopShortcut = !noDesktop,
+                    StartMenuShortcut = !noStartMenu,
+                    AssociateNote = !noAssociate,
+                    NoRegistry = noRegistry,
+                    NoLaunch = noLaunch
                 }
                 : AskOptions(defaultDir);
             if (options == null)
             {
                 return;
             }
-            string appDir = options.Directory;
-            Directory.CreateDirectory(appDir);
+            if (progressTest)
+            {
+                options.DesktopShortcut = false;
+                options.StartMenuShortcut = false;
+                options.AssociateNote = false;
+                options.NoRegistry = true;
+                options.NoLaunch = true;
+                using (InstallProgressForm form = new InstallProgressForm(options))
+                {
+                    form.ShowDialog();
+                }
+                return;
+            }
+            if (silent)
+            {
+                PerformInstall(options, null);
+                if (!noLaunch)
+                {
+                    try { Process.Start(Path.Combine(options.Directory, AppName + ".exe")); } catch { }
+                }
+            }
+            else
+            {
+                using (InstallProgressForm form = new InstallProgressForm(options))
+                {
+                    form.ShowDialog();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            if (!silent) MessageBox.Show("安装失败：\n" + ex.Message, AppName, MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private static void PerformInstall(InstallOptions options, Action<int, string> progress)
+    {
+        string appDir = options.Directory;
+        Action<int, string> report = (value, text) =>
+        {
+            if (progress != null) progress(value, text);
+        };
+
+        report(8, "准备安装目录…");
+        Directory.CreateDirectory(appDir);
+        if (!options.NoLaunch)
+        {
             foreach (Process process in Process.GetProcessesByName(AppName))
             {
                 try { process.Kill(); process.WaitForExit(3000); } catch { }
             }
-            string appPath = Path.Combine(appDir, AppName + ".exe");
-            string uninstallPath = Path.Combine(appDir, "Uninstall.exe");
-            Extract("AppExe", appPath);
-            Extract("Uninstaller", uninstallPath);
-            if (options.StartMenuShortcut)
-            {
-                CreateShortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), AppName + ".lnk"), appPath);
-            }
-            if (options.DesktopShortcut)
-            {
-                CreateShortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), AppName + ".lnk"), appPath);
-            }
-            if (options.AssociateNote)
-            {
-                using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Classes\.note")) key.SetValue("", ProgId);
-                using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Classes\" + ProgId)) key.SetValue("", "Tauri Notes Knowledge Base");
-                using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Classes\" + ProgId + @"\DefaultIcon")) key.SetValue("", "\"" + appPath + "\",0");
-                using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Classes\" + ProgId + @"\shell\open\command")) key.SetValue("", "\"" + appPath + "\" \"%1\"");
-            }
+        }
+
+        report(24, "复制应用文件…");
+        string appPath = Path.Combine(appDir, AppName + ".exe");
+        string uninstallPath = Path.Combine(appDir, "Uninstall.exe");
+        Extract("AppExe", appPath);
+
+        report(44, "写入卸载程序…");
+        Extract("Uninstaller", uninstallPath);
+
+        report(60, "创建快捷方式…");
+        if (options.StartMenuShortcut)
+        {
+            CreateShortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), AppName + ".lnk"), appPath);
+        }
+        if (options.DesktopShortcut)
+        {
+            CreateShortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), AppName + ".lnk"), appPath);
+        }
+
+        report(76, "设置 .note 文件关联…");
+        if (options.AssociateNote)
+        {
+            using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Classes\.note")) key.SetValue("", ProgId);
+            using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Classes\" + ProgId)) key.SetValue("", "Tauri Notes Knowledge Base");
+            using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Classes\" + ProgId + @"\DefaultIcon")) key.SetValue("", "\"" + appPath + "\",0");
+            using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Classes\" + ProgId + @"\shell\open\command")) key.SetValue("", "\"" + appPath + "\" \"%1\"");
+        }
+
+        report(90, "注册卸载信息…");
+        if (!options.NoRegistry)
+        {
             using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\TauriNotes"))
             {
                 key.SetValue("DisplayName", AppName);
@@ -84,13 +162,9 @@ internal static class Setup
                 key.SetValue("NoModify", 1, RegistryValueKind.DWord);
                 key.SetValue("NoRepair", 1, RegistryValueKind.DWord);
             }
-            if (!silent) MessageBox.Show("Tauri Notes 安装完成。\n\n安装位置：\n" + appDir, AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
-            try { Process.Start(appPath); } catch { }
         }
-        catch (Exception ex)
-        {
-            if (!silent) MessageBox.Show("安装失败：\n" + ex.Message, AppName, MessageBoxButtons.OK, MessageBoxIcon.Error);
-        }
+
+        report(100, "安装完成");
     }
 
     private sealed class InstallOptions
@@ -99,6 +173,8 @@ internal static class Setup
         public bool DesktopShortcut;
         public bool StartMenuShortcut;
         public bool AssociateNote;
+        public bool NoRegistry;
+        public bool NoLaunch;
     }
 
     private const int CsDropShadow = 0x00020000;
@@ -115,7 +191,7 @@ internal static class Setup
         return path;
     }
 
-    private sealed class ModernForm : Form
+    private class ModernForm : Form
     {
         protected override CreateParams CreateParams
         {
@@ -444,13 +520,21 @@ internal static class Setup
                     dialog.SelectedPath = pathBox.Text;
                     if (dialog.ShowDialog(form) == DialogResult.OK)
                     {
-                        pathBox.Text = dialog.SelectedPath;
+                        string selected = dialog.SelectedPath;
+                        string trimmed = selected.TrimEnd('\\', '/');
+                        bool alreadyNamed = string.Equals(
+                            Path.GetFileName(trimmed),
+                            "TauriNotes",
+                            StringComparison.OrdinalIgnoreCase);
+                        pathBox.Text = alreadyNamed
+                            ? selected
+                            : Path.Combine(selected, "TauriNotes");
                     }
                 }
             };
             Label directoryHint = new Label
             {
-                Text = "程序、卸载程序和快捷方式都会使用这个目录。",
+                Text = "选择目录后会自动添加 TauriNotes 子目录。",
                 AutoSize = true,
                 Location = new Point(32, 224),
                 ForeColor = muted
@@ -611,6 +695,257 @@ internal static class Setup
 
     [DllImport("user32.dll")]
     private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
+
+    private sealed class InstallProgressForm : ModernForm
+    {
+        private readonly InstallOptions options;
+        private readonly Label status;
+        private readonly Label detail;
+        private readonly Panel fill;
+        private readonly Label percent;
+        private readonly Label close;
+        private readonly Panel complete;
+        private readonly CheckBox launch;
+        private readonly Label headerTitle;
+        private readonly Label headerSubtitle;
+        private bool finished;
+
+        public InstallProgressForm(InstallOptions options)
+        {
+            this.options = options;
+            Text = "正在安装 Tauri Notes";
+            ClientSize = new Size(580, 420);
+            FormBorderStyle = FormBorderStyle.None;
+            StartPosition = FormStartPosition.CenterScreen;
+            BackColor = Color.FromArgb(246, 248, 252);
+            ForeColor = Color.FromArgb(31, 41, 55);
+            Font = new Font("Microsoft YaHei UI", 9F);
+            ShowInTaskbar = true;
+
+            Paint += delegate(object sender, PaintEventArgs e)
+            {
+                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                using (GraphicsPath border = RoundedPath(new Rectangle(0, 0, Width - 1, Height - 1), 12))
+                using (Pen pen = new Pen(Color.FromArgb(198, 209, 226), 1.2f))
+                {
+                    e.Graphics.DrawPath(pen, border);
+                }
+            };
+
+            Panel header = new Panel { Dock = DockStyle.Top, Height = 118 };
+            header.Paint += delegate(object sender, PaintEventArgs e)
+            {
+                using (LinearGradientBrush brush = new LinearGradientBrush(
+                    header.ClientRectangle,
+                    Color.FromArgb(58, 166, 255),
+                    Color.FromArgb(35, 105, 225),
+                    LinearGradientMode.Vertical))
+                {
+                    e.Graphics.FillRectangle(brush, header.ClientRectangle);
+                }
+            };
+            header.MouseDown += delegate(object sender, MouseEventArgs e)
+            {
+                if (e.Button == MouseButtons.Left)
+                {
+                    ReleaseCapture();
+                    SendMessage(Handle, 0xA1, (IntPtr)0x2, IntPtr.Zero);
+                }
+            };
+
+            headerTitle = new Label
+            {
+                Text = "正在安装 Tauri Notes",
+                AutoSize = true,
+                Location = new Point(32, 28),
+                Font = new Font("Microsoft YaHei UI", 17F, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.Transparent
+            };
+            headerSubtitle = new Label
+            {
+                Text = "请稍候，安装即将完成",
+                AutoSize = true,
+                Location = new Point(34, 66),
+                ForeColor = Color.FromArgb(225, 238, 255),
+                BackColor = Color.Transparent
+            };
+            header.Controls.Add(headerTitle);
+            header.Controls.Add(headerSubtitle);
+
+            Panel body = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(246, 248, 252) };
+            status = new Label
+            {
+                Text = "准备安装…",
+                AutoSize = false,
+                Location = new Point(32, 20),
+                Size = new Size(500, 28),
+                Font = new Font("Microsoft YaHei UI", 14F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(31, 41, 55)
+            };
+            detail = new Label
+            {
+                Text = "正在准备安装环境",
+                AutoSize = false,
+                Location = new Point(34, 54),
+                Size = new Size(500, 22),
+                ForeColor = Color.FromArgb(107, 114, 128)
+            };
+            Panel track = new Panel
+            {
+                Location = new Point(32, 92),
+                Size = new Size(516, 12),
+                BackColor = Color.FromArgb(224, 231, 242)
+            };
+            fill = new Panel
+            {
+                Location = new Point(0, 0),
+                Size = new Size(0, 12),
+                BackColor = Color.FromArgb(47, 140, 255)
+            };
+            track.Controls.Add(fill);
+            percent = new Label
+            {
+                Text = "0%",
+                AutoSize = true,
+                Location = new Point(32, 112),
+                ForeColor = Color.FromArgb(107, 114, 128),
+                Font = new Font("Microsoft YaHei UI", 9F)
+            };
+
+            complete = new Panel
+            {
+                Location = new Point(32, 150),
+                Size = new Size(516, 100),
+                Visible = false,
+                BackColor = Color.Transparent
+            };
+            Label check = new Label
+            {
+                Text = "✓",
+                AutoSize = true,
+                Location = new Point(0, 4),
+                Font = new Font("Segoe UI", 24F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(52, 168, 83)
+            };
+            Label installPath = new Label
+            {
+                Text = "安装位置：" + options.Directory,
+                AutoEllipsis = true,
+                Location = new Point(52, 12),
+                Size = new Size(440, 22),
+                ForeColor = Color.FromArgb(107, 114, 128),
+                Font = new Font("Microsoft YaHei UI", 8.5F)
+            };
+            launch = new CheckBox
+            {
+                Text = "立即启动 Tauri Notes",
+                Checked = true,
+                AutoSize = true,
+                Location = new Point(52, 46),
+                ForeColor = Color.FromArgb(31, 41, 55),
+                FlatStyle = FlatStyle.Flat
+            };
+            Button finish = new Button
+            {
+                Text = "完成",
+                Location = new Point(410, 62),
+                Size = new Size(86, 32),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(47, 140, 255),
+                ForeColor = Color.White,
+                Font = new Font("Microsoft YaHei UI", 9F, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            finish.FlatAppearance.BorderSize = 0;
+            finish.Click += delegate
+            {
+                if (launch.Checked)
+                {
+                    try { Process.Start(Path.Combine(options.Directory, AppName + ".exe")); } catch { }
+                }
+                Close();
+            };
+            complete.Controls.Add(check);
+            complete.Controls.Add(installPath);
+            complete.Controls.Add(launch);
+            complete.Controls.Add(finish);
+
+            body.Controls.Add(status);
+            body.Controls.Add(detail);
+            body.Controls.Add(track);
+            body.Controls.Add(percent);
+            body.Controls.Add(complete);
+
+            close = new Label
+            {
+                Text = "✕",
+                Location = new Point(542, 10),
+                Size = new Size(28, 28),
+                TextAlign = ContentAlignment.MiddleCenter,
+                BackColor = Color.Transparent,
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 11F),
+                Cursor = Cursors.Hand,
+                Visible = false
+            };
+            close.Click += delegate { Close(); };
+            header.Controls.Add(close);
+
+            Controls.Add(body);
+            Controls.Add(header);
+            Shown += delegate { StartInstall(); };
+        }
+
+        private void StartInstall()
+        {
+            try
+            {
+                PerformInstall(options, delegate(int value, string text)
+                {
+                    status.Text = text;
+                    detail.Text = value >= 100 ? "准备完成" : "正在执行安装步骤";
+                    fill.Width = Math.Max(0, Math.Min(516, 516 * value / 100));
+                    percent.Text = value + "%";
+                    Application.DoEvents();
+                    System.Threading.Thread.Sleep(120);
+                });
+                finished = true;
+                fill.BackColor = Color.FromArgb(52, 168, 83);
+                percent.Text = "100%";
+                Text = "安装完成";
+                headerTitle.Text = "安装完成";
+                headerSubtitle.Text = "Tauri Notes 已成功安装";
+                status.Text = "安装完成";
+                detail.Text = "Tauri Notes 已成功安装。";
+                complete.Visible = true;
+                close.Visible = true;
+            }
+            catch (Exception ex)
+            {
+                finished = true;
+                fill.BackColor = Color.FromArgb(220, 76, 84);
+                fill.Width = 516;
+                Text = "安装失败";
+                headerTitle.Text = "安装失败";
+                headerSubtitle.Text = "请检查错误信息后重试";
+                status.Text = "安装失败";
+                detail.Text = ex.Message;
+                detail.ForeColor = Color.FromArgb(220, 76, 84);
+                close.Visible = true;
+            }
+        }
+
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            if (!finished && e.CloseReason == CloseReason.UserClosing)
+            {
+                e.Cancel = true;
+                return;
+            }
+            base.OnFormClosing(e);
+        }
+    }
 
     private static void Extract(string resourceName, string target)
     {

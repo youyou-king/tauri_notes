@@ -23,6 +23,12 @@ jobs:
       - name: TypeScript and unit tests
         run: npm run check
 
+      - name: Rust unit tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml --lib
+
+      - name: E2E smoke tests
+        run: npm run e2e
+
       - name: Frontend build
         run: npm run build
 

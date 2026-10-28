@@ -23,9 +23,8 @@ fn valid_id(id: &str) -> bool {
             .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
 }
 
-#[tauri::command]
-pub fn list_custom_themes(app: AppHandle) -> Result<Vec<String>, String> {
-    let dir = themes_dir(&app)?;
+pub fn list(app: &AppHandle) -> Result<Vec<String>, String> {
+    let dir = themes_dir(app)?;
     let mut themes = Vec::new();
     for entry in fs::read_dir(&dir).map_err(|error| error.to_string())? {
         let entry = entry.map_err(|error| error.to_string())?;
@@ -41,30 +40,46 @@ pub fn list_custom_themes(app: AppHandle) -> Result<Vec<String>, String> {
     Ok(themes)
 }
 
-#[tauri::command]
-pub fn save_custom_theme(
-    app: AppHandle,
-    id: String,
-    json: String,
-) -> Result<(), String> {
-    if !valid_id(&id) {
+pub fn save(app: &AppHandle, id: &str, json: &str) -> Result<(), String> {
+    if !valid_id(id) {
         return Err("非法主题 id".to_string());
     }
     if json.is_empty() || json.len() > 64 * 1024 {
         return Err("主题内容为空或过大".to_string());
     }
-    let path = themes_dir(&app)?.join(format!("{id}.theme.json"));
+    let path = themes_dir(app)?.join(format!("{id}.theme.json"));
     fs::write(path, json).map_err(|error| format!("保存主题失败：{error}"))
 }
 
-#[tauri::command]
-pub fn delete_custom_theme(app: AppHandle, id: String) -> Result<(), String> {
-    if !valid_id(&id) {
+pub fn delete(app: &AppHandle, id: &str) -> Result<(), String> {
+    if !valid_id(id) {
         return Err("非法主题 id".to_string());
     }
-    let path = themes_dir(&app)?.join(format!("{id}.theme.json"));
+    let path = themes_dir(app)?.join(format!("{id}.theme.json"));
     if path.exists() {
         fs::remove_file(path).map_err(|error| format!("删除主题失败：{error}"))?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::valid_id;
+
+    #[test]
+    fn accepts_safe_theme_ids() {
+        assert!(valid_id("ocean"));
+        assert!(valid_id("my-theme-2"));
+        assert!(valid_id("A1"));
+    }
+
+    #[test]
+    fn rejects_path_and_empty_ids() {
+        assert!(!valid_id(""));
+        assert!(!valid_id("../ocean"));
+        assert!(!valid_id("ocean/blue"));
+        assert!(!valid_id("ocean.theme"));
+        assert!(!valid_id("主题"));
+        assert!(!valid_id(&"a".repeat(65)));
+    }
 }
