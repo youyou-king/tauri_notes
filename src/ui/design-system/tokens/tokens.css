@@ -38,19 +38,19 @@
   :root[data-theme="light"] {
     --danger: #b4232f;
     --success: #2f7d4f;
-    --map-canvas-bg: #f4f6fa;
-    --map-dot: #d5dce8;
+    --map-canvas-bg: #f8f8f5;
+    --map-dot: #dcdcd5;
     --map-control-bg: #ffffff;
-    --map-control-hover: #eef2f8;
+    --map-control-hover: #f1f1ed;
     --map-minimap-bg: #ffffff;
-    --map-minimap-mask: rgba(244, 246, 250, 0.72);
-    --map-edge: #b9c6dc;
+    --map-minimap-mask: rgba(248, 248, 245, 0.72);
+    --map-edge: #c9c9c1;
     --map-node-bg: #ffffff;
-    --map-node-bg-selected: #eaf0ff;
-    --map-root-bg: #eef2fa;
-    --map-node-border: #cfd8e6;
-    --map-root-border: #b9c6dc;
-    --map-node-border-selected: #3b6cf6;
-    --map-node-text: #242932;
+    --map-node-bg-selected: #eef1ff;
+    --map-root-bg: #f4f4f0;
+    --map-node-border: #deded7;
+    --map-root-border: #c9c9c1;
+    --map-node-border-selected: #4d6bfe;
+    --map-node-text: #24241f;
   }
 }

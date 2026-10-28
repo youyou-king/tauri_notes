@@ -15,7 +15,7 @@ test("loads the demo workspace and switches theme", async ({ page }) => {
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await expect(page.locator(".mind-map-flow")).toHaveCSS(
     "background-color",
-    "rgb(244, 246, 250)",
+    "rgb(248, 248, 245)",
   );
 
   await page.getByRole("button", { name: /主题/ }).click();

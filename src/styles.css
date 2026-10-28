@@ -5,10 +5,12 @@
   --bg-hover: #262c38;
   --border: #2a2f3a;
   --text: #e8eaf0;
-  --heading: var(--heading);
+  --heading: #f2f4f8;
   --muted: #8b93a3;
   --accent: #7aa2ff;
   --accent-soft: rgba(122, 162, 255, 0.14);
+  --brand-mark-bg: linear-gradient(135deg, #7aa2ff, #b18cff);
+  --brand-mark-text: #0d1016;
   --code-font: "JetBrains Mono", "Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   --code-size: 13.5px;
   --code-line-height: 1.7;
@@ -33,21 +35,23 @@
 }
 
 :root[data-theme="light"] {
-  --bg: #f5f6f8;
-  --bg-panel: #ffffff;
-  --bg-elevated: #eef1f5;
-  --bg-hover: #e6eaf1;
-  --border: #d7dce5;
-  --text: #242932;
-  --heading: #151a22;
-  --muted: #667085;
-  --accent: #3b6cf6;
-  --accent-soft: rgba(59, 108, 246, 0.1);
-  --code-bg: #f1f3f7;
-  --code-border: rgba(15, 23, 42, 0.08);
-  --code-text: #24292f;
-  --scroll-thumb: #c3cad6;
-  --scroll-thumb-hover: #aab3c2;
+  --bg: #f2f2ef;
+  --bg-panel: #fbfbfa;
+  --bg-elevated: #ffffff;
+  --bg-hover: #ecece8;
+  --border: #e5e5e0;
+  --text: #292924;
+  --heading: #151513;
+  --muted: #74746d;
+  --accent: #4d6bfe;
+  --accent-soft: #eef1ff;
+  --brand-mark-bg: #171715;
+  --brand-mark-text: #ffffff;
+  --code-bg: #f6f6f2;
+  --code-border: rgba(24, 24, 20, 0.08);
+  --code-text: #292924;
+  --scroll-thumb: #d2d2cb;
+  --scroll-thumb-hover: #b9b9b0;
   --code-keyword: #8250df;
   --code-string: #0a7d45;
   --code-number: #b45309;
@@ -122,8 +126,8 @@ button {
   width: 24px;
   height: 24px;
   border-radius: 7px;
-  background: linear-gradient(135deg, #7aa2ff, #b18cff);
-  color: #0d1016;
+  background: var(--brand-mark-bg);
+  color: var(--brand-mark-text);
   font-weight: 800;
 }
 
@@ -383,6 +387,7 @@ button {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+  background: var(--bg-panel);
 }
 
 .document-header {
@@ -1565,7 +1570,7 @@ button {
   grid-template-rows: auto auto minmax(0, 1fr);
   height: 100%;
   min-height: 0;
-  background: var(--bg);
+  background: var(--bg-panel);
 }
 
 .block-prototype-header {
@@ -3521,4 +3526,124 @@ button {
   gap: 4px;
   padding: 10px;
   overflow: auto;
+}
+
+/* Light theme: warm, near-neutral palette inspired by DeepSeek Harness. */
+:root[data-theme="light"] .toolbar {
+  background: var(--bg-panel);
+  border-bottom-color: var(--border);
+}
+
+:root[data-theme="light"] .brand {
+  color: var(--heading);
+}
+
+:root[data-theme="light"] .toolbar-actions button {
+  color: var(--muted);
+}
+
+:root[data-theme="light"] .toolbar-actions button:hover {
+  background: var(--bg-hover);
+  color: var(--heading);
+}
+
+:root[data-theme="light"] .backend {
+  color: var(--muted);
+}
+
+:root[data-theme="light"] .backend.online {
+  color: var(--success);
+}
+
+:root[data-theme="light"] .tree-row {
+  color: var(--muted);
+}
+
+:root[data-theme="light"] .tree-row:hover {
+  background: var(--bg-hover);
+  color: var(--heading);
+}
+
+:root[data-theme="light"] .tree-row.selected {
+  background: var(--bg-hover);
+  color: var(--heading);
+  font-weight: 600;
+}
+
+:root[data-theme="light"] .tree-row.root {
+  color: var(--heading);
+}
+
+:root[data-theme="light"] .outline-root.selected {
+  background: transparent;
+}
+
+:root[data-theme="light"] .outline-map-row.selected {
+  background: var(--bg-hover);
+}
+
+:root[data-theme="light"] .panel-shell {
+  background: var(--bg-panel);
+}
+
+:root[data-theme="light"] .outline-panel {
+  background: var(--bg);
+}
+
+:root[data-theme="light"] .board-backdrop {
+  background: rgba(24, 24, 20, 0.32);
+}
+
+:root[data-theme="light"] .board-window {
+  background: var(--bg-panel);
+  box-shadow: 0 24px 70px rgba(30, 30, 24, 0.16);
+}
+
+:root[data-theme="light"] .dockview-theme-light {
+  --dv-group-view-background-color: var(--bg-panel);
+  --dv-tabs-and-actions-container-background-color: var(--bg);
+  --dv-activegroup-visiblepanel-tab-background-color: var(--bg-panel);
+  --dv-activegroup-hiddenpanel-tab-background-color: var(--bg);
+  --dv-inactivegroup-visiblepanel-tab-background-color: var(--bg-panel);
+  --dv-inactivegroup-hiddenpanel-tab-background-color: var(--bg);
+  --dv-tab-divider-color: var(--border);
+  --dv-activegroup-visiblepanel-tab-color: var(--heading);
+  --dv-activegroup-hiddenpanel-tab-color: var(--muted);
+  --dv-inactivegroup-visiblepanel-tab-color: var(--text);
+  --dv-inactivegroup-hiddenpanel-tab-color: var(--muted);
+  --dv-separator-border: var(--border);
+  --dv-icon-hover-background-color: var(--bg-hover);
+  --dv-active-sash-color: var(--border);
+}
+
+:root[data-theme="light"] .dock-workspace .dv-tabs-and-actions-container {
+  height: 38px;
+  border-bottom: 1px solid var(--border);
+}
+
+:root[data-theme="light"] .dock-workspace .dv-tab {
+  padding: 0 12px;
+  border-right: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+:root[data-theme="light"] .dock-workspace .dv-tab.dv-active-tab {
+  background: transparent;
+  color: var(--heading);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+:root[data-theme="light"] .dock-workspace .dv-tabs-container .dv-tab:not(:first-child)::before {
+  display: none;
+}
+
+:root[data-theme="light"] .workspace-tab-close {
+  color: var(--muted);
+}
+
+:root[data-theme="light"] .workspace-tab-close:hover {
+  background: var(--bg-hover);
+  color: var(--heading);
 }

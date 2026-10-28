@@ -8,6 +8,7 @@ import {
 import {
   DockviewReact,
   themeAbyss,
+  themeLight,
   type DockviewApi,
   type DockviewReadyEvent,
 } from "dockview-react";
@@ -33,6 +34,7 @@ import {
 import type { BoardController } from "../ui/board/useBoardController";
 import type { MapView, NodeView, WorkspaceView } from "../types";
 import { findNode } from "../domain/tree";
+import { useTheme } from "../ui/theme/ThemeProvider";
 
 export const DOCK_LAYOUT_KEY = "tauri-notes.dock-layout.v21";
 
@@ -141,6 +143,8 @@ export default forwardRef<
   },
   ref,
 ) {
+  const { resolved } = useTheme();
+  const dockTheme = resolved === "light" ? themeLight : themeAbyss;
   const apiRef = useRef<DockviewApi | null>(null);
   const pendingOpen = useRef<{
     mapId: string;
@@ -613,7 +617,7 @@ export default forwardRef<
     <PanelContext.Provider value={contextValue}>
       <DockviewReact
         className="dock-workspace"
-        theme={themeAbyss}
+        theme={dockTheme}
         components={components}
         defaultTabComponent={WorkspaceTab}
         onReady={onReady}

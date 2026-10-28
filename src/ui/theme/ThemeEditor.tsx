@@ -16,6 +16,25 @@ const DEFAULTS: Record<string, string> = {
   "--map-node-border": "#344056",
 };
 
+const LIGHT_DEFAULTS: Record<string, string> = {
+  "--bg": "#f2f2ef",
+  "--bg-panel": "#fbfbfa",
+  "--bg-elevated": "#ffffff",
+  "--bg-hover": "#ecece8",
+  "--border": "#e5e5e0",
+  "--text": "#292924",
+  "--muted": "#74746d",
+  "--accent": "#4d6bfe",
+  "--map-canvas-bg": "#f8f8f5",
+  "--map-node-bg": "#ffffff",
+  "--map-node-text": "#24241f",
+  "--map-node-border": "#deded7",
+};
+
+function defaultsFor(base: "dark" | "light"): Record<string, string> {
+  return base === "light" ? LIGHT_DEFAULTS : DEFAULTS;
+}
+
 const FIELDS: Array<{ key: string; label: string }> = [
   { key: "--bg", label: "应用背景" },
   { key: "--bg-panel", label: "面板背景" },
@@ -56,13 +75,12 @@ export function ThemeEditor({
   initial?: ThemeManifest;
   onClose: () => void;
 }) {
-  const { importTheme } = useTheme();
+  const { importTheme, resolved } = useTheme();
+  const initialBase = initial?.base ?? resolved;
   const [name, setName] = useState(initial?.name ?? "我的主题");
-  const [base, setBase] = useState<"dark" | "light">(
-    initial?.base ?? "dark",
-  );
+  const [base, setBase] = useState<"dark" | "light">(initialBase);
   const [tokens, setTokens] = useState<Record<string, string>>({
-    ...DEFAULTS,
+    ...defaultsFor(initialBase),
     ...(initial?.tokens ?? {}),
   });
   const [error, setError] = useState<string | null>(null);
@@ -120,9 +138,13 @@ export function ThemeEditor({
               基础模式
               <select
                 value={base}
-                onChange={(event) =>
-                  setBase(event.target.value as "dark" | "light")
-                }
+                onChange={(event) => {
+                  const next = event.target.value as "dark" | "light";
+                  setBase(next);
+                  if (!initial) {
+                    setTokens({ ...defaultsFor(next) });
+                  }
+                }}
               >
                 <option value="dark">深色</option>
                 <option value="light">浅色</option>
@@ -133,7 +155,9 @@ export function ThemeEditor({
                 {field.label}
                 <input
                   type="color"
-                  value={toHex(tokens[field.key] ?? DEFAULTS[field.key])}
+                  value={toHex(
+                    tokens[field.key] ?? defaultsFor(base)[field.key],
+                  )}
                   onChange={(event) =>
                     update(field.key, event.target.value)
                   }
