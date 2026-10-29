@@ -45,6 +45,16 @@
               positionY: 0,
               children: [],
             },
+            {
+              id: "node-heading",
+              title: "测试标题",
+              hasDocument: false,
+              documentId: null,
+              headingBlockId: "block_heading",
+              positionX: 180,
+              positionY: 140,
+              children: [],
+            },
           ],
         },
       };
@@ -54,8 +64,19 @@
         unfiled: [],
       };
 
+      // E2E starts from a mocked workspace. Real first launch stays empty.
+      window.localStorage.setItem(
+        "tauri-notes.session.v1",
+        JSON.stringify({
+          version: 1,
+          roots: [workspace.root],
+          activeRoot: workspace.root,
+        }),
+      );
+
       let callbackId = 1;
       const callbacks = new Map();
+      window.__E2E_CALLS__ = [];
 
       window.__TAURI_INTERNALS__ = {
         metadata: {
@@ -74,12 +95,13 @@
           return path;
         },
         async invoke(command, args) {
+          window.__E2E_CALLS__.push(command);
           switch (command) {
             case "take_pending_note_file":
             case "startup_note_file":
               return null;
-            case "demo_workspace":
-              return workspace.root;
+            case "help_note_path":
+              return "C:\\e2e\\help.note";
             case "open_note_workspace":
             case "open_workspace":
               return workspace;
@@ -89,10 +111,98 @@
               return mindMap;
             case "list_imported_documents":
             case "load_document_tree":
-            case "load_document_blocks":
             case "list_boards_db":
             case "search_blocks_db":
               return [];
+            case "load_document_blocks":
+              return [
+                {
+                  id: "block_demo",
+                  documentId: "map-demo/node-idea",
+                  blockType: "paragraph",
+                  orderKey: "00000000",
+                  widthSpan: 12,
+                  heightMode: "auto",
+                  heightPx: null,
+                  contentJson: JSON.stringify({
+                    type: "paragraph",
+                    content: [{ type: "text", text: "用于插入视图的示例内容" }],
+                  }),
+                  plainText: "用于插入视图的示例内容",
+                },
+                {
+                  id: "block_demo_2",
+                  documentId: "map-demo/node-idea",
+                  blockType: "paragraph",
+                  orderKey: "00000001",
+                  widthSpan: 12,
+                  heightMode: "auto",
+                  heightPx: null,
+                  contentJson: JSON.stringify({
+                    type: "paragraph",
+                    content: [{ type: "text", text: "第二段示例内容" }],
+                  }),
+                  plainText: "第二段示例内容",
+                },
+                {
+                  id: "block_heading",
+                  documentId: "map-demo/node-idea",
+                  blockType: "heading:1",
+                  orderKey: "00000002",
+                  widthSpan: 12,
+                  heightMode: "auto",
+                  heightPx: null,
+                  contentJson: JSON.stringify({
+                    type: "heading",
+                    attrs: { level: 1 },
+                    content: [{ type: "text", text: "测试标题" }],
+                  }),
+                  plainText: "测试标题",
+                },
+              ];
+            case "create_document_for_map_node":
+              return {
+                id: args.nodeId,
+                title: "测试标题",
+                hasDocument: true,
+                documentId: "map-demo/heading-doc",
+                headingBlockId: "block_heading",
+                positionX: 180,
+                positionY: 140,
+                children: [],
+              };
+            case "set_map_node_position":
+              return null;
+            case "load_blocks_preview": {
+              const previews = [
+                {
+                  blockId: "block_demo",
+                  documentId: "map-demo/node-idea",
+                  documentTitle: "测试文档",
+                  blockType: "paragraph",
+                  contentJson: JSON.stringify({
+                    type: "paragraph",
+                    content: [{ type: "text", text: "用于插入视图的示例内容" }],
+                  }),
+                  plainText: "用于插入视图的示例内容",
+                },
+                {
+                  blockId: "block_demo_2",
+                  documentId: "map-demo/node-idea",
+                  documentTitle: "测试文档",
+                  blockType: "paragraph",
+                  contentJson: JSON.stringify({
+                    type: "paragraph",
+                    content: [{ type: "text", text: "第二段示例内容" }],
+                  }),
+                  plainText: "第二段示例内容",
+                },
+              ];
+              const requested = Array.isArray(args.blockIds) ? args.blockIds : [];
+              return previews.filter((preview) =>
+                requested.includes(preview.blockId),
+              );
+            }
             case "get_imported_document_title":
               return "测试文档";
             case "plugin:event|listen":

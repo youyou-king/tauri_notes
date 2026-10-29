@@ -19,7 +19,6 @@ export type PanelContextValue = {
   activeMap: MapView | null;
   activePanelId: string | null;
   selected: NodeView | null;
-  logs: string[];
   openDocument: (mapId: string, nodeId: string, title?: string) => void;
   openBlockDocument: (
     documentId: string,

@@ -38,12 +38,12 @@ export const workspaceService = {
     );
   },
 
-  demo(): Promise<string> {
-    return command("demo_workspace");
-  },
-
   takePendingNoteFile(): Promise<string | null> {
     return command("take_pending_note_file");
+  },
+
+  helpPath(): Promise<string> {
+    return command("help_note_path");
   },
 
   registerNoteAssociation(): Promise<void> {

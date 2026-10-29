@@ -41,7 +41,7 @@ type Args = {
   setError: (message: string | null) => void;
   setBackend: (message: string) => void;
   appendLog: (line: string) => void;
-  confirmDiscard: () => boolean;
+  confirmDiscard: () => Promise<boolean>;
   dockRef: RefObject<DockWorkspaceHandle | null>;
 };
 
@@ -53,6 +53,10 @@ async function defaultNotePath(): Promise<string> {
     return join(lastDirectory, "未命名.note");
   }
   return join(await appDataDir(), "knowledge", "未命名.note");
+}
+
+function isDemoRoot(root: string): boolean {
+  return /(^|[\\/])sample\.notes[\\/]*$/i.test(root.trim());
 }
 
 export function useWorkspaceOpen({
@@ -89,7 +93,7 @@ export function useWorkspaceOpen({
   }
 
   async function openWorkspacePath(picked: string) {
-    if (!confirmDiscard()) {
+    if (!(await confirmDiscard())) {
       return;
     }
     setBusy(true);
@@ -186,7 +190,7 @@ export function useWorkspaceOpen({
   }
 
   async function openWorkspace() {
-    if (!confirmDiscard()) {
+    if (!(await confirmDiscard())) {
       return;
     }
     setError(null);
@@ -216,7 +220,8 @@ export function useWorkspaceOpen({
     if (!session) {
       return false;
     }
-    const { roots, activeRoot } = session;
+    const { activeRoot } = session;
+    const roots = session.roots.filter((root) => !isDemoRoot(root));
     const views: WorkspaceView[] = [];
     for (const root of roots) {
       try {
@@ -236,9 +241,20 @@ export function useWorkspaceOpen({
     setSelected(active?.maps[0]?.root ?? null);
     if (views.length === 0) {
       dockRef.current?.resetLayout();
+      return false;
     }
     appendLog("恢复上次知识库会话");
     return true;
+  }
+
+  async function openHelp() {
+    setError(null);
+    try {
+      const path = await workspaceService.helpPath();
+      await openWorkspacePath(path);
+    } catch (err) {
+      setError(String(err));
+    }
   }
 
   async function openOnlyWorkspace(path: string) {
@@ -250,29 +266,13 @@ export function useWorkspaceOpen({
     await openWorkspacePath(path);
   }
 
-  async function openDemo() {
-    if (!confirmDiscard()) {
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      const path = await workspaceService.demo();
-      await openWorkspacePath(path);
-    } catch (err) {
-      setError(String(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return {
     backupLibrary,
     openWorkspacePath,
     createKnowledgeBase,
     openWorkspace,
+    openHelp,
     restoreSession,
     openOnlyWorkspace,
-    openDemo,
   };
 }

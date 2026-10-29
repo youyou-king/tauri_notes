@@ -1,10 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Windows.Forms;
 using Microsoft.Win32;
 
@@ -12,16 +14,115 @@ internal static class Setup
 {
     private const string AppName = "Tauri Notes";
     private const string ProgId = "TauriNotes.note";
+    private static readonly object LogLock = new object();
+    private static string logPath = "";
+    private static readonly string fallbackLogPath =
+        Path.Combine(Path.GetTempPath(), "TauriNotes-install.log");
+
+    private static string LogPath
+    {
+        get
+        {
+            return string.IsNullOrEmpty(logPath) ? fallbackLogPath : logPath;
+        }
+    }
+
+    internal static void SetLogTarget(string appDir)
+    {
+        try
+        {
+            Directory.CreateDirectory(appDir);
+            string candidate = Path.Combine(appDir, "install.log");
+            using (FileStream probe = new FileStream(
+                candidate,
+                FileMode.Append,
+                FileAccess.Write,
+                FileShare.Read))
+            {
+                probe.Flush();
+            }
+            string previous = logPath;
+            logPath = candidate;
+            if (!string.IsNullOrEmpty(previous)
+                && !string.Equals(previous, candidate, StringComparison.OrdinalIgnoreCase)
+                && File.Exists(previous))
+            {
+                try
+                {
+                    File.AppendAllText(candidate, File.ReadAllText(previous));
+                    File.Delete(previous);
+                }
+                catch
+                {
+                    // Keep writing to the install directory even if the old log cannot be moved.
+                }
+            }
+        }
+        catch
+        {
+            logPath = fallbackLogPath;
+        }
+    }
+
+    internal static void Log(string message)
+    {
+        try
+        {
+            lock (LogLock)
+            {
+                File.AppendAllText(
+                    LogPath,
+                    DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff") + " " + message + Environment.NewLine);
+            }
+        }
+        catch
+        {
+            // The installer must never fail because logging failed.
+        }
+    }
+
+    internal static void LogException(string context, Exception exception)
+    {
+        Log(context + ": " + exception);
+    }
 
     [STAThread]
     private static void Main(string[] args)
     {
+        Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+        Application.ThreadException += delegate(object sender, ThreadExceptionEventArgs eventArgs)
+        {
+            LogException("UI thread exception", eventArgs.Exception);
+            MessageBox.Show(
+                "安装程序遇到错误：\n" + eventArgs.Exception.Message + "\n\n日志：" + LogPath,
+                AppName,
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
+        };
+        AppDomain.CurrentDomain.UnhandledException += delegate(object sender, UnhandledExceptionEventArgs eventArgs)
+        {
+            Exception exception = eventArgs.ExceptionObject as Exception;
+            LogException("Unhandled exception", exception ?? new Exception("unknown exception"));
+        };
+        Log("Setup starting: " + string.Join(" ", args));
+        bool createdNew;
+        using (Mutex mutex = new Mutex(true, @"Global\TauriNotesSetup", out createdNew))
+        {
+            if (!createdNew)
+            {
+                MessageBox.Show("安装程序已经在运行。", AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            Run(args);
+        }
+    }
+
+    private static void Run(string[] args)
+    {
         bool silent = false;
         string overrideDir = null;
         bool noDesktop = false;
-        bool noStartMenu = false;
         bool noAssociate = false;
-        bool noRegistry = false;
         bool noLaunch = false;
         bool progressTest = false;
         foreach (string arg in args)
@@ -30,9 +131,7 @@ internal static class Setup
             else if (arg.Equals("/PROGRESSTEST", StringComparison.OrdinalIgnoreCase)) progressTest = true;
             else if (arg.StartsWith("/D=", StringComparison.OrdinalIgnoreCase)) overrideDir = arg.Substring(3).Trim('"');
             else if (arg.Equals("/NODESKTOP", StringComparison.OrdinalIgnoreCase)) noDesktop = true;
-            else if (arg.Equals("/NOSTARTMENU", StringComparison.OrdinalIgnoreCase)) noStartMenu = true;
             else if (arg.Equals("/NOASSOC", StringComparison.OrdinalIgnoreCase)) noAssociate = true;
-            else if (arg.Equals("/NOREG", StringComparison.OrdinalIgnoreCase)) noRegistry = true;
             else if (arg.Equals("/NOLAUNCH", StringComparison.OrdinalIgnoreCase)) noLaunch = true;
         }
         Application.EnableVisualStyles();
@@ -41,26 +140,12 @@ internal static class Setup
             string defaultDir = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
                 "TauriNotes");
-            using (RegistryKey existing = Registry.CurrentUser.OpenSubKey(
-                @"Software\Microsoft\Windows\CurrentVersion\Uninstall\TauriNotes"))
-            {
-                if (existing != null)
-                {
-                    string location = existing.GetValue("InstallLocation") as string;
-                    if (!string.IsNullOrWhiteSpace(location))
-                    {
-                        defaultDir = location;
-                    }
-                }
-            }
             InstallOptions options = (silent || progressTest)
                 ? new InstallOptions
                 {
                     Directory = string.IsNullOrWhiteSpace(overrideDir) ? defaultDir : overrideDir,
                     DesktopShortcut = !noDesktop,
-                    StartMenuShortcut = !noStartMenu,
                     AssociateNote = !noAssociate,
-                    NoRegistry = noRegistry,
                     NoLaunch = noLaunch
                 }
                 : AskOptions(defaultDir);
@@ -71,9 +156,7 @@ internal static class Setup
             if (progressTest)
             {
                 options.DesktopShortcut = false;
-                options.StartMenuShortcut = false;
                 options.AssociateNote = false;
-                options.NoRegistry = true;
                 options.NoLaunch = true;
                 using (InstallProgressForm form = new InstallProgressForm(options))
                 {
@@ -99,82 +182,350 @@ internal static class Setup
         }
         catch (Exception ex)
         {
-            if (!silent) MessageBox.Show("安装失败：\n" + ex.Message, AppName, MessageBoxButtons.OK, MessageBoxIcon.Error);
+            LogException("Setup failed", ex);
+            if (!silent)
+            {
+                MessageBox.Show(
+                    "安装失败：\n" + ex.Message + "\n\n请把日志发给开发者：\n" + LogPath,
+                    AppName,
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
         }
     }
 
     private static void PerformInstall(InstallOptions options, Action<int, string> progress)
     {
-        string appDir = options.Directory;
+        string appDir = Path.GetFullPath(options.Directory);
+        string appPath = Path.Combine(appDir, AppName + ".exe");
+        string uninstallPath = Path.Combine(appDir, "Uninstall.exe");
+        string helpPath = Path.Combine(appDir, "help.note");
+        string staging = Path.Combine(
+            appDir,
+            ".install-tmp-" + Guid.NewGuid().ToString("N"));
         Action<int, string> report = (value, text) =>
         {
             if (progress != null) progress(value, text);
         };
 
-        report(8, "准备安装目录…");
+        Log("Install started. Target=" + appDir);
+        SetLogTarget(appDir);
+        Log("Log file: " + LogPath);
+        try
+        {
+            report(5, "检查安装目录…");
+            EnsureDirectoryWritable(appDir);
+            CleanupInstallArtifacts(appDir);
+            Directory.CreateDirectory(staging);
+            string stagedApp = Path.Combine(staging, AppName + ".exe");
+            string stagedUninstaller = Path.Combine(staging, "Uninstall.exe");
+            string stagedHelp = Path.Combine(staging, "help.note");
+            Extract("AppExe", stagedApp);
+            Extract("Uninstaller", stagedUninstaller);
+            Extract("HelpNote", stagedHelp);
+            EnsureStagedFile(stagedApp);
+            EnsureStagedFile(stagedUninstaller);
+            EnsureStagedFile(stagedHelp);
+
+            report(15, "检查磁盘空间…");
+            uint freeSpace = GetFreeSpace(appDir);
+            long required = new FileInfo(stagedApp).Length
+                + new FileInfo(stagedUninstaller).Length
+                + new FileInfo(stagedHelp).Length;
+            if (freeSpace > 0 && freeSpace < (ulong)(required * 2))
+            {
+                throw new IOException("安装目录所在磁盘空间不足。");
+            }
+
+            report(22, "关闭正在运行的 Tauri Notes…");
+            StopRunningApp(appDir);
+
+            report(28, "复制应用文件…");
+            InstallFile(stagedApp, appPath);
+            report(42, "写入卸载程序…");
+            InstallFile(stagedUninstaller, uninstallPath);
+            report(52, "写入使用帮助…");
+            InstallFile(stagedHelp, helpPath);
+
+            report(60, "创建桌面快捷方式…");
+            if (options.DesktopShortcut)
+            {
+                TryOptional("创建桌面快捷方式", delegate
+                {
+                    CreateShortcut(
+                        Path.Combine(
+                            Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
+                            AppName + ".lnk"),
+                        appPath);
+                }, options.Warnings);
+            }
+
+            report(76, "设置 .note 文件关联…");
+            if (options.AssociateNote)
+            {
+                TryOptional("设置 .note 文件关联", delegate
+                {
+                    using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Classes\.note")) key.SetValue("", ProgId);
+                    using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Classes\" + ProgId)) key.SetValue("", "Tauri Notes Knowledge Base");
+                    using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Classes\" + ProgId + @"\DefaultIcon")) key.SetValue("", "\"" + appPath + "\",0");
+                    using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Classes\" + ProgId + @"\shell\open\command")) key.SetValue("", "\"" + appPath + "\" \"%1\"");
+                }, options.Warnings);
+            }
+
+            report(90, "完成安装…");
+            RemoveLegacyUninstallEntry();
+
+            report(100, "安装完成");
+            Log("Install completed. Warnings=" + options.Warnings.Count);
+        }
+        catch (Exception ex)
+        {
+            LogException("Install failed", ex);
+            throw;
+        }
+        finally
+        {
+            TryDeleteDirectory(staging);
+        }
+    }
+
+    private static void EnsureStagedFile(string path)
+    {
+        if (!File.Exists(path))
+        {
+            throw new IOException("安装资源不完整：" + Path.GetFileName(path));
+        }
+        if (new FileInfo(path).Length == 0)
+        {
+            throw new IOException("安装资源为空：" + Path.GetFileName(path));
+        }
+    }
+
+    private static void EnsureDirectoryWritable(string appDir)
+    {
         Directory.CreateDirectory(appDir);
-        if (!options.NoLaunch)
+        string probe = Path.Combine(
+            appDir,
+            ".tauri-notes-write-" + Guid.NewGuid().ToString("N"));
+        try
         {
-            foreach (Process process in Process.GetProcessesByName(AppName))
+            using (FileStream stream = new FileStream(
+                probe,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.None))
             {
-                try { process.Kill(); process.WaitForExit(3000); } catch { }
+                stream.WriteByte(1);
             }
         }
-
-        report(24, "复制应用文件…");
-        string appPath = Path.Combine(appDir, AppName + ".exe");
-        string uninstallPath = Path.Combine(appDir, "Uninstall.exe");
-        Extract("AppExe", appPath);
-
-        report(44, "写入卸载程序…");
-        Extract("Uninstaller", uninstallPath);
-
-        report(60, "创建快捷方式…");
-        if (options.StartMenuShortcut)
+        catch (Exception ex)
         {
-            CreateShortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), AppName + ".lnk"), appPath);
+            throw new IOException(
+                "无法写入安装目录：" + appDir + "\n请换一个目录，或检查杀毒软件/受控文件夹访问。",
+                ex);
         }
-        if (options.DesktopShortcut)
+        finally
         {
-            CreateShortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), AppName + ".lnk"), appPath);
+            TryDelete(probe);
         }
+    }
 
-        report(76, "设置 .note 文件关联…");
-        if (options.AssociateNote)
+    private static void CleanupInstallArtifacts(string appDir)
+    {
+        try
         {
-            using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Classes\.note")) key.SetValue("", ProgId);
-            using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Classes\" + ProgId)) key.SetValue("", "Tauri Notes Knowledge Base");
-            using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Classes\" + ProgId + @"\DefaultIcon")) key.SetValue("", "\"" + appPath + "\",0");
-            using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Classes\" + ProgId + @"\shell\open\command")) key.SetValue("", "\"" + appPath + "\" \"%1\"");
-        }
-
-        report(90, "注册卸载信息…");
-        if (!options.NoRegistry)
-        {
-            using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\TauriNotes"))
+            foreach (string directory in Directory.GetDirectories(appDir, ".install-tmp-*"))
             {
-                key.SetValue("DisplayName", AppName);
-                key.SetValue("DisplayVersion", "0.1.0");
-                key.SetValue("Publisher", "Tauri Notes");
-                key.SetValue("InstallLocation", appDir);
-                key.SetValue("DisplayIcon", appPath);
-                key.SetValue("UninstallString", "\"" + uninstallPath + "\"");
-                key.SetValue("NoModify", 1, RegistryValueKind.DWord);
-                key.SetValue("NoRepair", 1, RegistryValueKind.DWord);
+                TryDeleteDirectory(directory);
+            }
+            foreach (string file in Directory.GetFiles(appDir, "*.installing-*"))
+            {
+                TryDelete(file);
+            }
+            foreach (string file in Directory.GetFiles(appDir, "*.backup-*"))
+            {
+                TryDelete(file);
             }
         }
+        catch
+        {
+            // Old artifacts must not block a fresh install.
+        }
+    }
 
-        report(100, "安装完成");
+    private static void RemoveLegacyUninstallEntry()
+    {
+        try
+        {
+            Registry.CurrentUser.DeleteSubKeyTree(
+                @"Software\Microsoft\Windows\CurrentVersion\Uninstall\TauriNotes",
+                false);
+            Log("Removed legacy uninstall registry entry");
+        }
+        catch
+        {
+            // The key may not exist or may be read-only.
+        }
+    }
+
+    private static uint GetFreeSpace(string path)
+    {
+        try
+        {
+            string root = Path.GetPathRoot(Path.GetFullPath(path));
+            if (string.IsNullOrEmpty(root))
+            {
+                return 0;
+            }
+            return new DriveInfo(root).AvailableFreeSpace > uint.MaxValue
+                ? uint.MaxValue
+                : (uint)new DriveInfo(root).AvailableFreeSpace;
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
+    private static void StopRunningApp(string appDir)
+    {
+        string expected = Path.GetFullPath(Path.Combine(appDir, AppName + ".exe"));
+        foreach (Process process in Process.GetProcesses())
+        {
+            if (process.Id == Process.GetCurrentProcess().Id)
+            {
+                continue;
+            }
+            string name = "";
+            string image = "";
+            try
+            {
+                name = process.ProcessName;
+                image = process.MainModule == null ? "" : process.MainModule.FileName;
+            }
+            catch
+            {
+                // Access can be denied for elevated or protected processes.
+            }
+            bool matchesName = name.Equals(AppName, StringComparison.OrdinalIgnoreCase)
+                || name.Equals("tauri-notes", StringComparison.OrdinalIgnoreCase);
+            bool matchesPath = !string.IsNullOrEmpty(image)
+                && string.Equals(Path.GetFullPath(image), expected, StringComparison.OrdinalIgnoreCase);
+            if (!matchesName && !matchesPath)
+            {
+                continue;
+            }
+            try
+            {
+                Log("Stopping running process: " + process.Id + " " + name + " " + image);
+                process.Kill();
+                process.WaitForExit(5000);
+            }
+            catch (Exception ex)
+            {
+                LogException("Could not stop running process " + process.Id, ex);
+            }
+        }
+    }
+
+    private static void InstallFile(string stagedPath, string targetPath)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(targetPath));
+        Exception last = null;
+        for (int attempt = 1; attempt <= 3; attempt += 1)
+        {
+            string temporary = targetPath + ".installing-" + Guid.NewGuid().ToString("N");
+            try
+            {
+                File.Copy(stagedPath, temporary, true);
+                if (File.Exists(targetPath))
+                {
+                    File.SetAttributes(targetPath, FileAttributes.Normal);
+                    string backup = targetPath + ".backup-" + Guid.NewGuid().ToString("N");
+                    try
+                    {
+                        File.Replace(temporary, targetPath, backup, true);
+                    }
+                    finally
+                    {
+                        TryDelete(backup);
+                    }
+                }
+                else
+                {
+                    File.Move(temporary, targetPath);
+                }
+                Log("Installed file: " + targetPath);
+                return;
+            }
+            catch (Exception ex)
+            {
+                last = ex;
+                TryDelete(temporary);
+                LogException("Install file attempt " + attempt + " failed: " + targetPath, ex);
+                if (attempt == 1)
+                {
+                    StopRunningApp(Path.GetDirectoryName(targetPath));
+                }
+                Thread.Sleep(300 * attempt);
+            }
+        }
+        throw new IOException(
+            "无法写入文件：" + targetPath + "\n请关闭 Tauri Notes 后重试，或检查杀毒软件是否拦截。",
+            last);
+    }
+
+    private static void TryOptional(string name, Action action, System.Collections.Generic.List<string> warnings)
+    {
+        try
+        {
+            action();
+        }
+        catch (Exception ex)
+        {
+            LogException(name + " failed", ex);
+            warnings.Add(name + "：" + ex.Message);
+        }
+    }
+
+    private static void TryDelete(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+            {
+                File.SetAttributes(path, FileAttributes.Normal);
+                File.Delete(path);
+            }
+        }
+        catch
+        {
+            // Best effort cleanup.
+        }
+    }
+
+    private static void TryDeleteDirectory(string path)
+    {
+        try
+        {
+            if (Directory.Exists(path))
+            {
+                Directory.Delete(path, true);
+            }
+        }
+        catch
+        {
+            // Best effort cleanup.
+        }
     }
 
     private sealed class InstallOptions
     {
         public string Directory;
         public bool DesktopShortcut;
-        public bool StartMenuShortcut;
         public bool AssociateNote;
-        public bool NoRegistry;
         public bool NoLaunch;
+        public List<string> Warnings = new List<string>();
     }
 
     private const int CsDropShadow = 0x00020000;
@@ -556,15 +907,6 @@ internal static class Setup
                 ForeColor = dark,
                 FlatStyle = FlatStyle.Flat
             };
-            CheckBox startMenu = new CheckBox
-            {
-                Text = "创建开始菜单快捷方式",
-                Checked = false,
-                AutoSize = true,
-                Location = new Point(250, 288),
-                ForeColor = dark,
-                FlatStyle = FlatStyle.Flat
-            };
             CheckBox associate = new CheckBox
             {
                 Text = "将 .note 文件关联到 Tauri Notes",
@@ -610,7 +952,6 @@ internal static class Setup
             detailPage.Controls.Add(directoryHint);
             detailPage.Controls.Add(optionsTitle);
             detailPage.Controls.Add(desktop);
-            detailPage.Controls.Add(startMenu);
             detailPage.Controls.Add(associate);
             detailPage.Controls.Add(install);
 
@@ -620,7 +961,6 @@ internal static class Setup
                 {
                     Directory = defaultDir,
                     DesktopShortcut = false,
-                    StartMenuShortcut = false,
                     AssociateNote = true
                 };
                 form.DialogResult = DialogResult.OK;
@@ -655,11 +995,23 @@ internal static class Setup
                         MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
+                try
+                {
+                    EnsureDirectoryWritable(target);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(form,
+                        "这个目录现在不能写入，请换一个目录。\n\n" + ex.Message,
+                        "Tauri Notes 安装",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                    return;
+                }
                 result = new InstallOptions
                 {
                     Directory = target,
                     DesktopShortcut = desktop.Checked,
-                    StartMenuShortcut = startMenu.Checked,
                     AssociateNote = associate.Checked
                 };
                 form.DialogResult = DialogResult.OK;
@@ -700,7 +1052,7 @@ internal static class Setup
     {
         private readonly InstallOptions options;
         private readonly Label status;
-        private readonly Label detail;
+        private readonly TextBox detail;
         private readonly Panel fill;
         private readonly Label percent;
         private readonly Label close;
@@ -714,7 +1066,7 @@ internal static class Setup
         {
             this.options = options;
             Text = "正在安装 Tauri Notes";
-            ClientSize = new Size(580, 420);
+            ClientSize = new Size(580, 470);
             FormBorderStyle = FormBorderStyle.None;
             StartPosition = FormStartPosition.CenterScreen;
             BackColor = Color.FromArgb(246, 248, 252);
@@ -783,17 +1135,23 @@ internal static class Setup
                 Font = new Font("Microsoft YaHei UI", 14F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(31, 41, 55)
             };
-            detail = new Label
+            detail = new TextBox
             {
                 Text = "正在准备安装环境",
-                AutoSize = false,
                 Location = new Point(34, 54),
-                Size = new Size(500, 22),
-                ForeColor = Color.FromArgb(107, 114, 128)
+                Size = new Size(500, 66),
+                Multiline = true,
+                ReadOnly = true,
+                WordWrap = true,
+                ScrollBars = ScrollBars.None,
+                BorderStyle = BorderStyle.None,
+                BackColor = Color.FromArgb(246, 248, 252),
+                ForeColor = Color.FromArgb(107, 114, 128),
+                TabStop = false
             };
             Panel track = new Panel
             {
-                Location = new Point(32, 92),
+                Location = new Point(32, 130),
                 Size = new Size(516, 12),
                 BackColor = Color.FromArgb(224, 231, 242)
             };
@@ -808,14 +1166,14 @@ internal static class Setup
             {
                 Text = "0%",
                 AutoSize = true,
-                Location = new Point(32, 112),
+                Location = new Point(32, 150),
                 ForeColor = Color.FromArgb(107, 114, 128),
                 Font = new Font("Microsoft YaHei UI", 9F)
             };
 
             complete = new Panel
             {
-                Location = new Point(32, 150),
+                Location = new Point(32, 188),
                 Size = new Size(516, 100),
                 Visible = false,
                 BackColor = Color.Transparent
@@ -899,41 +1257,94 @@ internal static class Setup
 
         private void StartInstall()
         {
+            Thread worker = new Thread(delegate()
+            {
+                try
+                {
+                    PerformInstall(options, delegate(int value, string text)
+                    {
+                        PostToUi(delegate { UpdateProgress(value, text); });
+                    });
+                    PostToUi(delegate { CompleteInstall(); });
+                }
+                catch (Exception ex)
+                {
+                    LogException("Installer worker failed", ex);
+                    PostToUi(delegate { FailInstall(ex); });
+                }
+            });
+            worker.IsBackground = true;
+            worker.Name = "TauriNotesSetupWorker";
+            worker.Start();
+        }
+
+        private void PostToUi(Action action)
+        {
             try
             {
-                PerformInstall(options, delegate(int value, string text)
+                if (!IsDisposed && IsHandleCreated)
                 {
-                    status.Text = text;
-                    detail.Text = value >= 100 ? "准备完成" : "正在执行安装步骤";
-                    fill.Width = Math.Max(0, Math.Min(516, 516 * value / 100));
-                    percent.Text = value + "%";
-                    Application.DoEvents();
-                    System.Threading.Thread.Sleep(120);
-                });
-                finished = true;
-                fill.BackColor = Color.FromArgb(52, 168, 83);
-                percent.Text = "100%";
-                Text = "安装完成";
-                headerTitle.Text = "安装完成";
-                headerSubtitle.Text = "Tauri Notes 已成功安装";
-                status.Text = "安装完成";
-                detail.Text = "Tauri Notes 已成功安装。";
-                complete.Visible = true;
-                close.Visible = true;
+                    BeginInvoke(action);
+                }
             }
             catch (Exception ex)
             {
-                finished = true;
-                fill.BackColor = Color.FromArgb(220, 76, 84);
-                fill.Width = 516;
-                Text = "安装失败";
-                headerTitle.Text = "安装失败";
-                headerSubtitle.Text = "请检查错误信息后重试";
-                status.Text = "安装失败";
-                detail.Text = ex.Message;
-                detail.ForeColor = Color.FromArgb(220, 76, 84);
-                close.Visible = true;
+                LogException("Could not marshal installer progress", ex);
             }
+        }
+
+        private void UpdateProgress(int value, string text)
+        {
+            if (finished || IsDisposed)
+            {
+                return;
+            }
+            status.Text = text;
+            detail.ScrollBars = ScrollBars.None;
+            detail.Text = value >= 100 ? "准备完成" : "正在执行安装步骤";
+            fill.Width = Math.Max(0, Math.Min(516, 516 * value / 100));
+            percent.Text = value + "%";
+        }
+
+        private void CompleteInstall()
+        {
+            finished = true;
+            fill.BackColor = Color.FromArgb(52, 168, 83);
+            percent.Text = "100%";
+            Text = "安装完成";
+            headerTitle.Text = "安装完成";
+            headerSubtitle.Text = "Tauri Notes 已成功安装";
+            status.Text = "安装完成";
+            detail.ScrollBars = ScrollBars.None;
+            detail.Text = options.Warnings.Count == 0
+                ? "Tauri Notes 已成功安装。"
+                : "安装完成，但有警告：" + options.Warnings[0];
+            detail.ForeColor = options.Warnings.Count == 0
+                ? Color.FromArgb(107, 114, 128)
+                : Color.FromArgb(183, 121, 31);
+            complete.Visible = true;
+            close.Visible = true;
+            Log("Installer UI completed. Warnings=" + options.Warnings.Count);
+        }
+
+        private void FailInstall(Exception ex)
+        {
+            finished = true;
+            fill.BackColor = Color.FromArgb(220, 76, 84);
+            fill.Width = 516;
+            Text = "安装失败";
+            headerTitle.Text = "安装失败";
+            headerSubtitle.Text = "请检查错误信息后重试";
+            status.Text = "安装失败";
+            string message = ex.Message + "（日志：" + LogPath + "）";
+            detail.ScrollBars = message.Length > 110
+                ? ScrollBars.Vertical
+                : ScrollBars.None;
+            detail.Text = message;
+            detail.SelectionStart = 0;
+            detail.SelectionLength = 0;
+            detail.ForeColor = Color.FromArgb(220, 76, 84);
+            close.Visible = true;
         }
 
         protected override void OnFormClosing(FormClosingEventArgs e)

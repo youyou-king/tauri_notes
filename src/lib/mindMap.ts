@@ -30,7 +30,7 @@ export function buildMindMap(
   function place(node: MindMapNode, depth: number, isRoot = false): number {
     const width = nodeWidth(node, isRoot);
     const childCenters = node.children.map((child) => place(child, depth + 1));
-    const manual = !isRoot && node.positionY !== 0;
+    const manual = node.positionX !== 0 || node.positionY !== 0;
 
     let center: number;
     let x: number;
@@ -48,14 +48,14 @@ export function buildMindMap(
       x = node.positionX;
       center = x + width / 2;
     }
-    if (isRoot) {
+    if (isRoot && !manual) {
       center =
         childCenters.length > 0
           ? (childCenters[0] + childCenters[childCenters.length - 1]) / 2
           : 0;
       x = center - width / 2;
     }
-    const y = isRoot ? 0 : manual ? node.positionY : depth * Y_GAP;
+    const y = manual ? node.positionY : isRoot ? 0 : depth * Y_GAP;
 
     nodes.push({
       id: node.id,
@@ -71,7 +71,7 @@ export function buildMindMap(
         onRename,
       },
       type: "mindMap",
-      draggable: !isRoot,
+      draggable: true,
       style: {
         width,
         padding: "10px 12px",

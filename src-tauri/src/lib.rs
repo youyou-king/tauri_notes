@@ -162,35 +162,26 @@ fn unregister_note_association() -> Result<(), String> {
     }
 }
 
+
 #[tauri::command]
-fn get_process_integrity_level() -> u32 {
-    #[cfg(windows)]
-    {
-        if is_restricted_process() {
-            0x1000
-        } else {
-            0x2000
+fn help_note_path() -> Result<String, String> {
+    let mut candidates = Vec::new();
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            candidates.push(dir.join("help.note"));
         }
     }
-    #[cfg(not(windows))]
-    {
-        0x2000
+    candidates.push(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("help.note"),
+    );
+    for candidate in candidates {
+        if candidate.is_file() {
+            return Ok(candidate.to_string_lossy().into_owned());
+        }
     }
-}
-
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Tauri 后端已连接：{name}")
-}
-
-#[tauri::command]
-fn demo_workspace() -> Result<String, String> {
-    let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("..")
-        .join("sample.notes");
-    path.canonicalize()
-        .map(|path| path.to_string_lossy().into_owned())
-        .map_err(|error| format!("找不到示例知识库 {}: {error}", path.display()))
+    Err("未找到帮助知识库 help.note".into())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -227,14 +218,11 @@ pub fn run() {
                 queue_note_path(path);
             }
             let profile = if cfg!(debug_assertions) { "dev" } else { "release" };
-            let data_dir = app
-                .path()
-                .app_local_data_dir()
+            let data_dir = std::env::current_exe()
                 .ok()
-                .map(|dir| dir.join("webview2").join(profile))
-                .filter(|dir| {
-                    std::fs::create_dir_all(dir).is_ok()
-                })
+                .and_then(|exe| exe.parent().map(|dir| dir.to_path_buf()))
+                .map(|dir| dir.join("cache").join("webview2").join(profile))
+                .filter(|dir| std::fs::create_dir_all(dir).is_ok())
                 .unwrap_or_else(|| {
                     std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                         .join("..")
@@ -267,13 +255,10 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            greet,
-            startup_note_file,
             take_pending_note_file,
             register_note_association,
             unregister_note_association,
-            get_process_integrity_level,
-            demo_workspace,
+            help_note_path,
             workspace::open_workspace,
             workspace::create_note_file,
             workspace::open_note_workspace,

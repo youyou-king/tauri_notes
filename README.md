@@ -1,31 +1,34 @@
 # Tauri Notes
 
-Tauri 2 + React 19 的导图式 Markdown 知识库。
+Tauri 2 + React 19 的本地优先 Markdown 知识库。
 
-> **架构状态（2026-10-23）**：Phase A 已完成，编辑区已替换为
-> **CodeMirror 6 整篇单一文本缓冲区**；Phase B 初版已接入标题、加粗、斜体、
-> 行内代码、引用、代码围栏和列表标记的 Decoration。
-> 旧 `VirtualDocument / BlockEditor / TextRunEditor` 已归档到 `src/legacy/`，不参与构建。
->
-> 新方案见 [`../设计文档/迁移方案.md`](../设计文档/迁移方案.md)。
+## 当前架构
 
-完整架构见 [`../设计文档/迁移方案.md`](../设计文档/迁移方案.md)。
+- `.note` 单文件知识库：SQLite + WAL；
+- 块级 Markdown 文档：Tiptap / ProseMirror 编辑，前端按块虚拟化；
+- Dockview 面板：大纲、文档、导图、对照板、控制台、文档库；
+- React Flow 导图；
+- SQLite 搜索；
+- 深色 / 浅色 / 跟随系统 / 自定义主题；
+- Windows 安装器、卸载器和 `.note` 文件关联。
+
+架构说明：
+
+- [`../设计文档/架构重构方案.md`](../设计文档/架构重构方案.md)
+- [`../设计文档/迁移方案.md`](../设计文档/迁移方案.md)
 
 ## 技术栈
 
 - Tauri 2 + Rust
 - React 19 + TypeScript
 - Vite 6
-- 编辑器目标：CodeMirror 6（整篇 Markdown，Decoration WYSIWYG）
-- 停靠：dockview；导图：React Flow；搜索：SQLite FTS5 + jieba
+- Tiptap / ProseMirror
+- Dockview
+- React Flow
+- SQLite / sqlx
+- Zustand
 
 ## 运行
-
-前置：
-
-- Node.js 18+（Vite 6）
-- Rust stable / nightly（Tauri 2）
-- Windows 需要 WebView2 Runtime
 
 ```powershell
 cd tauri_notes
@@ -33,147 +36,90 @@ npm install
 npm run tauri dev
 ```
 
-只跑前端：
+首次启动不自动打开示例知识库；无知识库时显示空工作区，可通过“知识库”菜单新建或打开。带 `.note` 参数启动时会直接打开该文件。
+
+顶部“帮助”按钮会打开内置 `help.note` 使用帮助知识库。
+
+只运行前端：
 
 ```powershell
 npm run dev
 ```
 
-验证：
+开发版和正式版都不请求管理员权限。
+
+## 验证
+
+```powershell
+npm run check        # TypeScript + 36 个前端单元测试
+npm run e2e          # 18 个 Playwright E2E / 视觉回归
+cd src-tauri
+cargo test --lib     # 20 个 Rust 单元测试
+```
+
+完整验证和打包：
 
 ```powershell
 npm run build
-cd src-tauri
-cargo test
+npm run tauri build -- --no-bundle
+powershell -File scripts/build-installer.ps1
+powershell -File scripts/verify-installer.ps1
 ```
 
-> 如果在别的受限环境里 WebView2 仍报 `拒绝访问`，
-> 检查项目内 `.webview2/` 是否可写；应用已显式把 WebView2 数据目录放在项目内。
-
-## 示例
-
-项目自带一个演示工作区：
-
-```text
-tauri_notes/sample.notes/
-```
-
-软件启动时默认自动打开这个示例；也可以点“打开知识库”选择其他目录。
-
-![Phase 2 只读块虚拟列表](screenshot-demo.png)
-
-![React Flow 导图](screenshot-flow-final.png)
-
-![多面板停靠](screenshot-docking.png)
-
-## 当前功能
-
-> 以下描述的是**过渡原型**；编辑区将按 CodeMirror 6 方案替换，dockview/导图/搜索/数据层保留。
-
-- 打开 `.notes` 目录；
-- 读取 `meta.json / maps.json / <map>/tree.json`；
-- 左栏渲染节点树；
-- 点击有文档的节点，按需读取 `<map>/docs/<node>.md`；
-- Rust 命令：
-  - `open_workspace(path)`；
-  - `read_document(workspace, mapId, nodeId)`；
-  - `index_document(workspace, mapId, nodeId)`：返回 Block 列表；
-- 前端：
-  - 默认 **三栏独立 Pane**：大纲（左）/ 文档（中）/ 导图+控制台标签（右）；
-  - 每个 Pane 可独立包含多个标签；右侧 Pane 同时有“导图 / 控制台”两个标签；
-  - 每个文档面板独立加载自己的 `.md`；
-  - 打开新文档默认在右侧分裂新文档面板；相同文档已打开时聚焦已有面板；
-  - “新建文档”/“新建导图”分别创建独立文档/导图面板；
-  - 导图面板可同时存在多个，互不复用；
-  - 拖拽标签可合并到其他 Pane，或拖到边缘生成新的分割 Pane；
-  - Windows 下使用 pointer 拖拽策略，并关闭 Tauri 原生拖放拦截；
-  - 每个文档面板有独立选区、撤销/重做栈、脏状态；
-  - dockview 布局写入 `localStorage`，重启恢复；“重置面板”可清空；
-  - `React Flow` 导图：树状自动布局、缩放/平移、点击节点回文档；
-  - `Ctrl+P` 搜索面板：标题 + 正文，键盘上下选择、Enter 打开；
-  - `VirtualBlockList`（TanStack Virtual）：只挂载可见块；
-  - 标题/段落/列表/引用/代码/表格/分割线只读渲染；
-  - 代码块编辑使用 CodeMirror 6（行号、历史、行内快捷键、IME、语言高亮）；
-  - 只读代码块使用 CodeMirror 只读实例，与编辑态共享同一 theme 和语言高亮；
-  - 按围栏语言动态加载：Rust / JS / TS / JSX / TSX / Python / JSON / HTML / CSS / Markdown；
-  - 连续普通段落合并为一个 `TextRunEditor` 连续编辑区；
-  - Enter 在连续文本区内新建普通段落，Shift+Enter 同一段内软换行；
-  - 列表/引用：Shift+Enter 续写 `- ` 或 `> `；Enter 拆出新的普通文本块；
-  - 编辑块自动增高，内容变多会推开下面的块，不出现内部滚动条；
-  - 上下箭头在块首/块尾时跨块移动；行首 Backspace 合并上一块；
-  - 文档末尾始终有“+ 新建块”，点击即可开始输入新段落；
-  - Shift+点击跨块选择，`Ctrl+C` 复制为 Markdown，`Ctrl+A` 全选，`Esc` 清空选择；
-  - 选中后 `Delete` 删除块，`Ctrl+V` 在选中位置粘贴 Markdown；
-  - 点击块进入 `textarea` 源码编辑；
-  - 失焦 / Ctrl+Enter 保存，Esc 取消；
-  - composition 期间不提交，避免中文 IME 被打断；
-- 保存：
-  - `save_block` 按块范围替换 Markdown，重新切块，返回新索引；
-  - `split_block` 在光标处拆分当前块；
-  - 新块为空时只存在于编辑器，输入内容后才写入 Markdown；
-  - 写临时文件、备份旧版本、`MoveFileEx` 原子替换；
-- 撤销/重做：
-  - 前端 BlockDocument 快照栈；
-  - `Ctrl+Z` / `Ctrl+Shift+Z` / `Ctrl+Y`；
-  - 撤销写回整篇 Markdown；
-- 脏状态：
-  - 每个面板独立脏状态，dockview 标签标题前缀 `•`；
-  - 保存后清除；
-  - 关闭窗口、切换节点、切换导图、打开另一知识库前按脏面板数量确认；
-- Rust 测试：11 个通过（路径安全 + 工作区读取 + 块切分 + 保存/备份/整篇回写）。
-
-## 目录
+## 主要目录
 
 ```text
 tauri_notes/
-├── src/                 # React 外壳
-│   ├── App.tsx
-│   ├── main.tsx
-│   └── styles.css
+├── src/
+│   ├── app/                 # 工具栏、导航、工作区用例、文档事件
+│   ├── application/         # 服务、端口、Zustand store
+│   ├── components/          # DockWorkspace、导图、搜索
+│   ├── domain/              # 文档、块、对照板领域模型
+│   ├── infrastructure/      # Tauri IPC / 仓储
+│   ├── prototype/           # 生产使用的块编辑器扩展
+│   ├── ui/                  # 面板、主题、设计系统、导入预览
+│   └── styles.css           # 组件与主题样式
 ├── src-tauri/
-│   ├── src/lib.rs       # Tauri 入口 + 命令注册
-│   ├── src/workspace.rs # .notes 读取
-│   ├── capabilities/
-│   ├── icons/
-│   └── tauri.conf.json
-├── index.html
-├── package.json
-└── vite.config.ts
+│   ├── admin.manifest       # requireAdministrator 清单
+│   ├── src/commands/        # Tauri 命令入口
+│   ├── src/services/        # 应用服务
+│   └── src/*_store.rs       # SQLite 仓储
+├── help.note                # 内置使用帮助知识库
+├── e2e/                     # Playwright 冒烟与视觉回归
+├── installer/custom/        # 安装器 / 卸载器 C# 源码
+└── scripts/                 # 构建与验证脚本
 ```
 
-## 编辑快捷键
+## 编辑器
 
-- `Ctrl/Cmd + B`：切换加粗（再按取消）；
-- `Ctrl/Cmd + I`：切换斜体（再按取消）；
-- `Ctrl/Cmd + K`：插入链接；
-- `Ctrl/Cmd + Alt + 1..6`：切换标题级别（再按取消）；
-- `Ctrl/Cmd + Alt + 0`：清除标题；
-- `Ctrl/Cmd + S`：立即保存；
-- 代码围栏按语言高亮：Rust / JS / TS / Python / JSON / HTML / CSS，语言包按需加载。
+- 文档按块虚拟化，只挂载视口附近的块；
+- 标题、段落、列表、引用、代码、表格、分割线；
+- 代码块按语言高亮；
+- 支持 Markdown 导入、图片资源、块引用；
+- 文档面板独立脏状态和保存流程；
+- 格式工具栏可插入跨文档视图：面板复用大纲文档，按住左键拖动多选引用段落；
+- 快捷键、搜索和面板布局可通过命令注册表扩展。
 
-## 当前边界
+## 主题
 
-- 撤销是整篇文档快照，不是字符级操作；
-- 编辑期间没有自动保存计时器，失焦/Ctrl+Enter 保存；
-- 还没有跨块拖拽；
-- 代码块高亮只覆盖常见语言，未支持的语言保持纯文本；
-- 关闭单个文档面板时还没有未保存确认（关窗口有聚合确认）；
-- 列表/引用编辑时仍显示 Markdown 标记；
-- 表格、任务列表的 Enter 语义还未细分；
-- 默认控制台在右栏标签中；拖到下方可生成底部控制台 Pane；
-- 搜索目前是 Rust 逐文件扫描，不是 FTS5/jieba 索引；
-- 导图还没有手动拖动节点/持久化位置；
+- 设计 token：`src/ui/design-system/tokens/tokens.css`；
+- CSS Cascade Layers：`theme < vendor < tokens < base < components < layout < critical`；
+- 浅色主题采用暖中性色，Dockview 会随主题切换；
+- 自定义主题通过主题编辑器导入、导出和保存。
 
-## 下一步
+## 安装包
 
-Phase A/B 已完成基础连续编辑与装饰层。继续：
+- 自定义 WinForms 安装器，支持选择目录、桌面快捷方式、`.note` 关联；
+- 安装 / 卸载过程显示窗口内实时进度；
+- 选择目录后自动追加 `TauriNotes`；
+- 安装器、应用和卸载器使用 `asInvoker`，不需要管理员权限；
+- 应用设置、自定义主题和 WebView2 缓存保存在安装目录的 `data` / `cache`；
+- 默认不写 Windows 应用列表的卸载注册表项；
+- 卸载器清理程序、设置、缓存、日志和用户勾选过的系统集成，保留 `.note` 文件；
+- 构建前需要先生成 release 应用。
 
-1. Phase C：更多输入边界测试；
-2. Phase D：notify 文件监听替换轮询、批量 I/O、FTS5 + jieba；
-3. Phase E：主题 Compartment、性能验收、清理旧 Block 组件。
+产物：
 
-## 与 Bevy 版本的关系
-
-- `bevy_block_editor` 保留为参考实现，不再开发；
-- 可复用的 Rust 领域逻辑会逐步迁移到 `src-tauri`；
-- 不复用 Bevy UI/停靠/渲染。
+```text
+../Tauri Notes Setup.exe
+```

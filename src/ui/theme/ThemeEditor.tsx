@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Dialog } from "../dialog/Dialog";
 import { useTheme, type ThemeManifest } from "./ThemeProvider";
 
 const DEFAULTS: Record<string, string> = {
@@ -106,114 +107,101 @@ export function ThemeEditor({
   }
 
   return (
-    <div
-      className="theme-editor-backdrop"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) {
-          onClose();
-        }
-      }}
-    >
-      <section className="theme-editor" data-part="theme-editor">
-        <header>
-          <div>
-            <h2>{initial ? "编辑主题" : "新建主题"}</h2>
-            <p>只改变颜色，不影响布局和功能。</p>
-          </div>
-          <button type="button" onClick={onClose} title="关闭">
-            ×
-          </button>
-        </header>
-
-        <div className="theme-editor-body">
-          <div className="theme-editor-fields">
-            <label>
-              主题名称
-              <input
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-              />
-            </label>
-            <label>
-              基础模式
-              <select
-                value={base}
-                onChange={(event) => {
-                  const next = event.target.value as "dark" | "light";
-                  setBase(next);
-                  if (!initial) {
-                    setTokens({ ...defaultsFor(next) });
-                  }
-                }}
-              >
-                <option value="dark">深色</option>
-                <option value="light">浅色</option>
-              </select>
-            </label>
-            {FIELDS.map((field) => (
-              <label key={field.key} className="theme-color-field">
-                {field.label}
-                <input
-                  type="color"
-                  value={toHex(
-                    tokens[field.key] ?? defaultsFor(base)[field.key],
-                  )}
-                  onChange={(event) =>
-                    update(field.key, event.target.value)
-                  }
-                />
-              </label>
-            ))}
-            {error && <div className="theme-error">{error}</div>}
-          </div>
-
-          <div
-            className="theme-preview"
-            style={{
-              background: tokens["--bg"],
-              color: tokens["--text"],
-              borderColor: tokens["--border"],
-            }}
-          >
-            <div
-              className="theme-preview-panel"
-              style={{
-                background: tokens["--bg-panel"],
-                borderColor: tokens["--border"],
-              }}
-            >
-              <div
-                className="theme-preview-tab"
-                style={{ color: tokens["--accent"] }}
-              >
-                知识库
-              </div>
-              <div
-                className="theme-preview-node"
-                style={{
-                  background: tokens["--map-node-bg"],
-                  color: tokens["--map-node-text"],
-                  borderColor: tokens["--map-node-border"],
-                }}
-              >
-                主题预览
-              </div>
-              <div style={{ color: tokens["--muted"] }}>
-                次要文字 · 边框 · 强调色
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <footer>
+    <Dialog
+      title={initial ? "编辑主题" : "新建主题"}
+      description="只改变颜色，不影响布局和功能。"
+      onClose={onClose}
+      width={760}
+      className="theme-editor-dialog"
+      footer={
+        <>
           <button type="button" onClick={onClose}>
             取消
           </button>
           <button type="button" className="primary" onClick={save}>
             保存并应用
           </button>
-        </footer>
-      </section>
-    </div>
+        </>
+      }
+    >
+      <div className="theme-editor-body">
+        <div className="theme-editor-fields">
+          <label>
+            主题名称
+            <input
+              data-autofocus
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
+          </label>
+          <label>
+            基础模式
+            <select
+              value={base}
+              onChange={(event) => {
+                const next = event.target.value as "dark" | "light";
+                setBase(next);
+                if (!initial) {
+                  setTokens({ ...defaultsFor(next) });
+                }
+              }}
+            >
+              <option value="dark">深色</option>
+              <option value="light">浅色</option>
+            </select>
+          </label>
+          {FIELDS.map((field) => (
+            <label key={field.key} className="theme-color-field">
+              {field.label}
+              <input
+                type="color"
+                value={toHex(
+                  tokens[field.key] ?? defaultsFor(base)[field.key],
+                )}
+                onChange={(event) => update(field.key, event.target.value)}
+              />
+            </label>
+          ))}
+          {error && <div className="theme-error">{error}</div>}
+        </div>
+
+        <div
+          className="theme-preview"
+          style={{
+            background: tokens["--bg"],
+            color: tokens["--text"],
+            borderColor: tokens["--border"],
+          }}
+        >
+          <div
+            className="theme-preview-panel"
+            style={{
+              background: tokens["--bg-panel"],
+              borderColor: tokens["--border"],
+            }}
+          >
+            <div
+              className="theme-preview-tab"
+              style={{ color: tokens["--accent"] }}
+            >
+              知识库
+            </div>
+            <div
+              className="theme-preview-node"
+              style={{
+                background: tokens["--map-node-bg"],
+                color: tokens["--map-node-text"],
+                borderColor: tokens["--map-node-border"],
+              }}
+            >
+              主题预览
+            </div>
+            <div style={{ color: tokens["--muted"] }}>
+              次要文字 · 边框 · 强调色
+            </div>
+          </div>
+        </div>
+      </div>
+    </Dialog>
   );
 }

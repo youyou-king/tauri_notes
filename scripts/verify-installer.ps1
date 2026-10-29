@@ -10,6 +10,7 @@ if (-not $Setup) {
 $app = Join-Path $root "src-tauri\target\release\tauri-notes.exe"
 $uninstaller = Join-Path $root "installer\custom\Uninstall.exe"
 $icon = Join-Path $root "src-tauri\icons\icon.png"
+$help = Join-Path $root "help.note"
 
 if (-not (Test-Path $Setup)) { throw "Missing installer: $Setup" }
 if (-not (Test-Path $app)) { throw "Missing app: $app" }
@@ -51,6 +52,14 @@ if (Test-Path $icon) {
     if ((Get-FileHashLower $icon) -ne (Get-ResourceHash "AppIcon")) {
         throw "Installer AppIcon does not match"
     }
+}
+
+if (Test-Path $help) {
+    if ((Get-FileHashLower $help) -ne (Get-ResourceHash "HelpNote")) {
+        throw "Installer HelpNote does not match"
+    }
+} else {
+    throw "Missing help knowledge base: $help"
 }
 
 Write-Host "Installer payload verified against latest build." -ForegroundColor Green

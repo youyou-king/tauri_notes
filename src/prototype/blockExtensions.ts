@@ -101,13 +101,25 @@ export const BlockGroup = Node.create({
   },
 });
 
+export type ViewportPickRequest = {
+  selectedIds: string[];
+  sourceDocumentId?: string;
+  excludeBlockId: string;
+  apply: (ids: string[]) => void;
+};
+
 export const ViewportBlock = Node.create({
   name: "viewportBlock",
   group: "block",
   atom: true,
   draggable: true,
   addOptions() {
-    return { workspaceRoot: "" };
+    return {
+      workspaceRoot: "",
+      onPickViewport: undefined as
+        | ((request: ViewportPickRequest) => void)
+        | undefined,
+    };
   },
   addAttributes() {
     return {
@@ -150,6 +162,8 @@ export const ViewportBlock = Node.create({
   addNodeView() {
     return ({ node, editor, getPos }) => {
       const workspaceRoot = this.options.workspaceRoot;
+      const onPickViewport = this.options.onPickViewport;
+      const ownBlockId = String(node.attrs.blockId ?? "");
       let targetBlockIds: string[] = Array.isArray(node.attrs.targetBlockIds)
         ? node.attrs.targetBlockIds
         : [];
@@ -172,17 +186,21 @@ export const ViewportBlock = Node.create({
       dom.dataset.span = String(node.attrs.span ?? 12);
       dom.dataset.heightMode =
         node.attrs.heightMode === "fixed" ? "fixed" : "auto";
+      const initialReference = String(node.attrs.referenceId ?? "");
+      const hasInitialContent =
+        targetBlockIds.length > 0 || Boolean(initialReference);
       const title = document.createElement("strong");
-      title.textContent = "跨文档视口";
+      title.textContent = hasInitialContent ? "跨文档视口" : "引用视图";
       const meta = document.createElement("span");
-      meta.textContent = "只读引用";
+      meta.textContent = hasInitialContent ? "只读引用" : "未选择内容";
       const body = document.createElement("div");
       body.className = "proto-viewport-body";
-      body.textContent = "加载引用…";
+      body.textContent = hasInitialContent ? "加载引用…" : "";
       const applyZoom = (value: unknown) => {
         const zoom = Math.max(50, Math.min(200, Number(value ?? 100)));
         body.style.zoom = `${zoom}%`;
-        body.style.width = `${zoom}%`;
+        body.style.width = "100%";
+        body.style.maxWidth = "100%";
       };
       const applyHeight = (current: typeof node) => {
         const fixed = current.attrs.heightMode === "fixed";
@@ -198,17 +216,41 @@ export const ViewportBlock = Node.create({
       const pick = document.createElement("button");
       pick.type = "button";
       pick.className = "proto-viewport-pick";
-      pick.textContent = "选择内容";
+      pick.textContent = "＋";
+      pick.title = "添加内容";
+      pick.setAttribute("aria-label", "添加内容");
+      pick.dataset.viewportAction = "pick";
       pick.addEventListener("mousedown", (event) => {
         event.preventDefault();
         event.stopPropagation();
       });
-      pick.addEventListener("click", (event) => {
+      const manage = document.createElement("button");
+      manage.type = "button";
+      manage.className = "proto-viewport-pick";
+      manage.textContent = "⋯";
+      manage.title = "管理引用";
+      manage.setAttribute("aria-label", "管理引用");
+      manage.dataset.viewportAction = "pick";
+      manage.addEventListener("mousedown", (event) => {
+        event.preventDefault();
         event.stopPropagation();
-        openDocumentBrowser();
       });
-      head.append(title, meta, pick);
+      head.append(title, meta, pick, manage);
+      if (!onPickViewport) {
+        pick.hidden = true;
+        manage.hidden = true;
+      }
       dom.append(head, body);
+      dom.addEventListener("click", (event) => {
+        const target = (event.target as HTMLElement | null)?.closest?.(
+          "[data-viewport-action]",
+        ) as HTMLElement | null;
+        if (!target) {
+          return;
+        }
+        event.stopPropagation();
+        requestPicker();
+      });
 
       const openPicker = () => {
         void referenceService
@@ -280,6 +322,7 @@ export const ViewportBlock = Node.create({
         void referenceService
           .preview(workspaceRoot, referenceId)
           .then((preview) => {
+            body.classList.remove("proto-viewport-empty");
             targetBlockId = preview.blockId;
             title.textContent = preview.documentTitle;
             meta.textContent = `引用 ${preview.blockId.slice(0, 18)}…`;
@@ -315,11 +358,44 @@ export const ViewportBlock = Node.create({
           });
       };
 
+      function showEmpty() {
+        previewEditor?.destroy();
+        previewEditor = null;
+        body.replaceChildren();
+        body.classList.add("proto-viewport-empty");
+        const prompt = document.createElement("div");
+        prompt.className = "proto-viewport-empty-prompt";
+        prompt.textContent = "尚未选择引用内容";
+        const hint = document.createElement("span");
+        hint.textContent = "点击“选择内容”，从大纲中选择要引用的段落";
+        const choose = document.createElement("button");
+        choose.type = "button";
+        choose.className = "proto-viewport-empty-button";
+        choose.textContent = "选择内容";
+        choose.addEventListener("mousedown", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+        });
+        choose.addEventListener("click", (event) => {
+          event.stopPropagation();
+          requestPicker();
+        });
+        prompt.append(document.createElement("br"), hint, document.createElement("br"));
+        if (onPickViewport) {
+          prompt.append(choose);
+        } else {
+          hint.textContent = "这是只读视图";
+        }
+        body.append(prompt);
+        title.textContent = "引用视图";
+        meta.textContent = "未选择内容";
+      }
+
       const loadMany = (blockIds: string[]) => {
         const ownBlockId = String(node.attrs.blockId ?? "");
         blockIds = blockIds.filter((id) => id !== ownBlockId);
         if (!workspaceRoot || blockIds.length === 0) {
-          load(currentReference);
+          showEmpty();
           return;
         }
         void documentService
@@ -330,9 +406,10 @@ export const ViewportBlock = Node.create({
               return;
             }
             title.textContent = previews[0].documentTitle;
-            meta.textContent = `${previews.length} 个块`;
+            meta.textContent = `${previews.length} 段内容`;
             previewEditor?.destroy();
             previewEditor = null;
+            body.classList.remove("proto-viewport-empty");
             body.replaceChildren();
             const { createDocumentPreview } = await import(
               "../editor/previewEditor"
@@ -361,155 +438,68 @@ export const ViewportBlock = Node.create({
           });
       };
 
-      const openDocumentBrowser = () => {
-        const overlay = document.createElement("div");
-        overlay.className = "proto-viewport-picker";
-        const panel = document.createElement("div");
-        panel.className = "proto-viewport-picker-panel";
-        const heading = document.createElement("strong");
-        heading.textContent = "选择引用内容";
-        const docSelect = document.createElement("select");
-        const list = document.createElement("div");
-        list.className = "proto-viewport-picker-list proto-viewport-doc-preview";
-        list.contentEditable = "false";
-        const hint = document.createElement("div");
-        hint.className = "proto-viewport-picker-hint";
-        hint.textContent = "在下方文档中拖动选择要引用的内容范围";
-        const footer = document.createElement("div");
-        footer.className = "proto-viewport-picker-footer";
-        const count = document.createElement("span");
-        const cancel = document.createElement("button");
-        cancel.type = "button";
-        cancel.textContent = "取消";
-        const confirm = document.createElement("button");
-        confirm.type = "button";
-        confirm.textContent = "确定";
-        footer.append(count, cancel, confirm);
-        panel.append(heading, docSelect, hint, list, footer);
-        overlay.append(panel);
-        document.body.append(overlay);
-
-        let selectedIds: string[] = [];
-        let previewEditor: Editor | null = null;
-        const updateCount = () => {
-          count.textContent = `已选 ${selectedIds.length} 个块`;
-          confirm.disabled = selectedIds.length === 0;
-        };
-        const close = () => {
-          overlay.remove();
-          document.removeEventListener("selectionchange", onSelectionChange);
-          previewEditor?.destroy();
-          previewEditor = null;
-        };
-        cancel.addEventListener("click", close);
-        overlay.addEventListener("mousedown", (event) => {
-          if (event.target === overlay) close();
-        });
-
-        const updateSelection = () => {
-          const selection = window.getSelection();
-          if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
-            selectedIds = [];
-          } else {
-            const range = selection.getRangeAt(0);
-            selectedIds = [
-              ...list.querySelectorAll<HTMLElement>(
-                ".ProseMirror > [data-block-id]",
-              ),
-            ]
-              .filter((block) => range.intersectsNode(block))
-              .map((block) => block.dataset.blockId ?? "")
-              .filter(Boolean);
+      function requestPicker(sourceDocumentId?: string) {
+        if (!onPickViewport) {
+          return;
+        }
+        const capturedPosition = (() => {
+          try {
+            const position = getPos();
+            return typeof position === "number" ? position : null;
+          } catch {
+            return null;
           }
-          list
-            .querySelectorAll<HTMLElement>(".ProseMirror > [data-block-id]")
-            .forEach((block) => {
-              block.classList.toggle(
-                "selected",
-                selectedIds.includes(block.dataset.blockId ?? ""),
-              );
-            });
-          updateCount();
-        };
-
-        const onSelectionChange = () => updateSelection();
-        document.addEventListener("selectionchange", onSelectionChange);
-
-        const loadDocument = (documentId: string) => {
-          selectedIds = [];
-          window.getSelection()?.removeAllRanges();
-          updateCount();
-          previewEditor?.destroy();
-          previewEditor = null;
-          list.textContent = "加载文档…";
-          void documentService
-            .loadBlocks(workspaceRoot, documentId)
-            .then(async (blocks) => {
-              if (blocks.length === 0) {
-                list.textContent = "（空文档）";
-                return;
+        })();
+        onPickViewport({
+          selectedIds:
+            targetBlockIds.length > 0
+              ? targetBlockIds
+              : targetBlockId
+                ? [targetBlockId]
+                : [],
+          sourceDocumentId,
+          excludeBlockId: ownBlockId,
+          apply: (ids: string[]) => {
+            const nextIds = [...new Set(ids.filter(Boolean))];
+            let position: number | null = capturedPosition;
+            try {
+              const live = getPos();
+              if (typeof live === "number") {
+                position = live;
               }
-              const { createDocumentPreview } = await import(
-                "../editor/previewEditor"
-              );
-              list.replaceChildren();
-              previewEditor = createDocumentPreview(workspaceRoot, list);
-              previewEditor.commands.setContent(
-                importedBlocksToDocument(
-                  blocks.filter(
-                    (block) =>
-                      block.id !== String(node.attrs.blockId ?? ""),
-                  ),
-                ),
-              );
-            })
-            .catch((error) => {
-              list.textContent = String(error);
-            });
-        };
-
-        void documentService
-          .list(workspaceRoot)
-          .then((documents) => {
-            docSelect.replaceChildren();
-            documents.forEach((documentInfo) => {
-              const option = document.createElement("option");
-              option.value = documentInfo.id;
-              option.textContent = documentInfo.title;
-              docSelect.append(option);
-            });
-            if (documents.length > 0) {
-              loadDocument(documents[0].id);
+            } catch {
+              // Keep the position captured when the picker opened.
             }
-          })
-          .catch((error) => {
-            list.textContent = String(error);
-          });
-
-        docSelect.addEventListener("change", () => {
-          loadDocument(docSelect.value);
-        });
-        confirm.addEventListener("click", () => {
-          const ids = selectedIds.filter(
-            (id) => id !== String(node.attrs.blockId ?? ""),
-          );
-          const position = getPos();
-          if (typeof position === "number") {
-            const currentNode = editor.state.doc.nodeAt(position);
-            if (currentNode) {
-              editor.view.dispatch(
-                editor.state.tr.setNodeMarkup(position, undefined, {
-                  ...currentNode.attrs,
-                  targetBlockIds: ids,
-                }),
-              );
-              loadMany(ids);
+            if (position === null && ownBlockId) {
+              editor.state.doc.descendants((current, currentPosition) => {
+                if (
+                  current.type.name === "viewportBlock" &&
+                  String(current.attrs.blockId ?? "") === ownBlockId
+                ) {
+                  position = currentPosition;
+                  return false;
+                }
+                return true;
+              });
             }
-          }
-          close();
+            if (position === null) {
+              throw new Error("视图位置已失效，请重新插入视图");
+            }
+            const current = editor.state.doc.nodeAt(position);
+            if (!current || current.type.name !== "viewportBlock") {
+              throw new Error("视图位置已失效，请重新插入视图");
+            }
+            editor.view.dispatch(
+              editor.state.tr.setNodeMarkup(position, undefined, {
+                ...current.attrs,
+                targetBlockIds: nextIds,
+                referenceId: "",
+              }),
+            );
+            targetBlockIds = nextIds;
+          },
         });
-        updateCount();
-      };
+      }
 
       const referenceId = String(node.attrs.referenceId ?? "");
       let currentReference = referenceId;
@@ -517,8 +507,10 @@ export const ViewportBlock = Node.create({
       dom.dataset.referenceId = referenceId;
       if (targetBlockIds.length > 0) {
         loadMany(targetBlockIds);
-      } else {
+      } else if (referenceId) {
         load(referenceId);
+      } else {
+        showEmpty();
       }
       const onBlocksSaved = (event: Event) => {
         if (targetBlockIds.length > 0) {
@@ -565,11 +557,17 @@ export const ViewportBlock = Node.create({
           if (idsChanged) {
             if (nextIds.length > 0) {
               loadMany(nextIds);
-            } else {
+            } else if (nextReference) {
               load(nextReference);
+            } else {
+              showEmpty();
             }
           } else if (changed) {
-            load(nextReference);
+            if (nextReference) {
+              load(nextReference);
+            } else {
+              showEmpty();
+            }
           }
           return true;
         },

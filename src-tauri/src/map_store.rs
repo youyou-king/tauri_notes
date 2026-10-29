@@ -43,7 +43,6 @@ struct MapEntry {
 #[derive(Debug, Clone)]
 struct NodeRow {
     id: String,
-    parent_id: Option<String>,
     title: String,
     document_id: Option<String>,
     heading_block_id: Option<String>,
@@ -120,13 +119,100 @@ async fn ensure_map(
     Ok(title)
 }
 
+fn map_root_id(map_id: &str) -> String {
+    format!("map:{map_id}")
+}
+
+async fn ensure_map_root(
+    connection: &mut sqlx::SqliteConnection,
+    map_id: &str,
+) -> Result<String, String> {
+    let (title, document_id) = sqlx::query_as::<_, (String, Option<String>)>(
+        "SELECT title, document_id FROM maps WHERE id = ?1",
+    )
+    .bind(map_id)
+    .fetch_optional(&mut *connection)
+    .await
+    .map_err(|error| format!("读取导图根节点失败: {error}"))?
+    .ok_or_else(|| "导图不存在".to_string())?;
+    let root_id = map_root_id(map_id);
+    let timestamp = now();
+
+    sqlx::query(
+        "INSERT INTO map_nodes
+         (id, map_id, parent_id, title, document_id, heading_block_id, origin,
+          position_x, position_y, order_key, created_at, updated_at)
+         VALUES (?1, ?2, NULL, ?3, ?4, NULL, 'document', 0, 0, '00000000', ?5, ?5)
+         ON CONFLICT(id) DO UPDATE SET
+           map_id = excluded.map_id,
+           parent_id = NULL,
+           title = excluded.title,
+           document_id = excluded.document_id,
+           heading_block_id = NULL,
+           origin = 'document',
+           updated_at = excluded.updated_at",
+    )
+    .bind(&root_id)
+    .bind(map_id)
+    .bind(&title)
+    .bind(&document_id)
+    .bind(&timestamp)
+    .execute(&mut *connection)
+    .await
+    .map_err(|error| format!("创建导图根节点失败: {error}"))?;
+
+    // Older versions stored document roots as parentless document nodes. Move
+    // their children under the canonical root before removing the duplicate.
+    if let Some(root_document) = document_id {
+        sqlx::query(
+            "UPDATE map_nodes SET parent_id = ?1
+             WHERE parent_id IN (
+               SELECT id FROM map_nodes
+               WHERE map_id = ?2 AND parent_id IS NULL
+                 AND document_id = ?3 AND id <> ?1
+             )",
+        )
+        .bind(&root_id)
+        .bind(map_id)
+        .bind(&root_document)
+        .execute(&mut *connection)
+        .await
+        .map_err(|error| format!("迁移旧根节点子节点失败: {error}"))?;
+        sqlx::query(
+            "DELETE FROM map_nodes
+             WHERE map_id = ?1 AND parent_id IS NULL
+               AND document_id = ?2 AND id <> ?3",
+        )
+        .bind(map_id)
+        .bind(&root_document)
+        .bind(&root_id)
+        .execute(&mut *connection)
+        .await
+        .map_err(|error| format!("清理旧根节点失败: {error}"))?;
+    }
+
+    sqlx::query(
+        "UPDATE map_nodes SET parent_id = ?1
+         WHERE map_id = ?2 AND id <> ?1 AND parent_id IS NULL",
+    )
+    .bind(&root_id)
+    .bind(map_id)
+    .execute(&mut *connection)
+    .await
+    .map_err(|error| format!("迁移根级节点失败: {error}"))?;
+
+    Ok(root_id)
+}
+
 async fn seed_document_nodes(
     connection: &mut sqlx::SqliteConnection,
     map_id: &str,
 ) -> Result<(), String> {
+    let root_id = ensure_map_root(connection, map_id).await?;
     let count: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM map_nodes WHERE map_id = ?1")
+        sqlx::query_scalar("SELECT COUNT(*) FROM map_nodes WHERE map_id = ?1 AND id <> ?2")
             .bind(map_id)
+            .bind(&root_id)
             .fetch_one(&mut *connection)
             .await
             .map_err(|error| format!("统计导图节点失败: {error}"))?;
@@ -153,10 +239,11 @@ async fn seed_document_nodes(
             "INSERT OR IGNORE INTO map_nodes
              (id, map_id, parent_id, title, document_id, heading_block_id, origin,
               position_x, position_y, order_key, created_at, updated_at)
-             VALUES (?1, ?2, NULL, ?3, ?4, NULL, 'document', ?5, 0, ?6, ?7, ?7)",
+             VALUES (?1, ?2, ?3, ?4, ?5, NULL, 'document', ?6, 0, ?7, ?8, ?8)",
         )
         .bind(&node_id)
         .bind(map_id)
+        .bind(&root_id)
         .bind(&title)
         .bind(&document_id)
         .bind(0.0)
@@ -357,18 +444,7 @@ fn build_children(
 pub async fn load_mind_map(workspace: String, map_id: String) -> Result<MindMapView, String> {
     let mut connection = database::open_for_import(&workspace).await?;
     let title = ensure_map(&mut connection, &workspace, &map_id).await?;
-    sqlx::query(
-        "DELETE FROM map_nodes
-         WHERE map_id = ?1
-           AND parent_id IS NULL
-           AND document_id = (
-             SELECT document_id FROM maps WHERE id = ?1 AND document_id IS NOT NULL
-           )",
-    )
-    .bind(&map_id)
-    .execute(&mut connection)
-    .await
-    .map_err(|error| format!("清理根节点重复文档失败: {error}"))?;
+    let root_id = ensure_map_root(&mut connection, &map_id).await?;
     seed_document_nodes(&mut connection, &map_id).await?;
 
     let document_ids = sqlx::query_scalar::<_, String>(
@@ -390,12 +466,12 @@ pub async fn load_mind_map(workspace: String, map_id: String) -> Result<MindMapV
     .fetch_all(&mut connection)
     .await
     .map_err(|error| format!("读取导图节点失败: {error}"))?;
+    let root_row = rows.iter().find(|row| row.0 == root_id).cloned();
     let mut grouped: HashMap<Option<String>, Vec<NodeRow>> = HashMap::new();
     for row in rows {
         let parent = row.1.clone();
         grouped.entry(parent).or_default().push(NodeRow {
             id: row.0,
-            parent_id: row.1,
             title: row.2,
             document_id: row.3,
             heading_block_id: row.4,
@@ -404,26 +480,27 @@ pub async fn load_mind_map(workspace: String, map_id: String) -> Result<MindMapV
         });
     }
     let mut visited = std::collections::HashSet::new();
-    let children = build_children(None, &grouped, &mut visited);
-    let root_document: Option<String> =
-        sqlx::query_scalar("SELECT document_id FROM maps WHERE id = ?1")
-            .bind(&map_id)
-            .fetch_optional(&mut connection)
-            .await
-            .map_err(|error| format!("读取导图文档失败: {error}"))?
-            .flatten();
+    let children = build_children(Some(root_id.clone()), &grouped, &mut visited);
+    let root_document = root_row.as_ref().and_then(|row| row.3.clone());
+    let root_title = root_row
+        .as_ref()
+        .map(|row| row.2.clone())
+        .unwrap_or(title);
+    let root_heading = root_row.as_ref().and_then(|row| row.4.clone());
+    let root_x = root_row.as_ref().map(|row| row.5).unwrap_or(0.0);
+    let root_y = root_row.as_ref().map(|row| row.6).unwrap_or(0.0);
 
     Ok(MindMapView {
         id: map_id.clone(),
-        title: title.clone(),
+        title: root_title.clone(),
         root: MapNodeView {
-            id: format!("map:{map_id}"),
-            title,
+            id: root_id,
+            title: root_title,
             has_document: root_document.is_some(),
             document_id: root_document,
-            heading_block_id: None,
-            position_x: 0.0,
-            position_y: 0.0,
+            heading_block_id: root_heading,
+            position_x: root_x,
+            position_y: root_y,
             children,
         },
     })
@@ -593,6 +670,7 @@ pub async fn create_mind_map(workspace: String, title: String) -> Result<String,
     .execute(&mut connection)
     .await
     .map_err(|error| format!("创建导图失败: {error}"))?;
+    ensure_map_root(&mut connection, &map_id).await?;
     sync_maps_json(&workspace, &mut connection).await?;
     Ok(map_id)
 }
@@ -628,6 +706,13 @@ pub async fn rename_mind_map(
     .execute(&mut connection)
     .await
     .map_err(|error| format!("同步根文档标题失败: {error}"))?;
+    sqlx::query("UPDATE map_nodes SET title = ?1, updated_at = ?2 WHERE id = ?3")
+        .bind(title)
+        .bind(now())
+        .bind(map_root_id(&map_id))
+        .execute(&mut connection)
+        .await
+        .map_err(|error| format!("同步根节点标题失败: {error}"))?;
     sync_maps_json(&workspace, &mut connection).await?;
     Ok(())
 }
@@ -748,17 +833,17 @@ pub async fn create_map_node(
     }
     let mut connection = database::open_for_import(&workspace).await?;
     ensure_map(&mut connection, &workspace, &map_id).await?;
-    if let Some(parent_id) = &parent_id {
-        let exists: i64 =
-            sqlx::query_scalar("SELECT COUNT(*) FROM map_nodes WHERE id = ?1 AND map_id = ?2")
-                .bind(parent_id)
-                .bind(&map_id)
-                .fetch_one(&mut connection)
-                .await
-                .map_err(|error| format!("校验父节点失败: {error}"))?;
-        if exists == 0 {
-            return Err("父节点不存在".into());
-        }
+    ensure_map_root(&mut connection, &map_id).await?;
+    let parent_id = parent_id.unwrap_or_else(|| map_root_id(&map_id));
+    let exists: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM map_nodes WHERE id = ?1 AND map_id = ?2")
+            .bind(&parent_id)
+            .bind(&map_id)
+            .fetch_one(&mut connection)
+            .await
+            .map_err(|error| format!("校验父节点失败: {error}"))?;
+    if exists == 0 {
+        return Err("父节点不存在".into());
     }
     let node_id = format!("mnode_{}", stamp());
     let now = now();
@@ -816,6 +901,24 @@ pub async fn rename_map_node(
             .execute(&mut connection)
             .await
             .map_err(|error| format!("同步文档标题失败: {error}"))?;
+    }
+    let map_id: Option<String> =
+        sqlx::query_scalar("SELECT map_id FROM map_nodes WHERE id = ?1")
+            .bind(&node_id)
+            .fetch_optional(&mut connection)
+            .await
+            .map_err(|error| format!("读取节点导图失败: {error}"))?
+            .flatten();
+    if let Some(map_id) = map_id {
+        if node_id == map_root_id(&map_id) {
+            sqlx::query("UPDATE maps SET title = ?1, updated_at = ?2 WHERE id = ?3")
+                .bind(title)
+                .bind(&now)
+                .bind(&map_id)
+                .execute(&mut connection)
+                .await
+                .map_err(|error| format!("同步导图标题失败: {error}"))?;
+        }
     }
     if let (Some(heading_block_id), Some(parent_id)) = (node.1, node.2) {
         let parent_document: Option<String> =
@@ -1052,6 +1155,8 @@ pub async fn create_document_for_map_root(
         .execute(&mut connection)
         .await
         .map_err(|error| format!("绑定根节点文档失败: {error}"))?;
+    ensure_map_root(&mut connection, &map_id).await?;
+    sync_document_headings(&workspace, &created.id).await?;
     Ok(created.id)
 }
 
@@ -1089,6 +1194,18 @@ pub async fn create_document_for_map_node(
         created.id
     };
 
+    if node_id == map_root_id(&row.0) {
+        sqlx::query("UPDATE maps SET document_id = ?1, updated_at = ?2 WHERE id = ?3")
+            .bind(&document_id)
+            .bind(now())
+            .bind(&row.0)
+            .execute(&mut connection)
+            .await
+            .map_err(|error| format!("绑定根节点文档失败: {error}"))?;
+        ensure_map_root(&mut connection, &row.0).await?;
+        sync_document_headings(&workspace, &document_id).await?;
+    }
+
     Ok(MapNodeView {
         id: node_id,
         title: row.1,
@@ -1099,4 +1216,77 @@ pub async fn create_document_for_map_node(
         position_y: 0.0,
         children: Vec::new(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{ensure_map_root, map_root_id, sync_document_headings};
+    use crate::database;
+    use std::fs;
+
+    #[test]
+    fn root_document_h1_creates_child_nodes() {
+        let root = std::env::temp_dir().join(format!(
+            "tauri-notes-map-root-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        let path = root.join("root.note");
+        let workspace = path.to_string_lossy().into_owned();
+        let map_id = "map_root_test";
+        let document_id = "map_root_test/root_doc";
+
+        tauri::async_runtime::block_on(async {
+            let mut connection = database::open_for_import(&workspace).await.unwrap();
+            sqlx::query(
+                "INSERT INTO maps (id, title, created_at, updated_at, document_id)
+                 VALUES (?1, '根导图', '1', '1', ?2)",
+            )
+            .bind(map_id)
+            .bind(document_id)
+            .execute(&mut connection)
+            .await
+            .unwrap();
+            sqlx::query(
+                "INSERT INTO documents (id, title, created_at, updated_at, map_id, parent_id, order_key)
+                 VALUES (?1, '根导图', '1', '1', ?2, NULL, '00000000')",
+            )
+            .bind(document_id)
+            .bind(map_id)
+            .execute(&mut connection)
+            .await
+            .unwrap();
+            sqlx::query(
+                "INSERT INTO blocks (id, document_id, type, order_key, width_span, height_mode,
+                  height_px, content_json, content_schema, plain_text, updated_at)
+                 VALUES (?1, ?2, 'heading', '00000000', 12, 'auto', NULL, ?3, 1, '子标题', '1')",
+            )
+            .bind("block_root_h1")
+            .bind(document_id)
+            .bind(r#"{"type":"heading","attrs":{"level":1},"content":[{"type":"text","text":"子标题"}]}"#)
+            .execute(&mut connection)
+            .await
+            .unwrap();
+            ensure_map_root(&mut connection, map_id).await.unwrap();
+        });
+
+        tauri::async_runtime::block_on(sync_document_headings(&workspace, document_id)).unwrap();
+
+        tauri::async_runtime::block_on(async {
+            let mut connection = database::open_for_import(&workspace).await.unwrap();
+            let child: Option<String> = sqlx::query_scalar(
+                "SELECT heading_block_id FROM map_nodes
+                 WHERE map_id = ?1 AND parent_id = ?2 AND heading_block_id IS NOT NULL",
+            )
+            .bind(map_id)
+            .bind(map_root_id(map_id))
+            .fetch_optional(&mut connection)
+            .await
+            .unwrap();
+            assert_eq!(child.as_deref(), Some("block_root_h1"));
+        });
+
+        let _ = fs::remove_dir_all(root);
+    }
 }

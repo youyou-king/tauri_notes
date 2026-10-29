@@ -1,6 +1,9 @@
 import { useContext, useEffect, useRef, useState } from "react";
 import { mapService } from "../../application/mapService";
 import { documentService } from "../../application/documentService";
+import { crossPanelBus, PANEL_DRAG_MIME } from "../../application/panelEvents";
+import { confirmDialog } from "../dialog/confirmDialog";
+import { Dialog } from "../dialog/Dialog";
 import type { MindMapNode, OutlineView } from "../../types";
 import { PanelContext } from "./PanelContext";
 
@@ -59,7 +62,10 @@ export function OutlineTreeNode({
         }`}
         style={{ paddingLeft: `${8 + depth * 14}px` }}
         onDragOver={(event) => {
-          if (event.dataTransfer.types.includes("application/x-note-document")) {
+          if (
+            event.dataTransfer.types.includes("application/x-note-document") ||
+            event.dataTransfer.types.includes(PANEL_DRAG_MIME)
+          ) {
             event.preventDefault();
             setDropActive(true);
           }
@@ -68,6 +74,16 @@ export function OutlineTreeNode({
         onDrop={(event) => {
           event.preventDefault();
           setDropActive(false);
+          const panelPayload = crossPanelBus.read(event.dataTransfer);
+          if (panelPayload?.kind === "document") {
+            onDropDocument(
+              node.id,
+              panelPayload.root,
+              panelPayload.documentId,
+            );
+            crossPanelBus.endDrag();
+            return;
+          }
           const raw = event.dataTransfer.getData(
             "application/x-note-document",
           );
@@ -378,9 +394,12 @@ export function MultiOutlinePanel() {
     const title = menu.mapTitle ?? "导图";
     setMenu(null);
     if (
-      !window.confirm(
-        `删除导图“${title}”？\n导图里的文档会移动到“未归类”。`,
-      )
+      !(await confirmDialog({
+        title: "删除导图？",
+        message: `删除导图“${title}”？导图里的文档会移动到“未归类”。`,
+        confirmLabel: "删除",
+        tone: "danger",
+      }))
     ) {
       return;
     }
@@ -443,9 +462,12 @@ export function MultiOutlinePanel() {
     if (
       target?.documentId &&
       target.documentId !== documentId &&
-      !window.confirm(
-        `节点“${target.title}”已有文档，源文档内容会追加到末尾，随后删除源文档。继续？`,
-      )
+      !(await confirmDialog({
+        title: "绑定已有文档？",
+        message: `节点“${target.title}”已有文档，源文档内容会追加到末尾，随后删除源文档。继续？`,
+        confirmLabel: "继续绑定",
+        tone: "danger",
+      }))
     ) {
       return;
     }
@@ -670,6 +692,14 @@ export function MultiOutlinePanel() {
                   className="tree-row outline-unfiled-doc"
                   draggable
                   onDragStart={(event) => {
+                    const payload = {
+                      kind: "document" as const,
+                      root: document.root,
+                      documentId: document.documentId,
+                      title: document.title,
+                    };
+                    crossPanelBus.startDrag(payload, "outline");
+                    crossPanelBus.write(event.dataTransfer, payload);
                     event.dataTransfer.setData(
                       "application/x-note-document",
                       JSON.stringify({
@@ -677,8 +707,9 @@ export function MultiOutlinePanel() {
                         documentId: document.documentId,
                       }),
                     );
-                    event.dataTransfer.effectAllowed = "move";
+                    event.dataTransfer.effectAllowed = "copy";
                   }}
+                  onDragEnd={() => crossPanelBus.endDrag()}
                   onClick={() => {
                     if (unfiledTimer.current !== null) {
                       window.clearTimeout(unfiledTimer.current);
@@ -794,14 +825,18 @@ export function MultiOutlinePanel() {
               <button
                 type="button"
                 onClick={() => {
+                  const rootPath = menu.rootPath;
                   setMenu(null);
-                  if (
-                    window.confirm(
-                      "卸载这个知识库？不会删除 .note 文件。",
-                    )
-                  ) {
-                    context.onUnloadWorkspace(menu.rootPath);
-                  }
+                  void confirmDialog({
+                    title: "卸载知识库？",
+                    message: "卸载这个知识库？不会删除 .note 文件。",
+                    confirmLabel: "卸载",
+                    tone: "danger",
+                  }).then((confirmed) => {
+                    if (confirmed) {
+                      context.onUnloadWorkspace(rootPath);
+                    }
+                  });
                 }}
               >
                 卸载知识库
@@ -852,20 +887,27 @@ export function MultiOutlinePanel() {
                   const documentId = menu.documentId;
                   const rootPath = menu.rootPath;
                   setMenu(null);
-                  if (!window.confirm("删除这个未归类文档？")) {
-                    return;
-                  }
-                  void documentService
-                    .delete(rootPath, documentId)
-                    .then(() => {
-                      window.dispatchEvent(
-                        new CustomEvent("tauri-notes:document-deleted", {
-                          detail: { root: rootPath, documentId },
-                        }),
-                      );
-                      notify(rootPath);
-                    })
-                    .catch((reason) => setError(String(reason)));
+                  void confirmDialog({
+                    title: "删除文档？",
+                    message: "删除这个未归类文档？",
+                    confirmLabel: "删除",
+                    tone: "danger",
+                  }).then((confirmed) => {
+                    if (!confirmed) {
+                      return;
+                    }
+                    void documentService
+                      .delete(rootPath, documentId)
+                      .then(() => {
+                        window.dispatchEvent(
+                          new CustomEvent("tauri-notes:document-deleted", {
+                            detail: { root: rootPath, documentId },
+                          }),
+                        );
+                        notify(rootPath);
+                      })
+                      .catch((reason) => setError(String(reason)));
+                  });
                 }}
               >
                 删除文档…
@@ -875,43 +917,41 @@ export function MultiOutlinePanel() {
         </div>
       )}
       {dialog && (
-        <div
-          className="outline-dialog-backdrop"
-          onMouseDown={() => setDialog(null)}
-        >
-          <div
-            className="outline-dialog"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <strong>
-              {dialog.mode === "create" ? "新建导图" : "重命名导图"}
-            </strong>
-            <input
-              autoFocus
-              value={dialog.value}
-              onChange={(event) =>
-                setDialog((current) =>
-                  current ? { ...current, value: event.target.value } : current,
-                )
-              }
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  void submitDialog();
-                } else if (event.key === "Escape") {
-                  setDialog(null);
-                }
-              }}
-            />
-            <div className="outline-dialog-actions">
+        <Dialog
+          title={dialog.mode === "create" ? "新建导图" : "重命名导图"}
+          onClose={() => setDialog(null)}
+          width={420}
+          footer={
+            <>
               <button type="button" onClick={() => setDialog(null)}>
                 取消
               </button>
-              <button type="button" onClick={() => void submitDialog()}>
+              <button
+                type="button"
+                className="primary"
+                onClick={() => void submitDialog()}
+              >
                 确定
               </button>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        >
+          <input
+            className="outline-dialog-input"
+            data-autofocus
+            value={dialog.value}
+            onChange={(event) =>
+              setDialog((current) =>
+                current ? { ...current, value: event.target.value } : current,
+              )
+            }
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                void submitDialog();
+              }
+            }}
+          />
+        </Dialog>
       )}
     </div>
   );

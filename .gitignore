@@ -5,3 +5,7 @@ src-tauri/target
 .webview2
 .tmp
 *.log
+installer/custom/*.exe
+test-results
+.snapshots
+perm_workspace.note

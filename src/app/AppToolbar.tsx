@@ -148,6 +148,18 @@ export function AppToolbar({
           </button>
           {menu === "theme" && <ThemeMenu onClose={() => setMenu(null)} />}
         </div>
+
+        <button
+          type="button"
+          className="toolbar-help"
+          disabled={busy}
+          onClick={() => {
+            setMenu(null);
+            runCommand("help.open");
+          }}
+        >
+          帮助
+        </button>
       </div>
       <div
         className={`backend ${

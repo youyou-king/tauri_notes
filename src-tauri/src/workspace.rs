@@ -888,8 +888,8 @@ pub async fn save_note_file(path: String) -> Result<String, String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        delete_blocks, index_document, insert_blocks, open_workspace, read_document, safe_id,
-        save_block, search_workspace, write_document,
+        delete_blocks, index_document, insert_blocks, open_note_workspace, open_workspace,
+        read_document, safe_id, save_block, search_workspace, write_document,
     };
     use std::fs;
     use std::path::PathBuf;
@@ -902,6 +902,20 @@ mod tests {
         assert!(!safe_id("a/b"));
         assert!(!safe_id(r"a\b"));
         assert!(!safe_id(""));
+    }
+
+    #[test]
+    fn opens_help_note_fixture() {
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("help.note");
+        let view = tauri::async_runtime::block_on(open_note_workspace(
+            path.to_string_lossy().into_owned(),
+        ))
+        .expect("help.note should open");
+        assert_eq!(view.maps.len(), 1);
+        assert_eq!(view.maps[0].title, "使用帮助");
+        assert!(!view.maps[0].root.children.is_empty());
     }
 
     #[test]

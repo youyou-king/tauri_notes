@@ -27,7 +27,7 @@ type Args = {
   setActiveMapId: (mapId: string | null) => void;
   setSelected: (node: NodeView | null) => void;
   appendLog: (line: string) => void;
-  confirmDiscard: () => boolean;
+  confirmDiscard: () => Promise<boolean>;
   setError: (message: string) => void;
   setSearchOpen: (open: boolean) => void;
   dockRef: RefObject<DockWorkspaceHandle | null>;
@@ -48,8 +48,8 @@ export function useWorkspaceNavigation({
   setSearchOpen,
   dockRef,
 }: Args) {
-  function selectNode(node: NodeView) {
-    if (node.id !== selected?.id && !confirmDiscard()) {
+  async function selectNode(node: NodeView) {
+    if (node.id !== selected?.id && !(await confirmDiscard())) {
       return;
     }
     if (!activeMap) {
@@ -60,8 +60,8 @@ export function useWorkspaceNavigation({
     dockRef.current?.openDocument(activeMap.id, node.id, node.title);
   }
 
-  function switchMap(map: MapView, workspaceRoot?: string) {
-    if (!confirmDiscard()) {
+  async function switchMap(map: MapView, workspaceRoot?: string) {
+    if (!(await confirmDiscard())) {
       return;
     }
     const targetRoot = workspaceRoot ?? workspace?.root;
@@ -119,11 +119,11 @@ export function useWorkspaceNavigation({
     );
   }
 
-  function openSearchHit(hit: SearchHit) {
+  async function openSearchHit(hit: SearchHit) {
     if (!workspace) {
       return;
     }
-    if (!confirmDiscard()) {
+    if (!(await confirmDiscard())) {
       return;
     }
     const map = workspace.maps.find((item) => item.id === hit.mapId);

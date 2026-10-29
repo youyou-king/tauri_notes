@@ -10,6 +10,11 @@ import { workspaceService } from "./application/workspaceService";
 import { useWorkspaceSelectionStore } from "./application/stores/workspaceSelectionStore";
 import { useWorkspaceStore } from "./application/stores/workspaceStore";
 import { usePanelStore } from "./application/stores/panelStore";
+import { recordConsoleEvent } from "./application/consoleLogStore";
+import {
+  ConfirmDialogHost,
+  confirmDialog,
+} from "./ui/dialog/confirmDialog";
 import {
   executeCommand,
   findCommandForEvent,
@@ -73,7 +78,11 @@ function App() {
 
   useEffect(() => {
     const handler = (event: MouseEvent) => {
-      if (!(event.target as Element).closest(".toolbar-menu")) {
+      const target = event.target as Element;
+      if (
+        !target.closest(".toolbar-menu") &&
+        !target.closest(".app-dialog-backdrop")
+      ) {
         setNavbarMenu(null);
       }
     };
@@ -113,15 +122,17 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const dirtyPanels = usePanelStore((state) => state.dirtyPanels);
   const setPanelDirty = usePanelStore((state) => state.setPanelDirty);
-  const [logs, setLogs] = useState<string[]>(["Tauri Notes 已启动"]);
   const board = useBoardController(workspace?.root ?? null);
   const dockRef = useRef<DockWorkspaceHandle>(null);
   const dirtyRef = useRef(0);
-  const autoOpened = useRef(false);
   const sessionReady = useRef(false);
 
   const appendLog = useCallback((line: string) => {
-    setLogs((current) => [...current.slice(-99), line]);
+    recordConsoleEvent("action", line);
+  }, []);
+
+  useEffect(() => {
+    recordConsoleEvent("system", "应用启动");
   }, []);
 
   const activeMap: MapView | null =
@@ -136,13 +147,16 @@ function App() {
     [setPanelDirty],
   );
 
-  function confirmDiscard(): boolean {
+  async function confirmDiscard(): Promise<boolean> {
     if (dirtyCount === 0) {
       return true;
     }
-    return window.confirm(
-      `有 ${dirtyCount} 个面板还有未保存的修改，确定离开吗？`,
-    );
+    return confirmDialog({
+      title: "放弃未保存的修改？",
+      message: `有 ${dirtyCount} 个面板还有未保存的修改，确定离开吗？`,
+      confirmLabel: "放弃修改",
+      tone: "danger",
+    });
   }
 
   const {
@@ -172,9 +186,9 @@ function App() {
     backupLibrary,
     createKnowledgeBase,
     openWorkspace,
+    openHelp,
     restoreSession,
     openOnlyWorkspace,
-    openDemo,
   } = useWorkspaceOpen({
     workspace,
     workspaces,
@@ -204,11 +218,13 @@ function App() {
     if (!command) {
       return;
     }
+    recordConsoleEvent("command", command.label, id);
     executeCommand(command, {
       busy,
       hasWorkspace: Boolean(workspace),
       createKnowledge: () => void createKnowledgeBase(),
       openKnowledge: () => void openWorkspace(),
+      openHelp: () => void openHelp(),
       backup: () => void backupLibrary(),
       setAssociation: () => {
         void workspaceService
@@ -265,10 +281,16 @@ function App() {
           return;
         }
         event.preventDefault();
-        if (!window.confirm("关闭会丢失未保存的修改，仍要关闭吗？")) {
-          return;
-        }
-        void getCurrentWindow().destroy();
+        void confirmDialog({
+          title: "关闭 Tauri Notes？",
+          message: "关闭会丢失未保存的修改，仍要关闭吗？",
+          confirmLabel: "关闭",
+          tone: "danger",
+        }).then((confirmed) => {
+          if (confirmed) {
+            void getCurrentWindow().destroy();
+          }
+        });
       })
       .then((fn) => {
         if (disposed) {
@@ -300,6 +322,7 @@ function App() {
         return;
       }
       event.preventDefault();
+      recordConsoleEvent("command", command.label, `快捷键 ${command.id}`);
       executeCommand(command, context);
     }
     window.addEventListener("keydown", onKeyDown);
@@ -324,7 +347,6 @@ function App() {
         if (path) {
           initialized = true;
           sessionReady.current = true;
-          autoOpened.current = true;
           await openOnlyWorkspace(path);
           return;
         }
@@ -333,8 +355,7 @@ function App() {
           const restored = await restoreSession();
           sessionReady.current = true;
           if (!restored) {
-            autoOpened.current = true;
-            await openDemo();
+            dockRef.current?.resetLayout();
           }
         }
       } catch (reason) {
@@ -421,7 +442,6 @@ function App() {
               workspaces={workspaces}
               activeMap={activeMap}
               selected={selected}
-              logs={logs}
               onActiveNode={(node) => setSelected(node)}
               onPanelDirty={handlePanelDirty}
               onSelectNode={selectNode}
@@ -451,6 +471,7 @@ function App() {
           onOpenHit={openSearchHit}
         />
       )}
+      <ConfirmDialogHost />
     </div>
   );
 }

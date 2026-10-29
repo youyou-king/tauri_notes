@@ -17,6 +17,7 @@ import {
   type ThemeSelection,
 } from "./themeSchema";
 import { themeRepository } from "../../infrastructure/tauri/themeRepository";
+import { recordConsoleEvent } from "../../application/consoleLogStore";
 
 export type { ThemeManifest, ThemeMode, ThemeSelection };
 
@@ -160,6 +161,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const setMode = useCallback((next: ThemeSelection) => {
     setModeState(next);
     window.localStorage.setItem(STORAGE_KEY, next);
+    recordConsoleEvent("theme", "切换主题", next);
   }, []);
 
   const importTheme = useCallback((raw: string) => {
@@ -184,6 +186,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       return next;
     });
     setMode(`custom:${theme.id}`);
+    recordConsoleEvent("theme", "保存自定义主题", theme.name);
     void themeRepository
       .save(theme.id, JSON.stringify(theme))
       .catch(() => {});
@@ -200,6 +203,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       if (mode === `custom:${id}`) {
         setMode("dark");
       }
+      recordConsoleEvent("theme", "删除自定义主题", id);
       void themeRepository.delete(id).catch(() => {});
     },
     [mode, setMode],

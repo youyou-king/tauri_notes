@@ -5,6 +5,7 @@ export type NavCommandContext = {
   hasWorkspace: boolean;
   createKnowledge: () => void;
   openKnowledge: () => void;
+  openHelp: () => void;
   backup: () => void;
   setAssociation: () => void;
   clearAssociation: () => void;
@@ -25,6 +26,13 @@ registerCommand<NavCommandContext>({
   label: "打开知识库…",
   enabled: (context) => !context.busy,
   run: (context) => context.openKnowledge(),
+});
+
+registerCommand<NavCommandContext>({
+  id: "help.open",
+  label: "使用帮助",
+  enabled: (context) => !context.busy,
+  run: (context) => context.openHelp(),
 });
 
 registerCommand<NavCommandContext>({

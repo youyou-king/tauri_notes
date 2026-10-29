@@ -67,10 +67,24 @@ internal static class Uninstall
     private static void ScheduleSelfDelete()
     {
         string appDir = Path.GetDirectoryName(Application.ExecutablePath);
+        // Delete only files owned by the app. A knowledge base saved next to the
+        // executable must survive uninstall, so never use rd /s /q here.
+        TryDelete(Path.Combine(appDir, AppName + ".exe"));
+        TryDelete(Path.Combine(appDir, "help.note"));
+        TryDelete(Path.Combine(appDir, "install.log"));
+        TryDeleteDirectory(Path.Combine(appDir, "logs"));
         Process.Start(new ProcessStartInfo
         {
             FileName = "cmd.exe",
-            Arguments = "/c ping 127.0.0.1 -n 4 >nul & rd /s /q \"" + appDir + "\"",
+            Arguments = "/c ping 127.0.0.1 -n 4 >nul & del /f /q \""
+                + Path.Combine(appDir, AppName + ".exe")
+                + "\" \"" + Path.Combine(appDir, "help.note")
+                + "\" \"" + Path.Combine(appDir, "install.log")
+                + "\" \"" + Path.Combine(appDir, "Uninstall.exe")
+                + "\" & rmdir /s /q \"" + Path.Combine(appDir, "data")
+                + "\" \"" + Path.Combine(appDir, "cache")
+                + "\" \"" + Path.Combine(appDir, "logs")
+                + "\" & rmdir \"" + appDir + "\"",
             CreateNoWindow = true,
             UseShellExecute = false,
             WorkingDirectory = Path.GetTempPath()
@@ -79,6 +93,7 @@ internal static class Uninstall
 
     private static void PerformUninstall(bool deleteSettings, Action<int, string> progress)
     {
+        string appDir = Path.GetDirectoryName(Application.ExecutablePath);
         Action<int, string> report = (value, text) =>
         {
             if (progress != null) progress(value, text);
@@ -86,6 +101,10 @@ internal static class Uninstall
 
         report(10, "关闭正在运行的程序…");
         foreach (Process process in Process.GetProcessesByName(AppName))
+        {
+            try { process.Kill(); process.WaitForExit(3000); } catch { }
+        }
+        foreach (Process process in Process.GetProcessesByName("tauri-notes"))
         {
             try { process.Kill(); process.WaitForExit(3000); } catch { }
         }
@@ -103,7 +122,7 @@ internal static class Uninstall
 
         if (deleteSettings)
         {
-            report(84, "删除应用设置和主题…");
+            report(82, "删除应用设置、主题和缓存…");
             TryDeleteDirectory(Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                 AppDataFolder));
@@ -112,7 +131,27 @@ internal static class Uninstall
                 AppDataFolder));
         }
 
-        report(94, "准备删除安装目录…");
+        // Installer logs and crash logs are application traces, not user notes.
+        TryDeleteDirectory(Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "TauriNotes"));
+        TryDelete(Path.Combine(Path.GetTempPath(), "TauriNotes-install.log"));
+        TryDeleteDirectories(Path.Combine(Path.GetTempPath()), "TauriNotes-install-*");
+
+        report(92, "清理安装目录…");
+        if (!string.IsNullOrEmpty(appDir))
+        {
+            TryDelete(Path.Combine(appDir, AppName + ".exe"));
+            TryDelete(Path.Combine(appDir, "help.note"));
+            TryDelete(Path.Combine(appDir, "install.log"));
+            TryDeleteDirectory(Path.Combine(appDir, "data"));
+            TryDeleteDirectory(Path.Combine(appDir, "cache"));
+            TryDeleteDirectory(Path.Combine(appDir, "logs"));
+            TryDeleteDirectories(appDir, ".install-tmp-*");
+            TryDeleteFiles(appDir, "*.installing-*");
+            TryDeleteFiles(appDir, "*.backup-*");
+        }
+
         report(100, "卸载完成");
     }
 
@@ -124,6 +163,38 @@ internal static class Uninstall
     private static void TryDeleteDirectory(string path)
     {
         try { if (Directory.Exists(path)) Directory.Delete(path, true); } catch { }
+    }
+
+    private static void TryDeleteDirectories(string parent, string pattern)
+    {
+        try
+        {
+            if (!Directory.Exists(parent))
+            {
+                return;
+            }
+            foreach (string directory in Directory.GetDirectories(parent, pattern))
+            {
+                TryDeleteDirectory(directory);
+            }
+        }
+        catch { }
+    }
+
+    private static void TryDeleteFiles(string parent, string pattern)
+    {
+        try
+        {
+            if (!Directory.Exists(parent))
+            {
+                return;
+            }
+            foreach (string file in Directory.GetFiles(parent, pattern))
+            {
+                TryDelete(file);
+            }
+        }
+        catch { }
     }
 
     private static void TryDeleteKey(string path)
@@ -290,8 +361,8 @@ internal static class Uninstall
             };
             CheckBox settings = new CheckBox
             {
-                Text = "同时删除应用设置和自定义主题",
-                Checked = false,
+                Text = "同时删除应用设置、自定义主题和 WebView 缓存",
+                Checked = true,
                 AutoSize = true,
                 Location = new Point(30, 124),
                 ForeColor = dark,

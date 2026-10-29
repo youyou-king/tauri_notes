@@ -4,9 +4,44 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tauri Notes</title>
+    <style>
+      #boot-fallback {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background: #111318;
+        color: #e8eaf0;
+        font-family: "Microsoft YaHei UI", "Segoe UI", sans-serif;
+        text-align: center;
+      }
+      #boot-fallback strong {
+        font-size: 18px;
+      }
+      #boot-fallback p {
+        margin: 10px 0 18px;
+        color: #8b93a3;
+        font-size: 13px;
+      }
+      #boot-fallback button {
+        padding: 7px 14px;
+        border: 1px solid #2a2f3a;
+        border-radius: 6px;
+        background: transparent;
+        color: #e8eaf0;
+        cursor: pointer;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
+    <div id="boot-fallback">
+      <div>
+        <strong>Tauri Notes</strong>
+        <p>正在启动…</p>
+        <button type="button" onclick="location.reload()">重新加载</button>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

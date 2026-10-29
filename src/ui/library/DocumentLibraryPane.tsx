@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { TauriImportedDocumentRepository } from "../../infrastructure/tauriImportedDocumentRepository";
 import { documentService } from "../../application/documentService";
+import { confirmDialog } from "../dialog/confirmDialog";
 import { PanelShell } from "../panels/PanelShell";
 import type { ImportedDocumentSummary } from "../../domain/importedDocument";
 
@@ -78,7 +79,14 @@ export default function DocumentLibraryPane({
   }
 
   async function deleteDocument(document: ImportedDocumentSummary) {
-    if (!window.confirm(`删除“${document.title}”？`)) {
+    if (
+      !(await confirmDialog({
+        title: "删除文档？",
+        message: `删除“${document.title}”？`,
+        confirmLabel: "删除",
+        tone: "danger",
+      }))
+    ) {
       return;
     }
     try {

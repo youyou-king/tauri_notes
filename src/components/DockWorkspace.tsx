@@ -35,8 +35,10 @@ import type { BoardController } from "../ui/board/useBoardController";
 import type { MapView, NodeView, WorkspaceView } from "../types";
 import { findNode } from "../domain/tree";
 import { useTheme } from "../ui/theme/ThemeProvider";
+import { DOCK_LAYOUT_KEY } from "../ui/dockLayout";
+import { recordConsoleEvent } from "../application/consoleLogStore";
 
-export const DOCK_LAYOUT_KEY = "tauri-notes.dock-layout.v21";
+export { DOCK_LAYOUT_KEY } from "../ui/dockLayout";
 
 export type DockWorkspaceHandle = {
   openDocument: (
@@ -113,7 +115,6 @@ export default forwardRef<
     workspaces: WorkspaceView[];
     activeMap: MapView | null;
     selected: NodeView | null;
-    logs: string[];
     onActiveNode: (node: NodeView) => void;
     onPanelDirty: (panelId: string, dirty: boolean) => void;
     onSelectNode: (node: NodeView, newPanel: boolean) => void;
@@ -130,7 +131,6 @@ export default forwardRef<
     workspaces,
     activeMap,
     selected,
-    logs,
     onActiveNode,
     onPanelDirty,
     onSelectNode,
@@ -458,6 +458,7 @@ export default forwardRef<
     if (!api) {
       return;
     }
+    recordConsoleEvent("panel", "重置停靠布局");
     for (const panel of [...api.panels]) {
       panel.api.close();
     }
@@ -522,15 +523,49 @@ export default forwardRef<
         event.api.fromJSON(JSON.parse(saved));
       } catch {
         window.localStorage.removeItem(DOCK_LAYOUT_KEY);
+        for (const panel of [...event.api.panels]) {
+          panel.api.close();
+        }
       }
     }
 
     if (event.api.panels.length === 0) {
       buildDefaultLayout(event.api);
     }
+    const consolePanel = event.api.getPanel("console");
+    if (consolePanel) {
+      consolePanel.api.setTitle("控制台");
+    }
     closeOrphanMapPanels(event.api);
+    recordConsoleEvent(
+      "panel",
+      "初始化停靠布局",
+      saved ? "恢复上次布局" : "默认布局",
+    );
 
     setActivePanelId(event.api.activePanel?.id ?? null);
+
+    event.api.onDidAddPanel((panel) => {
+      recordConsoleEvent(
+        "panel",
+        "打开面板",
+        panel.title ?? panel.id,
+      );
+    });
+    event.api.onDidRemovePanel((panel) => {
+      recordConsoleEvent(
+        "panel",
+        "关闭面板",
+        panel.title ?? panel.id,
+      );
+    });
+    event.api.onDidActivePanelChange((event) => {
+      recordConsoleEvent(
+        "panel",
+        "切换面板",
+        event.panel?.title ?? "无",
+      );
+    });
 
     event.api.onDidLayoutChange(() => {
       window.localStorage.setItem(
@@ -599,7 +634,6 @@ export default forwardRef<
     activeMap,
     activePanelId,
     selected,
-    logs,
     openDocument,
     openBlockDocument,
     setPanelDirty: onPanelDirty,

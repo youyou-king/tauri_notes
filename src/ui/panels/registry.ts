@@ -1,4 +1,5 @@
-import type { ComponentType } from "react";
+import { createElement, type ComponentType } from "react";
+import { PanelErrorBoundary } from "../ErrorBoundary";
 
 /**
  * Registered dock panels. Components stay independent of the registry; the
@@ -20,10 +21,17 @@ export function registerPanel(definition: PanelDefinition): void {
 
 export function getPanelComponents(): Record<string, ComponentType<any>> {
   return Object.fromEntries(
-    [...definitions.values()].map((definition) => [
-      definition.id,
-      definition.component,
-    ]),
+    [...definitions.values()].map((definition) => {
+      const Inner = definition.component;
+      const Bounded = (props: Record<string, unknown>) =>
+        createElement(
+          PanelErrorBoundary,
+          { panelId: definition.id },
+          createElement(Inner, props),
+        );
+      Bounded.displayName = `PanelBoundary(${definition.id})`;
+      return [definition.id, Bounded];
+    }),
   );
 }
 

@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import { documentService } from "../../application/documentService";
+import { mapService } from "../../application/mapService";
 import { assetService } from "../../application/assetService";
+import { recordConsoleEvent } from "../../application/consoleLogStore";
+import { flattenMindMap } from "../../lib/mindMap";
+import { usePanelContext } from "../panels/PanelContext";
+import { ViewportSelectionPanel } from "./ViewportSelectionPanel";
+import { confirmDialog } from "../dialog/confirmDialog";
 import StarterKit from "@tiptap/starter-kit";
 import {
   BlockLayout,
@@ -12,6 +18,7 @@ import {
   TaskItem,
   TaskList,
   ViewportBlock,
+  type ViewportPickRequest,
 } from "../../prototype/blockExtensions";
 import { TauriImportedDocumentRepository } from "../../infrastructure/tauriImportedDocumentRepository";
 import { CodeBlockView } from "../../prototype/codeBlockView";
@@ -82,6 +89,7 @@ export default function ImportedPreviewPane({
     () => new TauriImportedDocumentRepository(workspaceRoot),
     [workspaceRoot],
   );
+  const context = usePanelContext();
   const [status, setStatus] = useState("加载文档…");
   const [documentTitle, setDocumentTitle] = useState("");
   const editing = true;
@@ -89,6 +97,8 @@ export default function ImportedPreviewPane({
   const [selectedBlock, setSelectedBlock] = useState<SelectedBlock | null>(null);
   const [linkOpen, setLinkOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
+  const [viewportRequest, setViewportRequest] =
+    useState<ViewportPickRequest | null>(null);
   const [stats, setStats] = useState({ blocks: 0, characters: 0 });
   const selectedRef = useRef("");
   const editingRef = useRef(true);
@@ -98,6 +108,10 @@ export default function ImportedPreviewPane({
   const flushSave = useRef<(() => void) | null>(null);
   const insertImageFileRef = useRef<(file: File) => void>(() => {});
   const previewAtomRef = useRef<HTMLElement | null>(null);
+  const headingUnderPointerRef = useRef<{
+    blockId: string;
+    title: string;
+  } | null>(null);
   const activeDocumentId = documentId ?? "";
 
   useEffect(() => {
@@ -162,7 +176,11 @@ export default function ImportedPreviewPane({
       CodeHighlight,
       BlockLayout,
       BlockGroup,
-      ViewportBlock.configure({ workspaceRoot }),
+      ViewportBlock.configure({
+        workspaceRoot,
+        onPickViewport: (request: ViewportPickRequest) =>
+          setViewportRequest(request),
+      }),
       RawMarkdownBlock,
       TableBlock,
       ImageInline,
@@ -239,6 +257,11 @@ export default function ImportedPreviewPane({
             );
             deleted.forEach((id) => savedRef.current.delete(id));
             setStatus("已保存");
+            recordConsoleEvent(
+              "document",
+              "保存文档",
+              selectedRef.current,
+            );
             window.dispatchEvent(
               new CustomEvent("tauri-notes:blocks-saved", {
                 detail: {
@@ -361,6 +384,173 @@ export default function ImportedPreviewPane({
       .catch((error) => setStatus(`插入图片失败：${String(error)}`));
   };
   insertImageFileRef.current = insertImageFile;
+
+  const insertEmptyViewport = () => {
+    if (!editor) {
+      return;
+    }
+    editor
+      .chain()
+      .focus()
+      .insertContent({
+        type: "viewportBlock",
+        attrs: {
+          blockId: `block_${crypto.randomUUID().replace(/-/g, "")}`,
+          referenceId: "",
+          label: "引用视图",
+          targetBlockIds: [],
+        },
+      })
+      .run();
+    setStatus("已插入视图，请选择要引用的内容");
+    recordConsoleEvent("document", "插入视图");
+  };
+
+  const openHeadingNode = async (event: {
+    ctrlKey: boolean;
+    target: EventTarget | null;
+    preventDefault: () => void;
+    clientX: number;
+    clientY: number;
+  }) => {
+    if (!event.ctrlKey || !editor || !context) {
+      return;
+    }
+    let blockId = "";
+    let headingTitle = "";
+    const pointedHeading = headingUnderPointerRef.current;
+    headingUnderPointerRef.current = null;
+    if (pointedHeading) {
+      blockId = pointedHeading.blockId;
+      headingTitle = pointedHeading.title;
+    }
+    const selectedNode = editor.state.selection.$from.parent;
+    if (
+      selectedNode.type.name === "heading" &&
+      Number(selectedNode.attrs.level) === 1
+    ) {
+      blockId = String(selectedNode.attrs.blockId ?? "");
+      headingTitle = selectedNode.textContent.trim();
+    }
+    try {
+      if (!headingTitle) {
+        const coordinates = editor.view.posAtCoords({
+          left: event.clientX,
+          top: event.clientY,
+        });
+        const position = coordinates
+          ? editor.state.doc.resolve(coordinates.pos).parent
+          : null;
+        if (
+          position?.type.name === "heading" &&
+          Number(position.attrs.level) === 1
+        ) {
+          blockId = String(position.attrs.blockId ?? "");
+          headingTitle = position.textContent.trim();
+        }
+      }
+    } catch {
+      // Fall through to the DOM element below.
+    }
+
+    if (!headingTitle) {
+      const pointed = document
+        .elementsFromPoint(event.clientX, event.clientY)
+        .map((element) => element.closest<HTMLElement>("h1"))
+        .find((element): element is HTMLElement => Boolean(element));
+      const target =
+        pointed ??
+        ((event.target as HTMLElement | null)?.closest?.(
+          "h1",
+        ) as HTMLElement | null);
+      if (
+        !target ||
+        !editor.view.dom.contains(target) ||
+        target.closest(".proto-viewport")
+      ) {
+        return;
+      }
+      blockId = target.dataset.blockId ?? "";
+      headingTitle = target.textContent?.trim() ?? "";
+    }
+
+    if (!headingTitle) {
+      return;
+    }
+    event.preventDefault();
+    const mapId =
+      context.activeMap?.id ?? activeDocumentId.split("/")[0] ?? "";
+    if (!mapId) {
+      setStatus("当前标题不属于任何导图");
+      return;
+    }
+    try {
+      const map = await mapService.loadMap(workspaceRoot, mapId);
+      const nodes = flattenMindMap(map.root).filter(
+        (item) => item.id !== map.root.id,
+      );
+      const node =
+        (blockId
+          ? nodes.find((item) => item.headingBlockId === blockId)
+          : undefined) ??
+        nodes.find(
+          (item) =>
+            item.headingBlockId !== null &&
+            item.title.trim() === headingTitle,
+        );
+      if (!node) {
+        setStatus(
+          "没有找到这个 H1 对应的导图节点，请先保存文档再试",
+        );
+        return;
+      }
+      if (node.documentId) {
+        if (node.documentId === activeDocumentId) {
+          setStatus("这个标题已经对应当前文档");
+          return;
+        }
+        context.onActivateWorkspace(workspaceRoot);
+        context.openBlockDocument(
+          node.documentId,
+          node.title,
+          workspaceRoot,
+        );
+        recordConsoleEvent("document", "跳转 H1 节点", node.title);
+        return;
+      }
+      const confirmed = await confirmDialog({
+        title: "创建文档",
+        eyebrow: "H1 节点",
+        message: (
+          <p>
+            “<strong>{node.title}</strong>”还没有关联文档。是否为它创建一篇文档？
+          </p>
+        ),
+        confirmLabel: "创建文档",
+      });
+      if (!confirmed) {
+        return;
+      }
+      setStatus("正在创建文档…");
+      const updated = await mapService.createDocumentForNode(
+        workspaceRoot,
+        node.id,
+      );
+      window.dispatchEvent(new CustomEvent("tauri-notes:maps-changed"));
+      window.dispatchEvent(new CustomEvent("tauri-notes:document-changed"));
+      if (updated.documentId) {
+        context.onActivateWorkspace(workspaceRoot);
+        context.openBlockDocument(
+          updated.documentId,
+          updated.title,
+          workspaceRoot,
+        );
+        recordConsoleEvent("document", "创建并打开 H1 文档", updated.title);
+      }
+    } catch (reason) {
+      setStatus(`打开 H1 节点失败：${String(reason)}`);
+    }
+  };
 
   const moveBlock = (direction: -1 | 1) => {
     if (!editor || !selectedBlock) {
@@ -640,6 +830,42 @@ export default function ImportedPreviewPane({
     }
   };
 
+  useEffect(() => {
+    const dom = editor?.view.dom;
+    if (!dom) {
+      return;
+    }
+    const listener = (event: globalThis.MouseEvent) => {
+      void openHeadingNode(event);
+    };
+    const onPointerDown = (event: globalThis.MouseEvent) => {
+      if (event.button !== 0) {
+        return;
+      }
+      const target = document
+        .elementFromPoint(event.clientX, event.clientY)
+        ?.closest<HTMLElement>("h1");
+      if (
+        target &&
+        editor?.view.dom.contains(target) &&
+        !target.closest(".proto-viewport")
+      ) {
+        headingUnderPointerRef.current = {
+          blockId: target.dataset.blockId ?? "",
+          title: target.textContent?.trim() ?? "",
+        };
+      } else {
+        headingUnderPointerRef.current = null;
+      }
+    };
+    dom.addEventListener("click", listener, true);
+    dom.addEventListener("mousedown", onPointerDown, true);
+    return () => {
+      dom.removeEventListener("click", listener, true);
+      dom.removeEventListener("mousedown", onPointerDown, true);
+    };
+  }, [activeDocumentId, context, editor, workspaceRoot]);
+
   return (
     <div className="imported-preview-pane">
       <div
@@ -712,6 +938,27 @@ export default function ImportedPreviewPane({
                 {item.label}
               </button>
             ))}
+            <button
+              type="button"
+              className="block-format-icon-button"
+              title="插入视图"
+              aria-label="插入视图"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={insertEmptyViewport}
+            >
+              <svg
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <rect x="2.25" y="3.25" width="11.5" height="9.5" rx="1.5" />
+                <path d="M2.25 6.25h11.5M5 3.25v3" />
+              </svg>
+            </button>
           </div>
         )}
         {editing && editor && linkOpen && (
@@ -780,35 +1027,67 @@ export default function ImportedPreviewPane({
             </span>
             <button
               type="button"
-              title="上移块"
+              className="block-layout-icon-button"
+              aria-label="上移块"
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => moveBlock(-1)}
             >
               ↑
+              <span className="block-layout-tooltip">上移块</span>
             </button>
             <button
               type="button"
-              title="下移块"
+              className="block-layout-icon-button"
+              aria-label="下移块"
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => moveBlock(1)}
             >
               ↓
+              <span className="block-layout-tooltip">下移块</span>
             </button>
             <button
               type="button"
-              title="复制块"
+              className="block-layout-icon-button"
+              aria-label="复制块"
               onMouseDown={(event) => event.preventDefault()}
               onClick={duplicateBlock}
             >
-              复制
+              <svg
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <rect x="5.25" y="5.25" width="8.25" height="8.25" rx="1.5" />
+                <path d="M10.75 5.25V3.5a1.5 1.5 0 0 0-1.5-1.5h-6a1.5 1.5 0 0 0-1.5 1.5v6a1.5 1.5 0 0 0 1.5 1.5h1.75" />
+              </svg>
+              <span className="block-layout-tooltip">复制块</span>
             </button>
             <button
               type="button"
-              title="删除块"
+              className="block-layout-icon-button"
+              aria-label="删除块"
               onMouseDown={(event) => event.preventDefault()}
               onClick={deleteBlock}
             >
-              删除
+              <svg
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M2.75 4.5h10.5" />
+                <path d="M6.25 4.5V3a1 1 0 0 1 1-1h1.5a1 1 0 0 1 1 1v1.5" />
+                <path d="M4.75 4.5l.5 8a1 1 0 0 0 1 .95h3.5a1 1 0 0 0 1-.95l.5-8" />
+                <path d="M6.75 7v3.75M9.25 7v3.75" />
+              </svg>
+              <span className="block-layout-tooltip">删除块</span>
             </button>
             {selectedBlock.type === "blockGroup" && (
               <button
@@ -911,6 +1190,14 @@ export default function ImportedPreviewPane({
         {saving ? "保存中…" : status} · {stats.blocks} 块 ·{" "}
         {stats.characters.toLocaleString()} 字
       </div>
+      {viewportRequest && (
+        <ViewportSelectionPanel
+          workspaceRoot={workspaceRoot}
+          activeDocumentId={activeDocumentId}
+          request={viewportRequest}
+          onClose={() => setViewportRequest(null)}
+        />
+      )}
     </div>
   );
 }

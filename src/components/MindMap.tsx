@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { mapService } from "../application/mapService";
+import { confirmDialog } from "../ui/dialog/confirmDialog";
 import {
   Background,
   Controls,
@@ -13,6 +14,7 @@ import {
 import type { MindMapNode, MindMapView } from "../types";
 import { buildMindMap, flattenMindMap } from "../lib/mindMap";
 import MindMapNodeView from "./MindMapNode";
+import { useMindMapFlow } from "./useMindMapFlow";
 
 const nodeTypes = { mindMap: MindMapNodeView };
 
@@ -138,8 +140,7 @@ function MindMapInner({
   }, [fitView]);
 
   const graph = useMemo(
-    () => buildMindMap(
-      map?.root ?? {
+    () => buildMindMap(      map?.root ?? {
         id: `map:${mapId}`,
         title: mapTitle,
         hasDocument: false,
@@ -195,6 +196,8 @@ function MindMapInner({
     [map],
   );
 
+  const { nodes: flowNodes, onNodesChange } = useMindMapFlow(graph.nodes);
+
   const onNodeClick: NodeMouseHandler = (_, node) => {
     const target = byId.get(node.id);
     if (!target) {
@@ -214,9 +217,6 @@ function MindMapInner({
   };
 
   const onNodeDragStop: OnNodeDrag = (_, node) => {
-    if (node.id.startsWith("map:")) {
-      return;
-    }
     setMap((current) =>
       current
         ? {
@@ -240,25 +240,6 @@ function MindMapInner({
       .catch((reason) => setError(String(reason)));
   };
 
-  const onNodeDrag: OnNodeDrag = (_, node) => {
-    if (node.id.startsWith("map:")) {
-      return;
-    }
-    setMap((current) =>
-      current
-        ? {
-            ...current,
-            root: replacePosition(
-              current.root,
-              node.id,
-              node.position.x,
-              node.position.y,
-            ),
-          }
-        : current,
-    );
-  };
-
   const renameNodeInline = () => {
     if (!menu) {
       return;
@@ -277,9 +258,12 @@ function MindMapInner({
     const node = menu.node;
     setMenu(null);
     if (
-      !window.confirm(
-        `删除节点“${node.title}”？\n如果它绑定了文档，文档会移动到“未归类”。`,
-      )
+      !(await confirmDialog({
+        title: "删除节点？",
+        message: `删除节点“${node.title}”？如果它绑定了文档，文档会移动到“未归类”。`,
+        confirmLabel: "删除",
+        tone: "danger",
+      }))
     ) {
       return;
     }
@@ -362,9 +346,10 @@ function MindMapInner({
     <div className="mind-map" ref={mapRef}>
       {error && <div className="mind-map-error">{error}</div>}
       <ReactFlow
-        nodes={graph.nodes}
+        nodes={flowNodes}
         edges={graph.edges}
         nodeTypes={nodeTypes}
+        onNodesChange={onNodesChange}
         fitView
         fitViewOptions={{ padding: 0.25 }}
         onInit={(instance) => {
@@ -374,7 +359,6 @@ function MindMapInner({
         }}
         onNodeContextMenu={onNodeContextMenu}
         onNodeClick={onNodeClick}
-        onNodeDrag={onNodeDrag}
         onNodeDragStop={onNodeDragStop}
         onPaneClick={() => setMenu(null)}
         minZoom={0.2}
