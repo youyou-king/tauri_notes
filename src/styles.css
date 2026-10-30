@@ -4534,11 +4534,16 @@ button {
   box-shadow: var(--surface-editor-shadow);
 }
 
-html[data-appearance-pack] .dock-workspace .dv-groupview,
-html[data-appearance-pack] .dock-workspace .dv-view-container,
-html[data-appearance-pack] .dock-workspace .dv-content-container {
+html[data-appearance-pack] .dock-workspace .dv-groupview {
   background: var(--surface-panel-bg);
   backdrop-filter: blur(var(--surface-panel-blur));
+  border-color: var(--surface-panel-border);
+}
+
+html[data-appearance-pack] .dock-workspace .dv-view-container,
+html[data-appearance-pack] .dock-workspace .dv-content-container {
+  background: transparent;
+  backdrop-filter: none;
   border-color: var(--surface-panel-border);
 }
 
@@ -4546,6 +4551,18 @@ html[data-appearance-pack] .dock-workspace .dv-tabs-and-actions-container,
 html[data-appearance-pack] .dock-workspace .dv-tab {
   background: var(--surface-panel-bg);
   border-color: var(--surface-panel-border);
+}
+
+html[data-appearance-pack] body,
+html[data-appearance-pack] .workspace,
+html[data-appearance-pack] .dock-workspace .dv-dockview,
+html[data-appearance-pack] .dock-workspace .dv-pane,
+html[data-appearance-pack] .dock-workspace .dv-panel {
+  background: transparent;
+}
+
+html[data-appearance-pack] .mind-map-flow {
+  background: color-mix(in srgb, var(--map-canvas-bg) 22%, transparent);
 }
 
 .app[data-shell="mobile"] {
