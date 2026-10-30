@@ -1,17 +1,13 @@
 import { createContext, useContext } from "react";
-import type { BoardController } from "../board/useBoardController";
+import type {
+  BoardControllerPort,
+  PinBlockInput,
+} from "../../kernel/panel/boardPort";
 import type {
   MapView,
   NodeView,
   WorkspaceView,
 } from "../../types";
-
-export type PinBlockInput = {
-  blockId: string;
-  docId: string;
-  docTitle: string;
-  text: string;
-};
 
 export type PanelContextValue = {
   workspace: WorkspaceView | null;
@@ -32,7 +28,7 @@ export type PanelContextValue = {
   onUnloadWorkspace: (root: string) => void;
   onRenameWorkspace: (root: string, title: string) => void;
   onPinBlock: (input: PinBlockInput) => void | Promise<void>;
-  board: BoardController;
+  board: BoardControllerPort;
   lastActiveDocId: string | null;
 };
 

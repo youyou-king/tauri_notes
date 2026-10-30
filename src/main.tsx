@@ -3,6 +3,9 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import { ErrorBoundary } from "./ui/ErrorBoundary";
 import { ThemeProvider } from "./ui/theme/ThemeProvider";
+import { PluginProvider } from "./ui/plugins/PluginProvider";
+import { AppearanceHost } from "./plugins/theme/AppearanceHost";
+import { WorkspaceBridge } from "./ui/sdk";
 import "./styles.layered.css";
 
 const LAST_ERROR_KEY = "tauri-notes.last-runtime-error";
@@ -33,7 +36,12 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ErrorBoundary>
       <ThemeProvider>
-        <App />
+        <WorkspaceBridge>
+          <AppearanceHost />
+          <PluginProvider>
+            <App />
+          </PluginProvider>
+        </WorkspaceBridge>
       </ThemeProvider>
     </ErrorBoundary>
   </React.StrictMode>,

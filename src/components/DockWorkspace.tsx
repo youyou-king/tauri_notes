@@ -2,6 +2,7 @@ import {
   forwardRef,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -15,12 +16,10 @@ import {
 import {
   PanelContext,
   type PanelContextValue,
-  type PinBlockInput,
 } from "../ui/panels/PanelContext";
 import { ConsolePanel } from "../ui/panels/ConsolePanel";
 import { DocumentLibraryPanel } from "../ui/panels/DocumentLibraryPanel";
 import { MapPanel, type MapParams } from "../ui/panels/MapPanel";
-import { BoardPanel } from "../ui/panels/BoardPanel";
 import { WorkspaceTab } from "../ui/panels/WorkspaceTab";
 import { MultiOutlinePanel } from "../ui/panels/OutlinePanel";
 import {
@@ -31,7 +30,10 @@ import {
   getPanelComponents,
   registerPanel,
 } from "../ui/panels/registry";
-import type { BoardController } from "../ui/board/useBoardController";
+import type {
+  BoardControllerPort,
+  PinBlockInput,
+} from "../kernel/panel/boardPort";
 import type { MapView, NodeView, WorkspaceView } from "../types";
 import { findNode } from "../domain/tree";
 import { useTheme } from "../ui/theme/ThemeProvider";
@@ -86,13 +88,6 @@ registerPanel({
   singleton: true,
 });
 registerPanel({
-  id: "board",
-  component: BoardPanel,
-  icon: "🧩",
-  defaultTitle: "对照板",
-  singleton: true,
-});
-registerPanel({
   id: "library",
   component: DocumentLibraryPanel,
   icon: "📚",
@@ -105,8 +100,6 @@ registerPanel({
   icon: "📄",
   defaultTitle: "文档",
 });
-
-const components = getPanelComponents() as any;
 
 export default forwardRef<
   DockWorkspaceHandle,
@@ -123,7 +116,7 @@ export default forwardRef<
     onUnloadWorkspace: (root: string) => void;
     onRenameWorkspace: (root: string, title: string) => void;
     onPinBlock: (input: PinBlockInput) => void | Promise<void>;
-    board: BoardController;
+    board: BoardControllerPort;
   }
 >(function DockWorkspace(
   {
@@ -144,6 +137,7 @@ export default forwardRef<
   ref,
 ) {
   const { resolved } = useTheme();
+  const components = useMemo(() => getPanelComponents() as any, []);
   const dockTheme = resolved === "light" ? themeLight : themeAbyss;
   const apiRef = useRef<DockviewApi | null>(null);
   const pendingOpen = useRef<{

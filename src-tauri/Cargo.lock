@@ -3720,10 +3720,110 @@ dependencies = [
  "sqlx",
  "tauri",
  "tauri-build",
+ "tauri-notes-board",
+ "tauri-notes-content",
+ "tauri-notes-document",
+ "tauri-notes-import",
+ "tauri-notes-platform",
+ "tauri-notes-plugin-api",
+ "tauri-notes-plugin-runtime",
+ "tauri-notes-storage",
+ "tauri-notes-theme",
+ "tauri-notes-workspace",
  "tauri-plugin-dialog",
  "tauri-plugin-single-instance",
  "tokio",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "tauri-notes-board"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "sqlx",
+ "tauri-notes-storage",
+]
+
+[[package]]
+name = "tauri-notes-content"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "sqlx",
+ "tauri-notes-storage",
+]
+
+[[package]]
+name = "tauri-notes-document"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tauri-notes-storage",
+ "tokio",
+]
+
+[[package]]
+name = "tauri-notes-import"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tauri-notes-document",
+ "tauri-notes-storage",
+]
+
+[[package]]
+name = "tauri-notes-platform"
+version = "0.1.0"
+dependencies = [
+ "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "tauri-notes-plugin-api"
+version = "0.1.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "tauri-notes-plugin-runtime"
+version = "0.1.0"
+dependencies = [
+ "tauri-notes-plugin-api",
+]
+
+[[package]]
+name = "tauri-notes-storage"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "sqlx",
+ "tokio",
+]
+
+[[package]]
+name = "tauri-notes-theme"
+version = "0.1.0"
+dependencies = [
+ "tauri-notes-platform",
+]
+
+[[package]]
+name = "tauri-notes-workspace"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tauri-notes-document",
+ "tauri-notes-platform",
+ "tauri-notes-storage",
+ "tokio",
 ]
 
 [[package]]

@@ -1,0 +1,14 @@
+[package]
+name = "tauri-notes-content"
+version = "0.1.0"
+edition = "2021"
+description = "Reference lookup and image asset storage for Tauri Notes"
+
+[lib]
+name = "tauri_notes_content"
+path = "src/lib.rs"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio", "sqlite"] }
+tauri-notes-storage = { path = "../storage" }

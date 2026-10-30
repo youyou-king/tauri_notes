@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import "./navCommands";
-import { getCommand } from "../ui/commands/registry";
+import { getCommand } from "../kernel/command";
 
 describe("navigation commands", () => {
   it("registers knowledge and view commands", () => {

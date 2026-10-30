@@ -1,0 +1,17 @@
+[package]
+name = "tauri-notes-platform"
+version = "0.1.0"
+edition = "2021"
+description = "Platform paths, themes and file association for Tauri Notes"
+
+[lib]
+name = "tauri_notes_platform"
+path = "src/lib.rs"
+
+[dependencies]
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_Storage_FileSystem",
+] }

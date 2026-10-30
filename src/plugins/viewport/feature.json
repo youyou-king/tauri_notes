@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "sdkVersion": 1,
+  "id": "viewport",
+  "name": "视图",
+  "version": "0.1.0",
+  "kind": "feature",
+  "provides": [
+    "viewport"
+  ],
+  "dependencies": [],
+  "capabilities": [
+    "document.read",
+    "ui.panel",
+    "ui.command",
+    "document.write"
+  ],
+  "contributes": {
+    "commands": [
+      "viewport.pick"
+    ]
+  }
+}

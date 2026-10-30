@@ -1,7 +1,9 @@
 import type { Dispatch, SetStateAction } from "react";
-import { ThemeMenu } from "../ui/theme/ThemeMenu";
+import type { ToolbarItemContribution } from "../kernel/plugin";
+import { usePluginContributions } from "../ui/plugins/PluginProvider";
+import { CORE_TOOLBAR_ITEMS } from "./coreToolbar";
 
-export type NavbarMenu = "knowledge" | "view" | "theme" | null;
+export type NavbarMenu = string | null;
 
 type Props = {
   backend: string;
@@ -12,6 +14,13 @@ type Props = {
   runCommand: (id: string) => void;
 };
 
+type MenuGroup = {
+  id: string;
+  title: string;
+  order: number;
+  items: ToolbarItemContribution[];
+};
+
 export function AppToolbar({
   backend,
   busy,
@@ -20,6 +29,34 @@ export function AppToolbar({
   setMenu,
   runCommand,
 }: Props) {
+  const pluginItems = usePluginContributions<ToolbarItemContribution>(
+    "toolbarItems",
+  );
+  const items = [...CORE_TOOLBAR_ITEMS, ...pluginItems].sort(
+    (left, right) => (left.order ?? 0) - (right.order ?? 0),
+  );
+
+  const groups = new Map<string, MenuGroup>();
+  const directItems: ToolbarItemContribution[] = [];
+  for (const item of items) {
+    if (!item.menu) {
+      directItems.push(item);
+      continue;
+    }
+    const group = groups.get(item.menu) ?? {
+      id: item.menu,
+      title: item.menuTitle ?? item.menu,
+      order: item.menuOrder ?? 100,
+      items: [],
+    };
+    group.order = Math.min(group.order, item.menuOrder ?? group.order);
+    group.items.push(item);
+    groups.set(item.menu, group);
+  }
+  const menuGroups = [...groups.values()].sort(
+    (left, right) => left.order - right.order,
+  );
+
   return (
     <header className="toolbar">
       <div className="brand">
@@ -27,139 +64,69 @@ export function AppToolbar({
         <span>Notes</span>
       </div>
       <div className="toolbar-menus">
-        <div className="toolbar-menu">
-          <button
-            type="button"
-            className={menu === "knowledge" ? "active" : ""}
-            onClick={() =>
-              setMenu((current) =>
-                current === "knowledge" ? null : "knowledge",
-              )
-            }
-          >
-            知识库 ▾
-          </button>
-          {menu === "knowledge" && (
-            <div className="toolbar-popover">
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => {
-                  setMenu(null);
-                  runCommand("knowledge.create");
-                }}
-              >
-                新建知识库…
-              </button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => {
-                  setMenu(null);
-                  runCommand("knowledge.open");
-                }}
-              >
-                打开知识库…
-              </button>
-              <button
-                type="button"
-                disabled={busy || !hasWorkspace}
-                onClick={() => {
-                  setMenu(null);
-                  runCommand("knowledge.backup");
-                }}
-              >
-                保存
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setMenu(null);
-                  runCommand("association.set");
-                }}
-              >
-                设置 .note 文件关联
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setMenu(null);
-                  runCommand("association.clear");
-                }}
-              >
-                清除 .note 文件关联
-              </button>
-            </div>
-          )}
-        </div>
+        {menuGroups.map((group) => (
+          <div className="toolbar-menu" key={group.id}>
+            <button
+              type="button"
+              className={menu === group.id ? "active" : ""}
+              onClick={() =>
+                setMenu((current) =>
+                  current === group.id ? null : group.id,
+                )
+              }
+            >
+              {group.title} ▾
+            </button>
+            {menu === group.id && (
+              <div className="toolbar-popover">
+                {group.items.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    disabled={
+                      (busy && item.requiresIdle) ||
+                      (!hasWorkspace && item.requiresWorkspace)
+                    }
+                    onClick={() => {
+                      setMenu(null);
+                      if (item.commandId) {
+                        runCommand(item.commandId);
+                      }
+                    }}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
 
-        <div className="toolbar-menu">
-          <button
-            type="button"
-            className={menu === "view" ? "active" : ""}
-            onClick={() =>
-              setMenu((current) => (current === "view" ? null : "view"))
-            }
-          >
-            视图 ▾
-          </button>
-          {menu === "view" && (
-            <div className="toolbar-popover">
-              <button
-                type="button"
-                onClick={() => {
-                  setMenu(null);
-                  runCommand("view.outline");
-                }}
-              >
-                大纲
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setMenu(null);
-                  runCommand("view.console");
-                }}
-              >
-                控制台
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setMenu(null);
-                  runCommand("view.reset-layout");
-                }}
-              >
-                重置布局
-              </button>
-            </div>
-          )}
-        </div>
-
-        <div className="toolbar-menu">
-          <button
-            type="button"
-            className={menu === "theme" ? "active" : ""}
-            onClick={() =>
-              setMenu((current) => (current === "theme" ? null : "theme"))
-            }
-          >
-            主题 ▾
-          </button>
-          {menu === "theme" && <ThemeMenu onClose={() => setMenu(null)} />}
-        </div>
-
-        <button
-          type="button"
-          className="toolbar-help"
-          disabled={busy}
-          onClick={() => {
-            setMenu(null);
-            runCommand("help.open");
-          }}
-        >
-          帮助
-        </button>
+        {directItems.map((item) => {
+          const Component = item.component;
+          if (Component) {
+            return <Component key={item.id} />;
+          }
+          if (!item.commandId) {
+            return null;
+          }
+          return (
+            <button
+              key={item.id}
+              type="button"
+              className="toolbar-help"
+              disabled={busy && item.requiresIdle}
+              onClick={() => {
+                setMenu(null);
+                if (item.commandId) {
+                  runCommand(item.commandId);
+                }
+              }}
+            >
+              {item.label}
+            </button>
+          );
+        })}
       </div>
       <div
         className={`backend ${

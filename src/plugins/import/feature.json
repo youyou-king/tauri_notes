@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "sdkVersion": 1,
+  "id": "import",
+  "name": "导入",
+  "version": "0.1.0",
+  "kind": "feature",
+  "provides": [
+    "import"
+  ],
+  "dependencies": [],
+  "capabilities": [
+    "document.read",
+    "document.write",
+    "ui.panel",
+    "board.read",
+    "board.write",
+    "fs.read",
+    "fs.write"
+  ]
+}

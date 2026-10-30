@@ -1,0 +1,12 @@
+[package]
+name = "tauri-notes-theme"
+version = "0.1.0"
+edition = "2021"
+description = "Theme file persistence for Tauri Notes"
+
+[lib]
+name = "tauri_notes_theme"
+path = "src/lib.rs"
+
+[dependencies]
+tauri-notes-platform = { path = "../platform" }

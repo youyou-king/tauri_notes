@@ -1,0 +1,16 @@
+[package]
+name = "tauri-notes-import"
+version = "0.1.0"
+edition = "2021"
+description = "Markdown and board import for Tauri Notes"
+
+[lib]
+name = "tauri_notes_import"
+path = "src/lib.rs"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio", "sqlite"] }
+tauri-notes-document = { path = "../document" }
+tauri-notes-storage = { path = "../storage" }

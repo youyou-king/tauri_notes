@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "sdkVersion": 1,
+  "id": "theme",
+  "name": "外观",
+  "version": "0.1.0",
+  "kind": "feature",
+  "provides": [
+    "theme"
+  ],
+  "dependencies": [],
+  "capabilities": [
+    "appearance.read",
+    "appearance.write",
+    "ui.toolbar",
+    "ui.settings",
+    "ui.command"
+  ],
+  "contributes": {
+    "commands": [
+      "theme.apply",
+      "theme.open"
+    ],
+    "toolbarItems": [
+      "theme.menu"
+    ],
+    "settingsSections": [
+      "theme.settings"
+    ],
+    "appearancePacks": [
+      "theme.builtin"
+    ]
+  }
+}

@@ -1,8 +1,10 @@
 import { Extension, Node, mergeAttributes } from "@tiptap/core";
 import type { JSONContent } from "@tiptap/core";
 import { DOMSerializer } from "@tiptap/pm/model";
+import { Plugin } from "@tiptap/pm/state";
+import { isMarkdownTable } from "../editor/markdownTable";
 import { importedBlocksToDocument } from "../editor/importedMarkdown";
-import { referenceService } from "../application/referenceService";
+import { referenceClient as referenceService } from "../infrastructure/tauriReferenceClient";
 import { documentService } from "../application/documentService";
 import type { Editor } from "@tiptap/core";
 
@@ -734,6 +736,8 @@ function buildTable(
 
   const tools = document.createElement("div");
   tools.className = "proto-table-tools";
+  tools.hidden = !canEdit();
+  tools.setAttribute("aria-label", "表格操作");
   const addButton = (label: string, action: () => void) => {
     const button = document.createElement("button");
     button.type = "button";
@@ -799,6 +803,32 @@ export const TableBlock = Node.create({
       "div",
       mergeAttributes(HTMLAttributes, { "data-table-block": "true" }),
       String(HTMLAttributes.markdown ?? ""),
+    ];
+  },
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        props: {
+          handlePaste: (view, event) => {
+            const text = event.clipboardData?.getData("text/plain") ?? "";
+            if (!isMarkdownTable(text)) {
+              return false;
+            }
+            const { $from } = view.state.selection;
+            if ($from.parent.type.name === "codeBlock") {
+              return false;
+            }
+            const table = view.state.schema.nodes.tableBlock?.create({
+              markdown: text.trim(),
+            });
+            if (!table) {
+              return false;
+            }
+            view.dispatch(view.state.tr.replaceSelectionWith(table));
+            return true;
+          },
+        },
+      }),
     ];
   },
   addNodeView() {

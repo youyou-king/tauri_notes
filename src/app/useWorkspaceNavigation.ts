@@ -29,7 +29,6 @@ type Args = {
   appendLog: (line: string) => void;
   confirmDiscard: () => Promise<boolean>;
   setError: (message: string) => void;
-  setSearchOpen: (open: boolean) => void;
   dockRef: RefObject<DockWorkspaceHandle | null>;
 };
 
@@ -45,7 +44,6 @@ export function useWorkspaceNavigation({
   appendLog,
   confirmDiscard,
   setError,
-  setSearchOpen,
   dockRef,
 }: Args) {
   async function selectNode(node: NodeView) {
@@ -132,7 +130,6 @@ export function useWorkspaceNavigation({
       setError("搜索结果对应的节点不存在");
       return;
     }
-    setSearchOpen(false);
     setActiveMapId(map.id);
     setSelected(node);
     appendLog(`搜索打开：${node.title}`);

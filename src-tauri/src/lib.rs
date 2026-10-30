@@ -1,19 +1,22 @@
-mod assets;
-mod board_import;
-mod board_store;
+mod board_commands;
 mod commands;
-mod database;
-mod document;
-mod document_store;
-mod importer;
-mod map_store;
-mod references;
-mod services;
-mod sqlite;
-mod workspace;
+mod document_commands;
+mod import_commands;
+mod content_commands;
+mod storage_commands;
+mod workspace_commands;
+
+pub use tauri_notes_document::document;
+
+pub use tauri_notes_document::{document_store, map_store};
+pub use tauri_notes_storage::{database, sqlite};
 
 use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
+use std::collections::HashSet;
 use std::sync::Mutex;
+use tauri_notes_plugin_api::{validate_manifest, PluginManifest};
+use tauri_notes_plugin_runtime::plan_activation;
+use tauri_notes_platform::{NativePlatform, PlatformAdapter};
 
 static PENDING_NOTE: Mutex<Option<String>> = Mutex::new(None);
 
@@ -78,7 +81,7 @@ fn relaunch_as_normal() -> bool {
             file.as_ptr(),
             params.as_ptr(),
             directory.as_ptr(),
-            SW_SHOWNORMAL as i32,
+            SW_SHOWNORMAL,
         )
     };
     (result as usize as isize) > 32
@@ -97,69 +100,14 @@ fn take_pending_note_file() -> Option<String> {
 
 #[tauri::command]
 fn register_note_association() -> Result<(), String> {
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        let exe = std::env::current_exe()
-            .map_err(|error| format!("获取程序路径失败: {error}"))?;
-        let exe_text = exe.to_string_lossy();
-        let base = "HKCU\\Software\\Classes";
-        let entries = [
-            (
-                format!("{base}\\.note"),
-                "TauriNotes.note".to_string(),
-            ),
-            (
-                format!("{base}\\TauriNotes.note"),
-                "Tauri Notes 知识库".to_string(),
-            ),
-            (
-                format!("{base}\\TauriNotes.note\\DefaultIcon"),
-                format!("\"{exe_text}\",0"),
-            ),
-            (
-                format!("{base}\\TauriNotes.note\\shell\\open\\command"),
-                format!("\"{exe_text}\" \"%1\""),
-            ),
-        ];
-        for (key, value) in entries {
-            let status = std::process::Command::new("reg")
-                .args(["add", &key, "/ve", "/t", "REG_SZ", "/d", &value, "/f"])
-                .creation_flags(0x08000000)
-                .status()
-                .map_err(|error| format!("注册 .note 文件关联失败: {error}"))?;
-            if !status.success() {
-                return Err(format!("注册注册表项失败: {key}"));
-            }
-        }
-        Ok(())
-    }
-    #[cfg(not(windows))]
-    {
-        Err("当前平台暂不支持自动注册文件关联".into())
-    }
+    let exe = std::env::current_exe()
+        .map_err(|error| format!("获取程序路径失败: {error}"))?;
+    NativePlatform::new().register_file_association(&exe)
 }
 
 #[tauri::command]
 fn unregister_note_association() -> Result<(), String> {
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        for key in [
-            "HKCU\\Software\\Classes\\.note",
-            "HKCU\\Software\\Classes\\TauriNotes.note",
-        ] {
-            let _ = std::process::Command::new("reg")
-                .args(["delete", key, "/f"])
-                .creation_flags(0x08000000)
-                .status();
-        }
-        Ok(())
-    }
-    #[cfg(not(windows))]
-    {
-        Err("当前平台暂不支持".into())
-    }
+    NativePlatform::new().unregister_file_association()
 }
 
 
@@ -184,6 +132,31 @@ fn help_note_path() -> Result<String, String> {
     Err("未找到帮助知识库 help.note".into())
 }
 
+#[tauri::command]
+fn validate_plugin_manifest(
+    manifest: serde_json::Value,
+    allowed_capabilities: Option<Vec<String>>,
+) -> Result<Vec<String>, String> {
+    let parsed: PluginManifest =
+        serde_json::from_value(manifest).map_err(|error| error.to_string())?;
+    let allowed = allowed_capabilities.unwrap_or_default();
+    let allowed_refs: HashSet<&str> =
+        allowed.iter().map(String::as_str).collect();
+    Ok(validate_manifest(&parsed, &allowed_refs))
+}
+
+#[tauri::command]
+fn plugin_sdk_version() -> u32 {
+    tauri_notes_plugin_api::SDK_VERSION
+}
+
+#[tauri::command]
+fn plan_plugin_activation(
+    manifests: Vec<PluginManifest>,
+) -> Result<Vec<String>, Vec<String>> {
+    plan_activation(&manifests)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[cfg(windows)]
@@ -191,10 +164,8 @@ pub fn run() {
         let relaunched = std::env::args().any(|arg| arg == "--relaunched")
             || std::env::var("TAURI_NOTES_RELAUNCHED").is_ok();
         let restricted = is_restricted_process();
-        if !relaunched && restricted {
-            if relaunch_as_normal() {
-                std::process::exit(0);
-            }
+        if !relaunched && restricted && relaunch_as_normal() {
+            std::process::exit(0);
         }
     }
     tauri::Builder::default()
@@ -259,59 +230,62 @@ pub fn run() {
             register_note_association,
             unregister_note_association,
             help_note_path,
-            workspace::open_workspace,
-            workspace::create_note_file,
-            workspace::open_note_workspace,
-            workspace::save_note_file,
-            workspace::read_document,
-            workspace::document_modified,
-            workspace::index_document,
-            workspace::save_block,
-            workspace::split_block,
-            workspace::merge_blocks,
-            workspace::save_block_range,
-            workspace::write_document,
-            workspace::delete_blocks,
-            workspace::insert_blocks,
-            workspace::search_workspace,
-            workspace::search_blocks_db,
-            database::initialize_database,
-            database::database_status,
-            database::backup_database,
-            importer::import_markdown_workspace,
-            document_store::list_imported_documents,
-            document_store::load_document_blocks,
-            document_store::load_blocks_preview,
-            document_store::index_blocks_db,
-            document_store::save_imported_blocks,
-            document_store::create_imported_document,
-            document_store::get_imported_document_title,
-            document_store::rename_imported_document,
-            document_store::delete_imported_document,
-            document_store::load_document_tree,
-            map_store::load_mind_map,
-            map_store::load_outline,
-            map_store::create_mind_map,
-            map_store::rename_mind_map,
-            map_store::delete_mind_map,
-            map_store::delete_map_node,
-            map_store::create_map_node,
-            map_store::rename_map_node,
-            map_store::set_map_node_position,
-            map_store::create_document_for_map_root,
-            map_store::create_document_for_map_node,
-            map_store::bind_document_to_map_node,
-            board_import::import_boards,
-            board_store::list_boards_db,
-            board_store::read_board_db,
-            board_store::save_board_db,
-            board_store::delete_board_db,
-            assets::copy_image_asset,
-            assets::save_image_asset,
-            assets::save_note_image_asset,
-            references::load_reference_preview,
-            references::list_reference_targets,
-            references::relink_reference,
+            validate_plugin_manifest,
+            plugin_sdk_version,
+            plan_plugin_activation,
+            workspace_commands::open_workspace,
+            workspace_commands::create_note_file,
+            workspace_commands::open_note_workspace,
+            workspace_commands::save_note_file,
+            workspace_commands::read_document,
+            workspace_commands::document_modified,
+            workspace_commands::index_document,
+            workspace_commands::save_block,
+            workspace_commands::split_block,
+            workspace_commands::merge_blocks,
+            workspace_commands::save_block_range,
+            workspace_commands::write_document,
+            workspace_commands::delete_blocks,
+            workspace_commands::insert_blocks,
+            workspace_commands::search_workspace,
+            workspace_commands::search_blocks_db,
+            storage_commands::initialize_database,
+            storage_commands::database_status,
+            storage_commands::backup_database,
+            import_commands::import_markdown_workspace,
+            document_commands::list_imported_documents,
+            document_commands::load_document_blocks,
+            document_commands::load_blocks_preview,
+            document_commands::index_blocks_db,
+            document_commands::save_imported_blocks,
+            document_commands::create_imported_document,
+            document_commands::get_imported_document_title,
+            document_commands::rename_imported_document,
+            document_commands::delete_imported_document,
+            document_commands::load_document_tree,
+            document_commands::load_mind_map,
+            document_commands::load_outline,
+            document_commands::create_mind_map,
+            document_commands::rename_mind_map,
+            document_commands::delete_mind_map,
+            document_commands::delete_map_node,
+            document_commands::create_map_node,
+            document_commands::rename_map_node,
+            document_commands::set_map_node_position,
+            document_commands::create_document_for_map_root,
+            document_commands::create_document_for_map_node,
+            document_commands::bind_document_to_map_node,
+            import_commands::import_boards,
+            board_commands::list_boards_db,
+            board_commands::read_board_db,
+            board_commands::save_board_db,
+            board_commands::delete_board_db,
+            content_commands::copy_image_asset,
+            content_commands::save_image_asset,
+            content_commands::save_note_image_asset,
+            content_commands::load_reference_preview,
+            content_commands::list_reference_targets,
+            content_commands::relink_reference,
             commands::theme::list_custom_themes,
             commands::theme::save_custom_theme,
             commands::theme::delete_custom_theme

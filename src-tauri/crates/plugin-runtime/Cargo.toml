@@ -1,0 +1,12 @@
+[package]
+name = "tauri-notes-plugin-runtime"
+version = "0.1.0"
+edition = "2021"
+description = "Activation planning for Tauri Notes plugins"
+
+[lib]
+name = "tauri_notes_plugin_runtime"
+path = "src/lib.rs"
+
+[dependencies]
+tauri-notes-plugin-api = { path = "../plugin-api" }

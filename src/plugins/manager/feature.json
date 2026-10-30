@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "sdkVersion": 1,
+  "id": "manager",
+  "name": "插件管理",
+  "version": "0.1.0",
+  "kind": "capability",
+  "provides": [
+    "manager"
+  ],
+  "dependencies": [],
+  "capabilities": [
+    "ui.settings"
+  ],
+  "contributes": {
+    "settingsSections": [
+      "plugin.manager"
+    ]
+  }
+}

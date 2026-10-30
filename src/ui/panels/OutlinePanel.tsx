@@ -1,7 +1,7 @@
 import { useContext, useEffect, useRef, useState } from "react";
 import { mapService } from "../../application/mapService";
 import { documentService } from "../../application/documentService";
-import { crossPanelBus, PANEL_DRAG_MIME } from "../../application/panelEvents";
+import { crossPanelBus, PANEL_DRAG_MIME } from "../../kernel/event";
 import { confirmDialog } from "../dialog/confirmDialog";
 import { Dialog } from "../dialog/Dialog";
 import type { MindMapNode, OutlineView } from "../../types";

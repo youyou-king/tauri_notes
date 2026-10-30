@@ -1,23 +1,3 @@
-import { registerCommand } from "../ui/commands/registry";
-
-export type AppCommandContext = {
-  hasWorkspace: boolean;
-  openBoard: () => void;
-  openSearch: () => void;
-};
-
-registerCommand<AppCommandContext>({
-  id: "board.open",
-  label: "打开对照板",
-  shortcut: "Mod+Shift+B",
-  enabled: (context) => context.hasWorkspace,
-  run: (context) => context.openBoard(),
-});
-
-registerCommand<AppCommandContext>({
-  id: "search.open",
-  label: "搜索",
-  shortcut: "Mod+P",
-  enabled: (context) => context.hasWorkspace,
-  run: (context) => context.openSearch(),
-});
+// App-level commands are now owned by their plugins. This module remains as
+// the composition boundary for future shell-only commands.
+export {};

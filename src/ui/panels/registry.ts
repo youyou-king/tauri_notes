@@ -1,27 +1,21 @@
 import { createElement, type ComponentType } from "react";
 import { PanelErrorBoundary } from "../ErrorBoundary";
+import { getPanelDefinitions } from "../../kernel/panel/registry";
+
+export type { PanelDefinition } from "../../kernel/panel/registry";
+export {
+  getPanelDefaultTitle,
+  getPanelIcon,
+  registerPanel,
+} from "../../kernel/panel/registry";
 
 /**
- * Registered dock panels. Components stay independent of the registry; the
- * registry only owns identity, icon, and default title metadata.
+ * UI adapter: the kernel owns panel identity; the shell adds the error
+ * boundary because it is a React concern.
  */
-export type PanelDefinition = {
-  id: string;
-  component: ComponentType<any>;
-  icon: string;
-  defaultTitle: string;
-  singleton?: boolean;
-};
-
-const definitions = new Map<string, PanelDefinition>();
-
-export function registerPanel(definition: PanelDefinition): void {
-  definitions.set(definition.id, definition);
-}
-
 export function getPanelComponents(): Record<string, ComponentType<any>> {
   return Object.fromEntries(
-    [...definitions.values()].map((definition) => {
+    getPanelDefinitions().map((definition) => {
       const Inner = definition.component;
       const Bounded = (props: Record<string, unknown>) =>
         createElement(
@@ -33,12 +27,4 @@ export function getPanelComponents(): Record<string, ComponentType<any>> {
       return [definition.id, Bounded];
     }),
   );
-}
-
-export function getPanelIcon(component: string): string {
-  return definitions.get(component)?.icon ?? "▦";
-}
-
-export function getPanelDefaultTitle(component: string): string {
-  return definitions.get(component)?.defaultTitle ?? component;
 }

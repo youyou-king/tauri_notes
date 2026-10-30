@@ -9,3 +9,5 @@ installer/custom/*.exe
 test-results
 .snapshots
 perm_workspace.note
+help.note-shm
+help.note-wal

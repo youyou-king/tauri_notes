@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "sdkVersion": 1,
+  "id": "reference",
+  "name": "引用",
+  "version": "0.1.0",
+  "kind": "feature",
+  "provides": [
+    "reference"
+  ],
+  "dependencies": [],
+  "capabilities": [
+    "document.read",
+    "ui.settings",
+    "ui.command",
+    "reference.read",
+    "reference.write"
+  ],
+  "contributes": {
+    "commands": [
+      "reference.resolve"
+    ],
+    "settingsSections": [
+      "reference.settings"
+    ]
+  }
+}

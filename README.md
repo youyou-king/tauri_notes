@@ -15,7 +15,7 @@ Tauri 2 + React 19 的本地优先 Markdown 知识库。
 架构说明：
 
 - [`../设计文档/架构重构方案.md`](../设计文档/架构重构方案.md)
-- [`../设计文档/迁移方案.md`](../设计文档/迁移方案.md)
+- [`../设计文档/技术架构与插件化方案.md`](../设计文档/技术架构与插件化方案.md)
 
 ## 技术栈
 
@@ -51,19 +51,55 @@ npm run dev
 ## 验证
 
 ```powershell
-npm run check        # TypeScript + 36 个前端单元测试
-npm run e2e          # 18 个 Playwright E2E / 视觉回归
+npm run check        # TypeScript + 118 个前端单元测试
+npm run e2e          # 28 个 Playwright E2E / 视觉回归
 cd src-tauri
-cargo test --lib     # 20 个 Rust 单元测试
+cargo test -p tauri-notes --lib
+
+# Rust crates
+cargo test -p tauri-notes-plugin-api --lib
+cargo test -p tauri-notes-plugin-runtime --lib
+cargo test -p tauri-notes-platform --lib
+cargo test -p tauri-notes-storage --lib
+cargo test -p tauri-notes-content --lib
+cargo test -p tauri-notes-board --lib
+cargo test -p tauri-notes-document --lib
 ```
 
 完整验证和打包：
 
 ```powershell
-npm run build
+npm run verify:all
+```
+
+CI 工作流：
+
+```text
+.github/workflows/ci.yml
+```
+
+矩阵：
+
+```text
+frontend: ubuntu
+e2e: ubuntu
+rust-crates: Windows / macOS / Ubuntu
+desktop-build: Windows / macOS / Ubuntu
+```
+
+`desktop-build` 执行：
+
+```text
+npm ci
 npm run tauri build -- --no-bundle
-powershell -File scripts/build-installer.ps1
-powershell -File scripts/verify-installer.ps1
+```
+
+Linux 安装 WebKitGTK / appindicator / rsvg / patchelf 依赖。
+
+重构验收与剩余事项见：
+
+```text
+../设计文档/重构验收报告.md
 ```
 
 ## 主要目录

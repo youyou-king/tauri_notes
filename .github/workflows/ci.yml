@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run check
+      - run: npm run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e
+
+  rust-crates:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: src-tauri
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test -p tauri-notes-plugin-api --lib
+      - run: cargo test -p tauri-notes-plugin-runtime --lib
+      - run: cargo test -p tauri-notes-platform --lib
+      - run: cargo test -p tauri-notes-storage --lib
+      - run: cargo test -p tauri-notes-content --lib
+      - run: cargo test -p tauri-notes-board --lib
+      - run: cargo test -p tauri-notes-document --lib
+      - run: cargo test -p tauri-notes-import --lib
+      - run: cargo test -p tauri-notes-workspace --lib
+      - run: cargo test -p tauri-notes-theme --lib
+      - run: >
+          cargo clippy
+          -p tauri-notes-plugin-api
+          -p tauri-notes-plugin-runtime
+          -p tauri-notes-platform
+          -p tauri-notes-storage
+          -p tauri-notes-content
+          -p tauri-notes-board
+          -p tauri-notes-document
+          -p tauri-notes-import
+          -p tauri-notes-workspace
+          -p tauri-notes-theme
+          --all-targets -- -D warnings
+
+  desktop-build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf
+      - run: npm ci
+      - run: npm run tauri build -- --no-bundle
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tauri-notes-${{ matrix.os }}
+          path: src-tauri/target/release/tauri-notes*
+          if-no-files-found: error

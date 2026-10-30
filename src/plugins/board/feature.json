@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "sdkVersion": 1,
+  "id": "board",
+  "name": "对照板",
+  "version": "0.1.0",
+  "kind": "feature",
+  "provides": [
+    "board"
+  ],
+  "dependencies": [],
+  "capabilities": [
+    "board.read",
+    "board.write",
+    "ui.panel",
+    "ui.command"
+  ],
+  "contributes": {
+    "commands": [
+      "board.open"
+    ],
+    "panels": [
+      "board"
+    ]
+  }
+}

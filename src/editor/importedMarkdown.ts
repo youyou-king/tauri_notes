@@ -1,6 +1,7 @@
 import type { JSONContent } from "@tiptap/core";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import type { SaveBlock, StoredBlock } from "../domain/importedDocument";
+import { isMarkdownTable } from "./markdownTable";
 
 type RawMarkdownAttrs = {
   markdown?: string;
@@ -252,6 +253,19 @@ function convertRawBlock(block: StoredBlock): JSONContent {
   const attrs = content.attrs ?? {};
   const markdown = attrs.markdown ?? block.plainText;
   const kind = attrs.kind ?? block.blockType;
+
+  if (
+    isMarkdownTable(markdown) &&
+    (content.type === "paragraph" ||
+      content.type === "rawMarkdown" ||
+      !content.type) &&
+    kind !== "code"
+  ) {
+    return {
+      type: "tableBlock",
+      attrs: { ...layoutAttrs(block), markdown: markdown.trim() },
+    };
+  }
 
   if (content.type && CONVERTED_BLOCK_TYPES.has(content.type)) {
     return {

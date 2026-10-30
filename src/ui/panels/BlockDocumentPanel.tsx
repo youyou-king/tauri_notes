@@ -1,17 +1,14 @@
-import { lazy, Suspense, useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import type { IDockviewPanelProps } from "dockview-react";
 import { documentService } from "../../application/documentService";
 import { findNode } from "../../domain/tree";
+import { getUiRenderer } from "../../kernel/ui";
 import { usePanelContext } from "./PanelContext";
 
 export type BlockDocParams = {
   documentId?: string;
   workspaceRoot?: string;
 };
-
-const ImportedPreviewPane = lazy(
-  () => import("../import/ImportedPreviewPane"),
-);
 
 export function BlockDocumentPanel(
   props: IDockviewPanelProps<BlockDocParams>,
@@ -71,6 +68,12 @@ export function BlockDocumentPanel(
 
   if (!workspaceRoot || !documentId) {
     return null;
+  }
+  const ImportedPreviewPane = getUiRenderer("document.importedView");
+  if (!ImportedPreviewPane) {
+    return (
+      <div className="panel-loading">文档渲染器尚未注册…</div>
+    );
   }
   return (
     <Suspense fallback={<div className="panel-loading">加载编辑器…</div>}>

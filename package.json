@@ -11,6 +11,7 @@
     "check": "tsc --noEmit && vitest run",
     "e2e": "playwright test",
     "verify": "npm run check && npm run build",
+    "verify:all": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-all.ps1",
     "preview": "vite preview",
     "tauri": "tauri"
   },
