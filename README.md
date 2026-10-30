@@ -1,5 +1,7 @@
 # Tauri Notes
 
+![CI](https://github.com/youyou-king/tauri_notes/actions/workflows/ci.yml/badge.svg)
+
 Tauri 2 + React 19 的本地优先 Markdown 知识库。
 
 ## 当前架构
