@@ -33,6 +33,7 @@ search
 help
 import
 viewport
+manager
 ```
 
 `src/kernel/sdk` is the stable plugin API facade. Kernel internals may change;

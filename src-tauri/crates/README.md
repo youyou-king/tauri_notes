@@ -76,15 +76,6 @@ theme
 └─ legacy theme migration
 ```
 
-Planned:
-
-```text
-crates/
-├─ platform/          PlatformAdapter
-├─ plugin-runtime/    lifecycle + registry
-└─ plugins/           board / reference / import / viewport / theme
-```
-
 Rules:
 
 - the desktop package (`src-tauri`) is the composition root;
