@@ -534,8 +534,14 @@ test("renders the mobile shell and opens documents", async ({ page }) => {
   await page.goto("/e2e.html");
   await expect(page.locator(".mobile-shell")).toBeVisible();
   await expect(page.getByRole("button", { name: "导图" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "导图" }),
+  ).toHaveAttribute("aria-current", "page");
 
   await page.getByRole("button", { name: "目录", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "目录", exact: true }),
+  ).toHaveAttribute("aria-current", "page");
   await expect(page.getByText("测试想法").first()).toBeVisible();
   await page
     .getByRole("button", { name: /测试想法/ })

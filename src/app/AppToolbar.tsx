@@ -69,6 +69,8 @@ export function AppToolbar({
             <button
               type="button"
               className={menu === group.id ? "active" : ""}
+              aria-haspopup="menu"
+              aria-expanded={menu === group.id}
               onClick={() =>
                 setMenu((current) =>
                   current === group.id ? null : group.id,

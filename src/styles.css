@@ -4850,3 +4850,9 @@ html[data-appearance-pack] .dock-workspace .dv-tab {
   display: grid;
   gap: 2px;
 }
+
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

@@ -182,6 +182,7 @@ export function MobileShell({
         </div>
         <button
           type="button"
+          aria-label="打开设置"
           onClick={() => {
             requestSave();
             window.dispatchEvent(new Event("settings:open"));
@@ -283,6 +284,7 @@ export function MobileShell({
         <button
           type="button"
           className={tab === "map" ? "active" : ""}
+          aria-current={tab === "map" ? "page" : undefined}
           onClick={() => switchTab("map")}
         >
           导图
@@ -290,6 +292,7 @@ export function MobileShell({
         <button
           type="button"
           className={tab === "library" ? "active" : ""}
+          aria-current={tab === "library" ? "page" : undefined}
           onClick={() => switchTab("library")}
         >
           目录
@@ -297,6 +300,7 @@ export function MobileShell({
         <button
           type="button"
           className={tab === "document" ? "active" : ""}
+          aria-current={tab === "document" ? "page" : undefined}
           onClick={() => switchTab("document")}
           disabled={!documentId}
         >

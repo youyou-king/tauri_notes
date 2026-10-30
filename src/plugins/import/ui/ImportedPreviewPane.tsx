@@ -1252,7 +1252,11 @@ export default function ImportedPreviewPane({
         </div>
         <EditorContent editor={editor} />
       </div>
-      <div className="block-status-bar">
+      <div
+        className="block-status-bar"
+        role="status"
+        aria-live="polite"
+      >
         {saving ? "保存中…" : status} · {stats.blocks} 块 ·{" "}
         {stats.characters.toLocaleString()} 字
       </div>

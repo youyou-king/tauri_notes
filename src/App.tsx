@@ -321,7 +321,11 @@ function App() {
       <div className="body">
         <main className="workspace">
           <div className="workspace-header">
-            {error && <div className="error-banner">{error}</div>}
+            {error && (
+              <div className="error-banner" role="alert">
+                {error}
+              </div>
+            )}
           </div>
           <div className="dock-fill">
             {pluginReady && shell.kind === "mobile" ? (
