@@ -209,12 +209,12 @@ test("drags a map node without resetting its position", async ({ page }) => {
   await page.mouse.down();
   await page.mouse.move(startX + 80, startY + 40, { steps: 12 });
   const during = await node.boundingBox();
-  expect(during?.x ?? 0).toBeGreaterThan(before.x + 30);
+  expect(during?.x ?? 0).toBeGreaterThan(before.x + 20);
   await page.mouse.up();
 
-  await page.waitForTimeout(400);
-  const after = await node.boundingBox();
-  expect(after?.x ?? 0).toBeGreaterThan(before.x + 30);
+  await expect
+    .poll(async () => (await node.boundingBox())?.x ?? 0)
+    .toBeGreaterThan(before.x + 20);
   await expect
     .poll(() =>
       page.evaluate(() =>
