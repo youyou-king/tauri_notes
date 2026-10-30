@@ -3,6 +3,10 @@ import {
   type AppearancePackManifest,
 } from "./appearancePack";
 import { sha256Base64 } from "./integrity";
+import {
+  verifyPublisherSignature,
+  type AppearancePublisher,
+} from "./publisher";
 
 const EOCD_SIGNATURE = 0x06054b50;
 const CENTRAL_SIGNATURE = 0x02014b50;
@@ -24,6 +28,7 @@ export type AppearancePackReadResult = {
   pack?: AppearancePackManifest;
   assets?: string[];
   warnings?: string[];
+  publisher?: AppearancePublisher;
   error?: string;
 };
 
@@ -214,6 +219,10 @@ export async function readAppearancePack(
     if (!result.pack) {
       fail(result.error ?? "外观包不合法");
     }
+    const signature = await verifyPublisherSignature(result.pack);
+    if (signature.error) {
+      fail(signature.error);
+    }
     for (const [path, expected] of Object.entries(
       result.pack.integrity ?? {},
     )) {
@@ -236,6 +245,7 @@ export async function readAppearancePack(
         .map((entry) => entry.path)
         .filter((path) => path !== "appearance.json"),
       warnings: result.warnings,
+      publisher: signature.publisher,
     };
   } catch (error) {
     return { error: error instanceof Error ? error.message : String(error) };

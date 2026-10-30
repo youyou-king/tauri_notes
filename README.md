@@ -53,7 +53,7 @@ npm run dev
 ## 验证
 
 ```powershell
-npm run check        # TypeScript + 118 个前端单元测试
+npm run check        # TypeScript + 122 个前端单元测试
 npm run e2e          # 28 个 Playwright E2E / 视觉回归
 cd src-tauri
 cargo test -p tauri-notes --lib
@@ -103,6 +103,21 @@ Linux 安装 WebKitGTK / appindicator / rsvg / patchelf 依赖。
 ```text
 ../设计文档/重构验收报告.md
 ```
+
+## 外观包签名
+
+`.tnlook` 支持可选 ECDSA P-256 发布者签名：
+
+- 签名覆盖 `appearance.json`（含 integrity 清单）；
+- 导入时校验签名；
+- 未信任的发布者需在导入面板确认；
+- 签名脚本：
+
+```powershell
+node scripts/sign-appearance-pack.mjs appearance.json private-key.pem "发布者名称"
+```
+
+生成后的 `appearance.json` 重新打包为 `.tnlook` 即可。
 
 ## 主要目录
 

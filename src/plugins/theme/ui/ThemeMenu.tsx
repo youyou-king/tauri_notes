@@ -20,6 +20,10 @@ import {
 import type { AppearancePackManifest } from "../appearancePack";
 import { AppearancePreview } from "./AppearancePreview";
 import { themeAppearancePackBytes } from "../exportPack";
+import {
+  trustPublisher,
+  type AppearancePublisher,
+} from "../publisher";
 import { ThemeEditor } from "./ThemeEditor";
 
 const BUILT_INS: Array<[ "dark" | "light" | "system", string]> = [
@@ -56,6 +60,9 @@ export function ThemeMenu({
   const [pendingPack, setPendingPack] =
     useState<AppearancePackManifest | null>(null);
   const [pendingBuffer, setPendingBuffer] = useState<ArrayBuffer | null>(
+    null,
+  );
+  const [publisher, setPublisher] = useState<AppearancePublisher | null>(
     null,
   );
   const [wallpaperUrl, setWallpaperUrl] = useState<string | null>(null);
@@ -166,10 +173,12 @@ export function ThemeMenu({
       setError(result.error ?? "导入外观包失败");
       setPackStatus(null);
       setPackWarnings([]);
+      setPublisher(null);
       return;
     }
     setError(null);
     setPackWarnings(result.warnings ?? []);
+    setPublisher(result.publisher ?? null);
     setPendingPack(result.pack);
     setPendingBuffer(buffer);
     setPackStatus(
@@ -179,7 +188,7 @@ export function ThemeMenu({
 
   async function applyPack() {
     const pack = pendingPack;
-    if (!pack) {
+    if (!pack || (publisher && !publisher.trusted)) {
       return;
     }
     const variantKey = pack.modes.includes(resolved)
@@ -421,10 +430,43 @@ export function ThemeMenu({
           ))}
         </ul>
       )}
+      {publisher && (
+        <div
+          className={
+            publisher.trusted
+              ? "theme-publisher trusted"
+              : "theme-publisher"
+          }
+          role="status"
+        >
+          <span>
+            发布者：{publisher.name ?? "未命名"} ·{" "}
+            {publisher.fingerprint}
+          </span>
+          {publisher.trusted ? (
+            <span>已信任</span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                trustPublisher(publisher.fingerprint);
+                setPublisher({ ...publisher, trusted: true });
+              }}
+            >
+              信任发布者
+            </button>
+          )}
+        </div>
+      )}
       {(pendingPack || appliedAppearancePackId()) && (
         <div className="theme-pack-actions">
           {pendingPack && (
-            <button type="button" className="primary" onClick={applyPack}>
+            <button
+              type="button"
+              className="primary"
+              disabled={Boolean(publisher && !publisher.trusted)}
+              onClick={applyPack}
+            >
               应用外观
             </button>
           )}

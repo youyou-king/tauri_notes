@@ -17,6 +17,13 @@ export type AppearanceSkinVariant = {
   map?: Record<string, unknown>;
 };
 
+export type AppearanceSignature = {
+  algorithm: "ecdsa-p256-sha256";
+  publicKey: string;
+  signature: string;
+  publisher?: string;
+};
+
 export type AppearancePackManifest = {
   schema: 1;
   id: string;
@@ -25,6 +32,7 @@ export type AppearancePackManifest = {
   author?: string;
   modes: AppearanceMode[];
   integrity?: Record<string, string>;
+  signature?: AppearanceSignature;
   variants: Partial<
     Record<
       AppearanceMode,
@@ -90,6 +98,40 @@ export function validateAppearancePack(
   const json = JSON.stringify(source);
   if (UNSAFE.test(json)) {
     return { error: "外观包包含不安全路径或表达式" };
+  }
+  if (source.signature !== undefined) {
+    if (
+      !source.signature ||
+      typeof source.signature !== "object" ||
+      Array.isArray(source.signature)
+    ) {
+      return { error: "signature 必须是对象" };
+    }
+    const signature = source.signature as Record<string, unknown>;
+    if (signature.algorithm !== "ecdsa-p256-sha256") {
+      return { error: "不支持的发布者签名算法" };
+    }
+    const key = signature.publicKey;
+    const value = signature.signature;
+    const base64url = /^[A-Za-z0-9_-]+$/;
+    if (
+      typeof key !== "string" ||
+      key.length < 40 ||
+      !base64url.test(key) ||
+      typeof value !== "string" ||
+      value.length < 40 ||
+      !base64url.test(value)
+    ) {
+      return { error: "发布者签名格式不正确" };
+    }
+    if (
+      signature.publisher !== undefined &&
+      (typeof signature.publisher !== "string" ||
+        !signature.publisher.trim() ||
+        signature.publisher.length > 60)
+    ) {
+      return { error: "发布者名称必须为 1-60 个字符" };
+    }
   }
   if (source.integrity !== undefined) {
     if (

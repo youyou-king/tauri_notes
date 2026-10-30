@@ -268,6 +268,59 @@ test("opens the plugin-provided appearance settings", async ({ page }) => {
   await expect(page.getByRole("dialog", { name: "设置" })).toBeHidden();
 });
 
+test("requires trust for a signed appearance pack", async ({ page }) => {
+  await page.goto("/e2e.html");
+  await expect(page.getByText(/演示知识库/).first()).toBeVisible();
+  await page.getByRole("button", { name: /主题/ }).click();
+  await page.getByRole("button", { name: "导入外观包…" }).click();
+
+  const manifest = `{
+    "schema": 1,
+    "id": "signed-e2e",
+    "name": "Signed E2E",
+    "version": "1.0.0",
+    "modes": ["dark"],
+    "variants": {
+      "dark": {
+        "theme": {
+          "colors": {
+            "canvas": "#101010",
+            "panel": "#181818",
+            "text": "#ffffff",
+            "textMuted": "#bbbbbb",
+            "accent": "#ff5ecb"
+          }
+        }
+      }
+    },
+    "signature": {
+      "algorithm": "ecdsa-p256-sha256",
+      "publicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEmpkHkt32d1AJZSPXShSRRqVU6lNrGZeVNCRCP4c8Wm2v42VBJRLLtrwtQF9hOCD4UbTtJ-91ed2KEAPH09onPg",
+      "signature": "XmGwdk29XQfNBwTIGF3hfriwjq3gGqmULA0JSP0pqKyA_STQ9iq5yn4fW2ZYmJ4npLGirzz1OGRxuWN4DUPHFw",
+      "publisher": "E2E Publisher"
+    }
+  }`;
+  const buffer = storedZip([["appearance.json", manifest]]);
+  await page
+    .locator('input[accept=".tnlook,.zip"]')
+    .setInputFiles({
+      name: "signed.tnlook",
+      mimeType: "application/zip",
+      buffer,
+    });
+
+  await expect(page.getByText(/发布者：E2E Publisher/)).toBeVisible();
+  const apply = page.getByRole("button", { name: "应用外观" });
+  await expect(apply).toBeDisabled();
+  await page.getByRole("button", { name: "信任发布者" }).click();
+  await expect(apply).toBeEnabled();
+  await apply.click();
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-appearance-pack",
+    "signed-e2e",
+  );
+});
+
 test("warns about low contrast appearance packs", async ({ page }) => {
   await page.goto("/e2e.html");
   await expect(page.getByText(/演示知识库/).first()).toBeVisible();

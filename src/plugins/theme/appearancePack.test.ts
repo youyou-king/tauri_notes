@@ -38,6 +38,31 @@ describe("appearance pack schema", () => {
     expect(result.warnings?.[0]).toContain("对比度");
   });
 
+  it("validates publisher signature shape", () => {
+    expect(
+      validateAppearancePack(
+        pack({
+          signature: {
+            algorithm: "ecdsa-p256-sha256",
+            publicKey: "short",
+            signature: "short",
+          },
+        }),
+      ).error,
+    ).toContain("签名格式");
+    expect(
+      validateAppearancePack(
+        pack({
+          signature: {
+            algorithm: "ed25519",
+            publicKey: "a".repeat(64),
+            signature: "b".repeat(64),
+          },
+        }),
+      ).error,
+    ).toContain("算法");
+  });
+
   it("validates integrity entries", () => {
     expect(
       validateAppearancePack(
