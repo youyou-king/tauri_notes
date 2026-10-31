@@ -10,7 +10,7 @@ import {
 } from "../panels/PanelContext";
 import MindMap from "../../components/MindMap";
 import type { MapView, NodeView, WorkspaceView } from "../../types";
-import { openSettings } from "../settings/settingsEvents";
+import { shellActions } from "./shellActions";
 import { APP_EVENTS, emitAppEvent, onAppEvent } from "../../kernel/events";
 
 type MobileTab = "map" | "library" | "document";
@@ -180,11 +180,25 @@ export function MobileShell({
           aria-label="打开设置"
           onClick={() => {
             requestSave();
-            openSettings();
+            shellActions.openSettings();
           }}
         >
           设置
         </button>
+        <div className="mobile-shell-actions" style={{ display: "flex", gap: 8 }}>
+          <button type="button" onClick={() => { requestSave(); shellActions.openSearch(); }}>
+            鎼滅储
+          </button>
+          <button type="button" onClick={() => { requestSave(); shellActions.openHelp(); }}>
+            甯姪
+          </button>
+          <button type="button" onClick={() => { requestSave(); shellActions.openBoard(); }}>
+            鐪嬫澘
+          </button>
+          <button type="button" onClick={() => { requestSave(); shellActions.openTheme(); }}>
+            涓婚
+          </button>
+        </div>
       </header>
 
       <div className="mobile-shell-content">
@@ -301,7 +315,7 @@ export function MobileShell({
           type="button"
           onClick={() => {
             requestSave();
-            openSettings();
+            shellActions.openSettings();
           }}
         >
           设置
