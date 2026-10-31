@@ -4,15 +4,22 @@ import type {
 } from "./appearancePack";
 
 const DB_NAME = "tauri-notes-assets";
+const DB_VERSION = 2;
 const STORE = "appearance";
+const META_STORE = "meta";
 const WALLPAPER_KEY = "wallpaper";
 
 function openDatabase(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1);
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onupgradeneeded = () => {
-      if (!request.result.objectStoreNames.contains(STORE)) {
-        request.result.createObjectStore(STORE);
+      const database = request.result;
+      if (!database.objectStoreNames.contains(STORE)) {
+        database.createObjectStore(STORE);
+      }
+      if (!database.objectStoreNames.contains(META_STORE)) {
+        const meta = database.createObjectStore(META_STORE);
+        meta.put(DB_VERSION, "schemaVersion");
       }
     };
     request.onsuccess = () => resolve(request.result);

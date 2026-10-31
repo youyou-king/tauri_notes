@@ -32,7 +32,8 @@
 - IPC 边界统一 `TauriCommandError`，区分权限、未找到和一般失败；
 - 备份创建后执行 `PRAGMA integrity_check`，损坏备份直接失败；
 - 新增 release workflow / Tauri bundle 配置的静态就绪测试；
-- 移动 shell 补齐搜索、帮助、看板、主题入口，统一走 `shellActions`。
+- 移动 shell 补齐搜索、帮助、看板、主题入口，统一走 `shellActions`；
+- appearance IndexedDB 升级到 v2，新增 meta/schemaVersion 迁移。
 - 设置 section 和 overlay 增加错误边界；初始化完成后停止文件打开轮询；
 - 会话快照保存 activeMapId 和 selectedNodeId，重启后恢复选中 map/节点；
 - 工作区选择改为原子 `select(mapId, node)`，移除单独写 activeMapId 的入口；
