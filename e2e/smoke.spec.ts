@@ -97,6 +97,35 @@ test("keeps document blocks compact when the editor has spare height", async ({
   expect(Math.max(...gaps)).toBeLessThan(24);
 });
 
+test("syncs heading toolbar state with the current line", async ({
+  page,
+}) => {
+  await page.goto("/e2e.html");
+  await page.locator(".mind-map-node-doc").first().click();
+  await expect(page.getByText("测试文档").first()).toBeVisible();
+
+  const h1 = page.getByTitle("一级标题");
+  const h2 = page.getByTitle("二级标题");
+
+  await page
+    .locator(".block-prototype-prosemirror")
+    .getByText("测试标题")
+    .click();
+  await expect(h1).toHaveClass(/active/);
+  await expect(h2).not.toHaveClass(/active/);
+
+  await h2.click();
+  await expect(h2).toHaveClass(/active/);
+  await expect(h1).not.toHaveClass(/active/);
+
+  await page
+    .locator(".block-prototype-prosemirror")
+    .getByText("用于插入视图的示例内容")
+    .click();
+  await expect(h1).not.toHaveClass(/active/);
+  await expect(h2).not.toHaveClass(/active/);
+});
+
 test("inserts a table with its operation toolbar", async ({ page }) => {
   await page.goto("/e2e.html");
   await page.locator(".mind-map-node-doc").first().click();

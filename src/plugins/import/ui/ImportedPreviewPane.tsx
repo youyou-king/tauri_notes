@@ -37,6 +37,10 @@ import {
 } from "../../../editor/importedMarkdown";
 import type { Editor } from "@tiptap/react";
 import { Fragment, type Node as PMNode } from "@tiptap/pm/model";
+import {
+  isFormatActive,
+  type FormatToolbarItem,
+} from "./formatToolbar";
 
 type SelectedBlock = {
   pos: number;
@@ -929,6 +933,106 @@ export default function ImportedPreviewPane({
     };
   }, [activeDocumentId, context, editor, workspaceRoot]);
 
+  const formatItems: FormatToolbarItem[] = editor
+    ? [
+        {
+          label: "↶",
+          title: "撤销",
+          disabled: () => !editor.can().undo(),
+          run: () => editor.chain().focus().undo().run(),
+        },
+        {
+          label: "↷",
+          title: "重做",
+          disabled: () => !editor.can().redo(),
+          run: () => editor.chain().focus().redo().run(),
+        },
+        {
+          label: "B",
+          title: "粗体",
+          active: "bold",
+          run: () => editor.chain().focus().toggleBold().run(),
+        },
+        {
+          label: "I",
+          title: "斜体",
+          active: "italic",
+          run: () => editor.chain().focus().toggleItalic().run(),
+        },
+        {
+          label: "S",
+          title: "删除线",
+          active: "strike",
+          run: () => editor.chain().focus().toggleStrike().run(),
+        },
+        {
+          label: "</>",
+          title: "行内代码",
+          active: "code",
+          run: () => editor.chain().focus().toggleCode().run(),
+        },
+        {
+          label: "H1",
+          title: "一级标题",
+          active: { type: "heading", attrs: { level: 1 } },
+          run: () =>
+            editor.chain().focus().toggleHeading({ level: 1 }).run(),
+        },
+        {
+          label: "H2",
+          title: "二级标题",
+          active: { type: "heading", attrs: { level: 2 } },
+          run: () =>
+            editor.chain().focus().toggleHeading({ level: 2 }).run(),
+        },
+        {
+          label: "•",
+          title: "无序列表",
+          active: "bulletList",
+          run: () => editor.chain().focus().toggleBulletList().run(),
+        },
+        {
+          label: "☑",
+          title: "任务列表",
+          active: "taskList",
+          run: () =>
+            editor.chain().focus().toggleList("taskList", "taskItem").run(),
+        },
+        {
+          label: "“",
+          title: "引用",
+          active: "blockquote",
+          run: () => editor.chain().focus().toggleBlockquote().run(),
+        },
+        {
+          label: "{ }",
+          title: "代码块",
+          active: "codeBlock",
+          run: () => editor.chain().focus().toggleCodeBlock().run(),
+        },
+        {
+          label: "—",
+          title: "分隔线",
+          run: () => editor.chain().focus().setHorizontalRule().run(),
+        },
+        {
+          label: "▦",
+          title: "插入表格",
+          active: "tableBlock",
+          run: insertTable,
+        },
+        {
+          label: "🔗",
+          title: "链接",
+          active: "link",
+          run: () => {
+            setLinkUrl(String(editor.getAttributes("link").href ?? ""));
+            setLinkOpen((current) => !current);
+          },
+        },
+      ]
+    : [];
+
   const ViewportSelectionPanel = getUiRenderer("viewport.selection");
 
   return (
@@ -968,42 +1072,23 @@ export default function ImportedPreviewPane({
         <div className="block-toolbar-stack">
         {editing && editor && (
           <div className="block-format-toolbar">
-            {[
-              { label: "↶", title: "撤销", active: "history", run: () => editor.chain().focus().undo().run() },
-              { label: "↷", title: "重做", active: "history", run: () => editor.chain().focus().redo().run() },
-              { label: "B", title: "粗体", active: "bold", run: () => editor.chain().focus().toggleBold().run() },
-              { label: "I", title: "斜体", active: "italic", run: () => editor.chain().focus().toggleItalic().run() },
-              { label: "S", title: "删除线", active: "strike", run: () => editor.chain().focus().toggleStrike().run() },
-              { label: "</>", title: "行内代码", active: "code", run: () => editor.chain().focus().toggleCode().run() },
-              { label: "H1", title: "一级标题", active: "heading", run: () => editor.chain().focus().toggleHeading({ level: 1 }).run() },
-              { label: "H2", title: "二级标题", active: "heading", run: () => editor.chain().focus().toggleHeading({ level: 2 }).run() },
-              { label: "•", title: "无序列表", active: "bulletList", run: () => editor.chain().focus().toggleBulletList().run() },
-              { label: "☑", title: "任务列表", active: "taskList", run: () => editor.chain().focus().toggleList("taskList", "taskItem").run() },
-              { label: "“", title: "引用", active: "blockquote", run: () => editor.chain().focus().toggleBlockquote().run() },
-              { label: "{ }", title: "代码块", active: "codeBlock", run: () => editor.chain().focus().toggleCodeBlock().run() },
-              { label: "—", title: "分隔线", active: "horizontalRule", run: () => editor.chain().focus().setHorizontalRule().run() },
-              { label: "▦", title: "插入表格", active: "tableBlock", run: insertTable },
-              {
-                label: "🔗",
-                title: "链接",
-                active: "link",
-                run: () => {
-                  setLinkUrl(String(editor.getAttributes("link").href ?? ""));
-                  setLinkOpen((current) => !current);
-                },
-              },
-            ].map((item) => (
-              <button
-                key={item.label}
-                type="button"
-                title={item.title}
-                className={editor.isActive(item.active) ? "active" : ""}
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={item.run}
-              >
-                {item.label}
-              </button>
-            ))}
+            {formatItems.map((item) => {
+              const active = isFormatActive(editor, item.active);
+              return (
+                <button
+                  key={item.label}
+                  type="button"
+                  title={item.title}
+                  className={active ? "active" : ""}
+                  aria-pressed={item.active ? active : undefined}
+                  disabled={item.disabled?.() ?? false}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={item.run}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
             <button
               type="button"
               className="block-format-icon-button"
