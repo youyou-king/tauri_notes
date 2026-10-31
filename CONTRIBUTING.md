@@ -181,4 +181,11 @@ git tag vX.Y.Z
 git push origin vX.Y.Z
 ```
 
-安装包作为 GitHub Release 资产上传，仓库只保留源码和文档。
+tag 会触发 `.github/workflows/release.yml`：
+
+- Windows：构建 release 应用和自定义 `Tauri Notes Setup.exe`，生成 `SHA256SUMS.txt`；
+- macOS：构建 dmg；
+- Linux：构建 AppImage / deb；
+- 产物上传 GitHub Release，仓库只保留源码和文档。
+
+签名、公证和 updater 仍在后续阶段。
