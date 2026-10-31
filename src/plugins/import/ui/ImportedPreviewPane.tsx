@@ -7,7 +7,6 @@ import { flattenMindMap } from "../../../lib/mindMap";
 import {
   confirmDialog,
   setPanelStatus,
-  useEditorSnapshot,
   usePanelContext,
 } from "../../../ui/sdk";
 import {
@@ -44,12 +43,10 @@ import {
 } from "../../../editor/importedMarkdown";
 import { Fragment, type Node as PMNode } from "@tiptap/pm/model";
 import type { SelectedBlock } from "../../../application/state/editorSnapshot";
-import {
-  createFormatToolbarItems,
-  isFormatActive,
-} from "./formatToolbar";
-import { LinkPopover } from "./LinkPopover";
 import { BlockLayoutToolbar } from "./BlockLayoutToolbar";
+import { EditorFormatToolbar } from "./EditorFormatToolbar";
+import { EditorStats } from "./EditorStats";
+import { useEditorField } from "./useEditorField";
 
 function blockSignature(block: {
   orderKey: string;
@@ -87,8 +84,6 @@ export default function ImportedPreviewPane({
   const [documentTitle, setDocumentTitle] = useState("");
   const editing = true;
   const [saving, setSaving] = useState(false);
-  const [linkOpen, setLinkOpen] = useState(false);
-  const [linkUrl, setLinkUrl] = useState("");
   const [viewportRequest, setViewportRequest] =
     useState<ViewportPickRequest | null>(null);
   const selectedRef = useRef("");
@@ -294,9 +289,27 @@ export default function ImportedPreviewPane({
     },
   });
 
-  const editorSnapshot = useEditorSnapshot(editor);
-  const selectedBlock = editorSnapshot.selectedBlock;
-  const stats = editorSnapshot.stats;
+  const selectedBlock = useEditorField(
+    editor,
+    null,
+    (snapshot) => snapshot.selectedBlock,
+    (left, right) => {
+      if (left === right) {
+        return true;
+      }
+      if (!left || !right) {
+        return false;
+      }
+      return (
+        left.pos === right.pos &&
+        left.type === right.type &&
+        left.span === right.span &&
+        left.heightMode === right.heightMode &&
+        left.heightPx === right.heightPx &&
+        left.zoom === right.zoom
+      );
+    },
+  );
 
   useEffect(() => {
     editingRef.current = editing;
@@ -903,18 +916,6 @@ export default function ImportedPreviewPane({
     };
   }, [activeDocumentId, context, editor, workspaceRoot]);
 
-  const formatItems = editor
-    ? createFormatToolbarItems(
-        editor,
-        editorSnapshot.toolbar,
-        insertTable,
-        (href) => {
-          setLinkUrl(href);
-          setLinkOpen((current) => !current);
-        },
-      )
-    : [];
-
   const ViewportSelectionPanel = getUiRenderer("viewport.selection");
 
   return (
@@ -953,54 +954,10 @@ export default function ImportedPreviewPane({
       >
         <div className="block-toolbar-stack">
         {editing && editor && (
-          <div className="block-format-toolbar">
-            {formatItems.map((item) => {
-              const active = isFormatActive(editorSnapshot.toolbar, item.active);
-              return (
-                <button
-                  key={item.label}
-                  type="button"
-                  title={item.title}
-                  className={active ? "active" : ""}
-                  aria-pressed={item.active ? active : undefined}
-                  disabled={item.disabled ?? false}
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={item.run}
-                >
-                  {item.label}
-                </button>
-              );
-            })}
-            <button
-              type="button"
-              className="block-format-icon-button"
-              title="插入视图"
-              aria-label="插入视图"
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={insertEmptyViewport}
-            >
-              <svg
-                viewBox="0 0 16 16"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <rect x="2.25" y="3.25" width="11.5" height="9.5" rx="1.5" />
-                <path d="M2.25 6.25h11.5M5 3.25v3" />
-              </svg>
-            </button>
-          </div>
-        )}
-        {editing && editor && linkOpen && (
-          <LinkPopover
+          <EditorFormatToolbar
             editor={editor}
-            linkUrl={linkUrl}
-            showRemove={editorSnapshot.toolbar.link}
-            onLinkUrlChange={setLinkUrl}
-            onLinkOpenChange={setLinkOpen}
+            insertTable={insertTable}
+            insertEmptyViewport={insertEmptyViewport}
           />
         )}
         {editing && selectedBlock && (
@@ -1029,8 +986,7 @@ export default function ImportedPreviewPane({
         role="status"
         aria-live="polite"
       >
-        {saving ? "保存中…" : status} · {stats.blocks} 块 ·{" "}
-        {stats.characters.toLocaleString()} 字
+        {saving ? "保存中…" : status} · <EditorStats editor={editor} />
       </div>
       {viewportRequest && ViewportSelectionPanel && (
         <ViewportSelectionPanel
