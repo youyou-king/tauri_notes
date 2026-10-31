@@ -9,6 +9,7 @@ import {
   createPluginHost,
   type CommandContribution,
   type PluginActivationFailure,
+  type PluginCommandContext,
   type PanelContribution,
   type PluginEntry,
   type PluginRegistry,
@@ -110,7 +111,7 @@ export function PluginProvider({
               withTimeout(
                 Promise.resolve().then(() =>
                   command.run
-                    ? command.run(context)
+                    ? command.run(context as PluginCommandContext)
                     : dispatchCommandEvent(command.id),
                 ),
                 PLUGIN_COMMAND_TIMEOUT_MS,

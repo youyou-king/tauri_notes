@@ -1,10 +1,20 @@
+export type PluginCommandContext = {
+  busy?: boolean;
+  hasWorkspace?: boolean;
+  openSettings?: () => void;
+  openSearch?: () => void;
+  openBoard?: () => void;
+  openHelp?: () => void;
+  resetLayout?: () => void;
+};
+
 export type CommandContribution = {
   id: string;
   label: string;
   shortcut?: string;
   description?: string;
   capability?: string;
-  run?: (context: unknown) => void | Promise<void>;
+  run?: (context: PluginCommandContext) => void | Promise<void>;
 };
 
 export type PanelContribution = {

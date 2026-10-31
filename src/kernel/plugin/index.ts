@@ -7,6 +7,7 @@ export type {
   MigrationContribution,
   OverlayContribution,
   PanelContribution,
+  PluginCommandContext,
   SettingsSectionContribution,
   ToolbarItemContribution,
 } from "./contributions";
