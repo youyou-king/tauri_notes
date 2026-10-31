@@ -1,3 +1,8 @@
+import {
+  runMigrations,
+  type MigrationStep,
+} from "./migrationLedger";
+
 export const SESSION_KEY = "tauri-notes.session.v1";
 export const SESSION_VERSION = 2;
 const TITLE_PREFIX = "tauri-notes.workspace-title:";
@@ -11,12 +16,7 @@ type StoredSession = {
   selectedNodeId?: unknown;
 };
 
-type SessionMigration = {
-  version: number;
-  migrate: (record: StoredSession) => StoredSession;
-};
-
-const SESSION_MIGRATIONS: SessionMigration[] = [
+const SESSION_MIGRATIONS: MigrationStep<StoredSession>[] = [
   {
     version: 2,
     migrate: (record) => ({
@@ -43,10 +43,11 @@ function migrateSession(record: StoredSession): StoredSession {
     return record;
   }
   const initial: StoredSession = { ...record, version };
-  return SESSION_MIGRATIONS.reduce<StoredSession>(
-    (current, migration) =>
-      version < migration.version ? migration.migrate(current) : current,
+  return runMigrations(
     initial,
+    version,
+    SESSION_VERSION,
+    SESSION_MIGRATIONS,
   );
 }
 

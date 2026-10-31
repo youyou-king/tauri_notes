@@ -1,3 +1,4 @@
+import { runMigrations } from "../../application/migrationLedger";
 import type { ThemeSelection } from "./themeSchema";
 
 export const THEME_STORAGE_KEY = "tauri-notes.theme";
@@ -17,6 +18,41 @@ function isThemeSelection(value: unknown): value is ThemeSelection {
   );
 }
 
+function parseThemeRecord(raw: string): StoredTheme | null {
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (isThemeSelection(parsed)) {
+      return { version: 1, selection: parsed };
+    }
+    if (parsed && typeof parsed === "object") {
+      const record = parsed as Partial<StoredTheme>;
+      if (isThemeSelection(record.selection)) {
+        return {
+          version:
+            typeof record.version === "number" ? record.version : 1,
+          selection: record.selection,
+        };
+      }
+    }
+  } catch {
+    // Legacy versions stored a bare string such as "dark".
+    if (isThemeSelection(raw)) {
+      return { version: 1, selection: raw };
+    }
+  }
+  return null;
+}
+
+const THEME_MIGRATIONS = [
+  {
+    version: 2,
+    migrate: (record: StoredTheme): StoredTheme => ({
+      ...record,
+      version: 2,
+    }),
+  },
+];
+
 export function readThemeSelection(
   storage: Pick<Storage, "getItem"> = window.localStorage,
 ): ThemeSelection {
@@ -24,30 +60,16 @@ export function readThemeSelection(
   if (!raw) {
     return "dark";
   }
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (isThemeSelection(parsed)) {
-      return parsed;
-    }
-    if (parsed && typeof parsed === "object") {
-      const record = parsed as Partial<StoredTheme>;
-      if (
-        typeof record.version === "number" &&
-        record.version > THEME_STORAGE_VERSION
-      ) {
-        return "dark";
-      }
-      if (isThemeSelection(record.selection)) {
-        return record.selection;
-      }
-    }
-  } catch {
-    // Legacy versions stored a bare string such as "dark".
-    if (isThemeSelection(raw)) {
-      return raw;
-    }
+  const record = parseThemeRecord(raw);
+  if (!record || record.version > THEME_STORAGE_VERSION) {
+    return "dark";
   }
-  return "dark";
+  return runMigrations(
+    record,
+    record.version,
+    THEME_STORAGE_VERSION,
+    THEME_MIGRATIONS,
+  ).selection;
 }
 
 export function writeThemeSelection(
