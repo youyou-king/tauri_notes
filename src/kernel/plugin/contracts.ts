@@ -226,6 +226,10 @@ export class PluginRegistry {
     ContributionKind,
     Map<string, PluginContribution>
   >();
+  private readonly contributionOwners = new Map<
+    ContributionKind,
+    Map<string, string>
+  >();
   private readonly active: PluginRegistration[] = [];
   private order: string[] = [];
   private failures = new Map<string, string>();
@@ -418,6 +422,13 @@ export class PluginRegistry {
     return [...(this.contributions.get(kind)?.values() ?? [])];
   }
 
+  getContributionOwner(
+    kind: ContributionKind,
+    id: string,
+  ): string | undefined {
+    return this.contributionOwners.get(kind)?.get(id);
+  }
+
   private removeRegistrationContributions(
     registration: PluginRegistration,
   ): void {
@@ -426,6 +437,11 @@ export class PluginRegistry {
       bucket?.delete(id);
       if (bucket && bucket.size === 0) {
         this.contributions.delete(kind);
+      }
+      const owners = this.contributionOwners.get(kind);
+      owners?.delete(id);
+      if (owners && owners.size === 0) {
+        this.contributionOwners.delete(kind);
       }
     }
     registration.contributions = [];
@@ -484,6 +500,11 @@ export class PluginRegistry {
         }
         bucket.set(contribution.id, contribution);
         this.contributions.set(kind, bucket);
+        const owners =
+          this.contributionOwners.get(kind) ??
+          new Map<string, string>();
+        owners.set(contribution.id, registration.manifest.id);
+        this.contributionOwners.set(kind, owners);
         registration.contributions?.push({
           kind,
           id: contribution.id,

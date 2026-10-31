@@ -17,7 +17,8 @@
 - 设置 section 和 overlay 增加错误边界；初始化完成后停止文件打开轮询；
 - 会话快照保存 activeMapId 和 selectedNodeId，重启后恢复选中 map/节点；
 - 工作区选择改为原子 `select(mapId, node)`，移除单独写 activeMapId 的入口；
-- 核心插件管理区增加注册/启用/禁用/异常/依赖阻塞汇总。
+- 核心插件管理区增加注册/启用/禁用/异常/依赖阻塞汇总；
+- 插件命令与核心命令冲突时记录 owner 和 warning，不再静默跳过。
 - 插件注册表从 `PluginProvider` 抽离到 `src/plugins/registry.ts`；
 - 插件注册失败进入 diagnostics，不再打断组合根；
 - 插件依赖激活失败时阻断依赖方，并记录 `blockedBy`。

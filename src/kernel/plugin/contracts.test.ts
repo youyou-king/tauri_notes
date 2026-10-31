@@ -231,6 +231,9 @@ describe("plugin contracts", () => {
     expect(
       registry.getContributions("commands").map((item) => item.id),
     ).toEqual(["board.open", "reference.resolve"]);
+    expect(
+      registry.getContributionOwner("commands", "board.open"),
+    ).toBe("board");
   });
 
   it("rejects undeclared contributions", async () => {

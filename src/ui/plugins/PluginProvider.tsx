@@ -91,6 +91,12 @@ export function PluginProvider({
         for (const command of commands) {
           // Core/app commands win over metadata-only plugin commands.
           if (getCommand(command.id)) {
+            const owner =
+              host.getContributionOwner("commands", command.id) ??
+              "unknown";
+            console.warn(
+              `plugin command ${command.id} from ${owner} conflicts with a core command; using core`,
+            );
             continue;
           }
           registerCommand({
