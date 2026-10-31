@@ -11,3 +11,4 @@ test-results
 perm_workspace.note
 help.note-shm
 help.note-wal
+*.schema-v*.bak
