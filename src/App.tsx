@@ -8,7 +8,6 @@ import { setSearchHitHandler } from "./app/searchNavigation";
 import { useShellProfile } from "./ui/shell/useShellProfile";
 import { MobileShell } from "./ui/shell/MobileShell";
 import { useBoardController } from "./app/useBoardController";
-import { workspaceService } from "./application/workspaceService";
 import { useWorkspaceSelectionStore } from "./application/stores/workspaceSelectionStore";
 import {
   selectActiveWorkspace,
@@ -38,11 +37,14 @@ import {
   useAppHotkeys,
 } from "./app/useAppCommands";
 import { AppToolbar } from "./app/AppToolbar";
-import { ensureLibrary } from "./infrastructure/libraryBootstrapper";
 import type { BlockId, DocId } from "./domain/ids";
 import type { MapView, WorkspaceView } from "./types";
-import { writeSession } from "./application/sessionService";
 import { APP_EVENTS, onAppEvent } from "./kernel/events";
+import {
+  useLibraryBootstrap,
+  useMapsChangedRefresh,
+  useSessionPersistence,
+} from "./app/useAppWorkspaceEffects";
 
 function App() {
   const pluginReady = usePluginReady();
@@ -82,29 +84,6 @@ function App() {
 
   useAppShell();
 
-  useEffect(() => {
-    if (!workspace) {
-      return;
-    }
-    return onAppEvent(APP_EVENTS.mapsChanged, (detail) => {
-      const targetRoot = detail?.root ?? workspace.root;
-      void workspaceService
-        .open(targetRoot)
-        .then((view) => {
-          setWorkspaces((current) =>
-            current.map((item) =>
-              item.root === view.root ? view : item,
-            ),
-          );
-          setWorkspace((current) =>
-            current && current.root === view.root
-              ? { ...current, maps: view.maps, title: view.title }
-              : current,
-          );
-        })
-        .catch((reason) => setError(String(reason)));
-    });
-  }, [workspace?.root]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const dirtyPanels = usePanelStore((state) => state.dirtyPanels);
@@ -129,6 +108,18 @@ function App() {
       }
     });
   }, []);
+
+  useMapsChangedRefresh(workspace, setWorkspaces, setWorkspace, setError);
+
+  useLibraryBootstrap(workspace?.root ?? null, appendLog);
+
+  useSessionPersistence({
+    sessionReady,
+    workspaces,
+    workspaceRoot: workspace?.root ?? null,
+    activeMapId,
+    selectedNodeId: selected?.id ?? null,
+  });
 
   const activeMap: MapView | null =
     workspace?.maps.find((map) => map.id === activeMapId) ?? null;
@@ -266,26 +257,6 @@ function App() {
 
   useWindowTitle(dirtyCount);
 
-  useEffect(() => {
-    window.__TAURI_WORKSPACE_ROOT__ = workspace?.root ?? "";
-    const root = workspace?.root;
-    if (!root) {
-      return;
-    }
-    if (/\.note$/i.test(root)) {
-      return;
-    }
-    void ensureLibrary(root)
-      .then((status) => {
-        appendLog(
-          `正式库就绪：${status.documents} 文档 / ${status.blocks} 块 / ${status.references} 引用`,
-        );
-      })
-      .catch((error) => {
-        appendLog(`正式库初始化失败：${String(error)}`);
-      });
-  }, [appendLog, workspace?.root]);
-
   useWindowCloseGuard(dirtyRef);
 
   useAppHotkeys({
@@ -302,20 +273,6 @@ function App() {
     resetLayout: () => dockRef.current?.resetLayout(),
     setError,
   });
-
-  useEffect(() => {
-    if (!sessionReady.current) {
-      return;
-    }
-    writeSession(
-      workspaces.map((item) => item.root),
-      workspace?.root ?? null,
-      {
-        activeMapId,
-        selectedNodeId: selected?.id ?? null,
-      },
-    );
-  }, [activeMapId, selected?.id, workspaces, workspace?.root]);
 
   useNoteDrop(openOnlyWorkspace);
 
