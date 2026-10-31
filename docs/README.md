@@ -53,9 +53,9 @@
    - 主题：`appearanceRuntime` 管理完整 pack 与 dark/light 资源；
    - 工作区：`activeRoot` + `selectActiveWorkspace` 派生当前工作区；
    - 面板：活动 map/blockdoc 同步选中状态，文档脏状态上报 `usePanelStore`。
-7. **设置入口属于 shell**：核心工具栏“设置”、`settings.open` 和 `Ctrl/Cmd + ,`；主题菜单只是另一个入口；`manager` 插件不可禁用。
+7. **设置入口属于 shell**：核心工具栏“设置”、`settings.open` 和 `Ctrl/Cmd + ,`；主题菜单只是另一个入口；插件管理器是核心设置区 `core.plugins`。
 8. **验收基线**：
-   - 前端单元测试 140 个；
+   - 前端单元测试 142 个；
    - Rust 单元测试 38 个；
    - Playwright E2E / 视觉回归 35 个；
    - 安装包载荷、解包和安装/卸载流程已验证；

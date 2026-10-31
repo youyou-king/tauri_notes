@@ -28,6 +28,7 @@ import {
   PLUGIN_COMMAND_TIMEOUT_MS,
   withTimeout,
 } from "../../kernel/command/timeout";
+import { PLUGIN_CAPABILITY_POLICY } from "../../plugins/pluginPolicy";
 import { PLUGIN_ENTRIES } from "../../plugins/registry";
 import {
   readDisabledPlugins,
@@ -66,6 +67,7 @@ export function PluginProvider({
           RESERVED_PLUGIN_IDS.has(entry.manifest.id) ||
           !disabled.has(entry.manifest.id),
       ),
+      { capabilityPolicy: PLUGIN_CAPABILITY_POLICY },
     );
   }
 

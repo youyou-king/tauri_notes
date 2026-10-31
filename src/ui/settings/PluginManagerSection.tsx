@@ -4,7 +4,7 @@ import {
   setPluginDisabled,
   usePluginEntries,
   usePluginFailures,
-} from "../../../ui/sdk";
+} from "../sdk";
 
 export function PluginManagerSection() {
   const entries = usePluginEntries();
@@ -47,7 +47,6 @@ export function PluginManagerSection() {
       <ul className="plugin-manager-list">
         {entries.map((entry) => {
           const manifest = entry.manifest;
-          const isManager = manifest.id === "manager";
           return (
             <li key={manifest.id}>
               <div>
@@ -62,12 +61,7 @@ export function PluginManagerSection() {
               <label>
                 <input
                   type="checkbox"
-                  checked={
-                    isManager
-                      ? true
-                      : !disabled.has(manifest.id)
-                  }
-                  disabled={isManager}
+                  checked={!disabled.has(manifest.id)}
                   onChange={(event) =>
                     toggle(manifest.id, !event.target.checked)
                   }

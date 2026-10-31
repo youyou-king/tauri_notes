@@ -11,6 +11,7 @@ export type PluginEntry = {
 
 export type PluginHostOptions = {
   allowedCapabilities?: ReadonlySet<string>;
+  capabilityPolicy?: Readonly<Record<string, readonly string[]>>;
   eventSink?: (event: string, payload?: unknown) => void;
 };
 

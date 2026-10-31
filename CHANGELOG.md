@@ -6,7 +6,10 @@
 
 - 设置入口升级为 shell 能力：核心工具栏“设置”、`settings.open`、`Ctrl/Cmd + ,`；
 - 主题菜单不再拥有唯一设置入口；
-- 插件管理器 `manager` 设为保留插件，不能被禁用；
+- 插件管理器迁移为核心设置区 `core.plugins`，不再依赖 manager 插件；旧 `manager` id 保留兼容禁用列表；
+- 删除 `src/plugins/manager`，设置窗口在插件全部失败时仍可打开；
+- 新增 `src/plugins/pluginPolicy.ts`，按插件显式授权 capability；
+- 新增 capability policy 测试，manifest 不能自行越权。
 - 新增 E2E：禁用主题插件后仍可打开设置和插件管理器；
 - 插件注册表从 `PluginProvider` 抽离到 `src/plugins/registry.ts`；
 - 插件注册失败进入 diagnostics，不再打断组合根；

@@ -13,8 +13,6 @@ import { importFeature } from "./import/manifest";
 import { importPlugin } from "./import";
 import { viewportFeature } from "./viewport/manifest";
 import { viewportPlugin } from "./viewport";
-import { managerFeature } from "./manager/manifest";
-import { managerPlugin } from "./manager";
 
 /**
  * Compile-time plugin registry. The host must stay generic; adding a plugin
@@ -48,9 +46,5 @@ export const PLUGIN_ENTRIES: PluginEntry[] = [
   {
     manifest: viewportFeature,
     createModule: () => viewportPlugin,
-  },
-  {
-    manifest: managerFeature,
-    createModule: () => managerPlugin,
   },
 ];

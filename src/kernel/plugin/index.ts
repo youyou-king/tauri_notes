@@ -22,6 +22,7 @@ export {
   PluginRegistry,
   validatePluginManifest,
   type ContributionKind,
+  type CoreCapability,
   type PluginActivationFailure,
   type PluginContext,
   type PluginContribution,

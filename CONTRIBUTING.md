@@ -95,6 +95,8 @@ src/plugins/<id>/
 - 命令、面板、overlay、工具栏、设置等通过贡献点注册；
 - 跨插件通信使用命令、事件或端口，不直接 import 实现；
 - 插件激活失败必须隔离，不影响其他插件；
+- 插件注册表在 `src/plugins/registry.ts`，Host 不知道具体插件；
+- capability 由 `src/plugins/pluginPolicy.ts` 显式授权，新增插件必须同时添加策略；
 - 主题和 `.tnlook` 的实现细节见 [`docs/主题插件.md`](docs/主题插件.md)。
 
 ## 架构改进
@@ -120,7 +122,7 @@ src/ui/settings/
 - 快捷键 `Ctrl/Cmd + ,` 可以打开设置；
 - 主题菜单的“外观设置…”只是另一个入口，不是唯一入口；
 - 功能插件只贡献 `settingsSections`，不能拥有设置入口；
-- `manager` 是保留插件，不能被禁用；插件管理器必须始终能重新启用其他插件。
+- 插件管理器是核心设置区 `core.plugins`，不依赖任何功能插件；`manager` id 只用于兼容旧禁用列表。
 
 ## 验证
 
@@ -134,7 +136,7 @@ npm run verify:all   # 全量门禁 + 安装包
 当前基线：
 
 ```text
-前端单元测试    140 个通过
+前端单元测试    142 个通过
 Rust 测试        38 个通过
 E2E / 视觉回归   35 个通过
 ```

@@ -236,15 +236,16 @@ export class PluginRegistry {
   constructor(
     private readonly options: {
       allowedCapabilities?: ReadonlySet<string>;
+      capabilityPolicy?: Readonly<Record<string, readonly string[]>>;
       eventSink?: (event: string, payload?: unknown) => void;
     } = {},
   ) {}
 
   register(manifest: PluginManifest, module: PluginModule): void {
-    const errors = validatePluginManifest(
-      manifest,
-      this.options.allowedCapabilities,
-    );
+    const allowedCapabilities = this.options.capabilityPolicy
+      ? new Set(this.options.capabilityPolicy[manifest.id] ?? [])
+      : this.options.allowedCapabilities;
+    const errors = validatePluginManifest(manifest, allowedCapabilities);
     if (errors.length > 0) {
       throw new Error(`插件 ${manifest.id} 不合法：${errors.join("；")}`);
     }

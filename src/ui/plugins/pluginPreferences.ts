@@ -1,8 +1,8 @@
 const KEY = "tauri-notes.disabled-plugins.v1";
 
 /**
- * The plugin manager is a shell capability. If it could be disabled through
- * stale storage there would be no UI left to re-enable it.
+ * The old manager plugin is now a core settings section. Keep its id
+ * reserved so stale storage from older builds cannot disable the manager.
  */
 export const RESERVED_PLUGIN_IDS = new Set(["manager"]);
 
