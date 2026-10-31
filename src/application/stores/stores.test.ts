@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { WorkspaceView } from "../../types";
-import { useWorkspaceStore } from "./workspaceStore";
+import {
+  selectActiveWorkspace,
+  useWorkspaceStore,
+} from "./workspaceStore";
 import { useWorkspaceSelectionStore } from "./workspaceSelectionStore";
 import { usePanelStore } from "./panelStore";
 
@@ -9,7 +12,7 @@ const workspace = (root: string, title: string): WorkspaceView =>
 
 describe("workspace stores", () => {
   beforeEach(() => {
-    useWorkspaceStore.setState({ workspaces: [], activeWorkspace: null });
+    useWorkspaceStore.setState({ workspaces: [], activeRoot: null });
     useWorkspaceSelectionStore.setState({
       activeMapId: null,
       selectedNode: null,
@@ -17,12 +20,35 @@ describe("workspace stores", () => {
     usePanelStore.setState({ dirtyPanels: {} });
   });
 
-  it("stores workspaces and active workspace independently", () => {
+  it("derives the active workspace from activeRoot", () => {
     const view = workspace("/tmp/a.note", "A");
     useWorkspaceStore.getState().setWorkspaces([view]);
     useWorkspaceStore.getState().setActiveWorkspace(view);
     expect(useWorkspaceStore.getState().workspaces).toEqual([view]);
-    expect(useWorkspaceStore.getState().activeWorkspace).toBe(view);
+    expect(selectActiveWorkspace(useWorkspaceStore.getState())).toBe(view);
+  });
+
+  it("keeps the active workspace in sync when its title changes", () => {
+    const view = workspace("/tmp/a.note", "A");
+    useWorkspaceStore.getState().setWorkspaces([view]);
+    useWorkspaceStore.getState().setActiveWorkspace(view);
+    useWorkspaceStore.getState().setWorkspaces((current) =>
+      current.map((item) =>
+        item.root === view.root ? { ...item, title: "A2" } : item,
+      ),
+    );
+    expect(selectActiveWorkspace(useWorkspaceStore.getState())?.title).toBe(
+      "A2",
+    );
+  });
+
+  it("clears activeRoot when the active workspace is removed", () => {
+    const view = workspace("/tmp/a.note", "A");
+    useWorkspaceStore.getState().setWorkspaces([view]);
+    useWorkspaceStore.getState().setActiveWorkspace(view);
+    useWorkspaceStore.getState().setWorkspaces([]);
+    expect(useWorkspaceStore.getState().activeRoot).toBeNull();
+    expect(selectActiveWorkspace(useWorkspaceStore.getState())).toBeNull();
   });
 
   it("supports functional updates", () => {

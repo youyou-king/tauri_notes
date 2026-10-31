@@ -109,6 +109,7 @@ export default forwardRef<
     activeMap: MapView | null;
     selected: NodeView | null;
     onActiveNode: (node: NodeView) => void;
+    onActiveMap: (mapId: string, workspaceRoot?: string) => void;
     onPanelDirty: (panelId: string, dirty: boolean) => void;
     onSelectNode: (node: NodeView, newPanel: boolean) => void;
     onSwitchMap: (map: MapView, workspaceRoot?: string) => void;
@@ -125,6 +126,7 @@ export default forwardRef<
     activeMap,
     selected,
     onActiveNode,
+    onActiveMap,
     onPanelDirty,
     onSelectNode,
     onSwitchMap,
@@ -138,6 +140,12 @@ export default forwardRef<
 ) {
   const { resolved } = useTheme();
   const components = useMemo(() => getPanelComponents() as any, []);
+  const activeMapRef = useRef(activeMap);
+  const workspaceRef = useRef(workspace);
+  const onActiveMapRef = useRef(onActiveMap);
+  activeMapRef.current = activeMap;
+  workspaceRef.current = workspace;
+  onActiveMapRef.current = onActiveMap;
   const dockTheme = resolved === "light" ? themeLight : themeAbyss;
   const apiRef = useRef<DockviewApi | null>(null);
   const pendingOpen = useRef<{
@@ -571,10 +579,30 @@ export default forwardRef<
     event.api.onDidActivePanelChange((event) => {
       const panel = event.panel;
       setActivePanelId(panel?.id ?? null);
+      if (panel?.api.component === "map") {
+        const params = panel.api.getParameters<{
+          mapId?: string;
+          workspaceRoot?: string;
+        }>();
+        const mapId =
+          params?.mapId ??
+          activeMapRef.current?.id ??
+          workspaceRef.current?.maps[0]?.id;
+        if (mapId) {
+          onActiveMapRef.current(
+            mapId,
+            params?.workspaceRoot ?? workspaceRef.current?.root,
+          );
+        }
+      }
       if (panel?.id.startsWith("blockdoc_")) {
         const params = panel.api.getParameters<BlockDocParams>();
         const documentId = params?.documentId;
         if (documentId) {
+          const mapId = documentId.split("/")[0];
+          if (mapId) {
+            onActiveMapRef.current(mapId, params.workspaceRoot);
+          }
           setLastActiveDocId(documentId);
           const node = resolveNodeById(documentId);
           if (node) {

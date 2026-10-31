@@ -10,7 +10,10 @@ import { MobileShell } from "./ui/shell/MobileShell";
 import { useBoardController } from "./app/useBoardController";
 import { workspaceService } from "./application/workspaceService";
 import { useWorkspaceSelectionStore } from "./application/stores/workspaceSelectionStore";
-import { useWorkspaceStore } from "./application/stores/workspaceStore";
+import {
+  selectActiveWorkspace,
+  useWorkspaceStore,
+} from "./application/stores/workspaceStore";
 import { usePanelStore } from "./application/stores/panelStore";
 import { recordConsoleEvent } from "./application/consoleLogStore";
 import {
@@ -55,7 +58,7 @@ function App() {
   const setSelected = useWorkspaceSelectionStore(
     (state) => state.setSelectedNode,
   );
-  const workspace = useWorkspaceStore((state) => state.activeWorkspace);
+  const workspace = useWorkspaceStore(selectActiveWorkspace);
   const setWorkspace = useWorkspaceStore(
     (state) => state.setActiveWorkspace,
   );
@@ -142,6 +145,30 @@ function App() {
       setPanelDirty(panelId, dirty);
     },
     [setPanelDirty],
+  );
+
+  const handleActiveMapPanel = useCallback(
+    (mapId: string, workspaceRoot?: string) => {
+      const target =
+        workspaces.find((item) => item.root === workspaceRoot) ??
+        workspace;
+      const map = target?.maps.find((item) => item.id === mapId);
+      if (!target || !map) {
+        return;
+      }
+      if (workspace?.root !== target.root) {
+        setWorkspace(target);
+      }
+      setActiveMapId(map.id);
+      setSelected(map.root);
+    },
+    [
+      setActiveMapId,
+      setSelected,
+      setWorkspace,
+      workspace,
+      workspaces,
+    ],
   );
 
   async function confirmDiscard(): Promise<boolean> {
@@ -337,6 +364,7 @@ function App() {
               activeMap={activeMap}
               selected={selected}
               onActiveNode={(node) => setSelected(node)}
+              onActiveMap={handleActiveMapPanel}
               onPanelDirty={handlePanelDirty}
               onSelectNode={selectNode}
               onSwitchMap={switchMap}
