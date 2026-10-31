@@ -27,7 +27,7 @@
       "devCsp": null,
       "assetProtocol": {
         "enable": true,
-        "scope": ["$HOME/**"]
+        "scope": []
       }
     }
   },

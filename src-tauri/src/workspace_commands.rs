@@ -1,23 +1,48 @@
+use std::path::Path;
+use tauri::Manager;
 use tauri_notes_workspace::workspace::{
     self, BlockDocumentView, DocumentView, SearchHit, WorkspaceView,
 };
 
+fn allow_workspace_assets(app: &tauri::AppHandle, path: &str) {
+    let path = Path::new(path);
+    let root = if path.is_dir() {
+        path
+    } else {
+        path.parent().unwrap_or(path)
+    };
+    let _ = app.asset_protocol_scope().allow_directory(root, true);
+}
+
 #[tauri::command]
-pub fn open_workspace(path: String) -> Result<WorkspaceView, String> {
-    workspace::open_workspace(path)
+pub fn open_workspace(
+    app: tauri::AppHandle,
+    path: String,
+) -> Result<WorkspaceView, String> {
+    let view = workspace::open_workspace(path.clone())?;
+    allow_workspace_assets(&app, &path);
+    Ok(view)
 }
 
 #[tauri::command]
 pub async fn create_note_file(
+    app: tauri::AppHandle,
     path: String,
     title: String,
 ) -> Result<WorkspaceView, String> {
-    workspace::create_note_file(path, title).await
+    let view = workspace::create_note_file(path.clone(), title).await?;
+    allow_workspace_assets(&app, &path);
+    Ok(view)
 }
 
 #[tauri::command]
-pub async fn open_note_workspace(path: String) -> Result<WorkspaceView, String> {
-    workspace::open_note_workspace(path).await
+pub async fn open_note_workspace(
+    app: tauri::AppHandle,
+    path: String,
+) -> Result<WorkspaceView, String> {
+    let view = workspace::open_note_workspace(path.clone()).await?;
+    allow_workspace_assets(&app, &path);
+    Ok(view)
 }
 
 #[tauri::command]
