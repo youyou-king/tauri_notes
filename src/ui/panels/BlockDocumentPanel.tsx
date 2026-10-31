@@ -80,6 +80,7 @@ export function BlockDocumentPanel(
       <ImportedPreviewPane
         workspaceRoot={workspaceRoot}
         documentId={documentId}
+        panelId={props.api.id}
       />
     </Suspense>
   );

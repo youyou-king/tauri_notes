@@ -62,15 +62,19 @@ function fileDataUrl(file: File): Promise<string> {
 export default function ImportedPreviewPane({
   workspaceRoot,
   documentId,
+  panelId,
 }: {
   workspaceRoot: string;
   documentId?: string;
+  panelId?: string;
 }) {
   const repository = useMemo(
     () => new TauriImportedDocumentRepository(workspaceRoot),
     [workspaceRoot],
   );
   const context = usePanelContext();
+  const setPanelDirty = context?.setPanelDirty;
+  const dirtyKey = panelId ?? documentId;
   const [status, setStatus] = useState("加载文档…");
   const [documentTitle, setDocumentTitle] = useState("");
   const editing = true;
@@ -93,6 +97,19 @@ export default function ImportedPreviewPane({
     title: string;
   } | null>(null);
   const activeDocumentId = documentId ?? "";
+
+  const markPanelDirty = (dirty: boolean) => {
+    if (dirtyKey && setPanelDirty) {
+      setPanelDirty(dirtyKey, dirty);
+    }
+  };
+
+  useEffect(() => {
+    if (!dirtyKey || !setPanelDirty) {
+      return;
+    }
+    return () => setPanelDirty(dirtyKey, false);
+  }, [dirtyKey, setPanelDirty]);
 
   useEffect(() => {
     if (!activeDocumentId) {
@@ -205,6 +222,7 @@ export default function ImportedPreviewPane({
         return;
       }
       setStatus("未保存");
+      markPanelDirty(true);
       if (saveTimer.current !== null) {
         window.clearTimeout(saveTimer.current);
       }
@@ -223,6 +241,7 @@ export default function ImportedPreviewPane({
         );
         if (changed.length === 0 && deleted.length === 0) {
           setStatus("已保存");
+          markPanelDirty(false);
           return;
         }
         setSaving(true);
@@ -234,6 +253,7 @@ export default function ImportedPreviewPane({
             );
             deleted.forEach((id) => savedRef.current.delete(id));
             setStatus("已保存");
+            markPanelDirty(false);
             recordConsoleEvent(
               "document",
               "保存文档",
@@ -249,7 +269,10 @@ export default function ImportedPreviewPane({
               }),
             );
           })
-          .catch((error) => setStatus(`保存失败：${String(error)}`))
+          .catch((error) => {
+            markPanelDirty(true);
+            setStatus(`保存失败：${String(error)}`);
+          })
           .finally(() => setSaving(false));
       };
     },
@@ -321,6 +344,7 @@ export default function ImportedPreviewPane({
         loadingRef.current = false;
         editor.view.dom.classList.toggle("large-document", blocks.length > 300);
         setStatus("已加载");
+        markPanelDirty(false);
       })
       .catch((error) => {
         loadingRef.current = false;
