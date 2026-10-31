@@ -2,6 +2,7 @@ import type { RefObject } from "react";
 import { appDataDir, join } from "@tauri-apps/api/path";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import type { DockWorkspaceHandle } from "../components/DockWorkspace";
+import { findNode } from "../domain/tree";
 import { ensureLibrary } from "../infrastructure/libraryBootstrapper";
 import { workspaceService } from "../application/workspaceService";
 import {
@@ -235,10 +236,20 @@ export function useWorkspaceOpen({
       views.find((view) => view.root === activeRoot) ??
       views[views.length - 1] ??
       null;
+    const restoredMap =
+      active?.maps.find((map) => map.id === session.activeMapId) ??
+      active?.maps[0] ??
+      null;
+    const restoredNode =
+      (restoredMap && session.selectedNodeId
+        ? findNode(restoredMap.root, session.selectedNodeId)
+        : null) ??
+      restoredMap?.root ??
+      null;
     setWorkspaces(views);
     setWorkspace(active);
-    setActiveMapId(active?.maps[0]?.id ?? null);
-    setSelected(active?.maps[0]?.root ?? null);
+    setActiveMapId(restoredMap?.id ?? null);
+    setSelected(restoredNode);
     if (views.length === 0) {
       dockRef.current?.resetLayout();
       return false;

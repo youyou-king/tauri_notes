@@ -17,12 +17,32 @@ describe("sessionService", () => {
     expect(readSession()).toBeNull();
   });
 
-  it("round-trips roots and active root", () => {
-    writeSession(["/a.note", "/b.note"], "/b.note");
+  it("round-trips roots and active selection", () => {
+    writeSession(["/a.note", "/b.note"], "/b.note", {
+      activeMapId: "map-1",
+      selectedNodeId: "node-2",
+    });
     expect(readSession()).toEqual({
       version: 1,
       roots: ["/a.note", "/b.note"],
       activeRoot: "/b.note",
+      activeMapId: "map-1",
+      selectedNodeId: "node-2",
+    });
+  });
+
+  it("defaults missing selection for old session data", () => {
+    window.localStorage.setItem(
+      SESSION_KEY,
+      JSON.stringify({
+        version: 1,
+        roots: ["/a.note"],
+        activeRoot: "/a.note",
+      }),
+    );
+    expect(readSession()).toMatchObject({
+      activeMapId: null,
+      selectedNodeId: null,
     });
   });
 

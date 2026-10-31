@@ -321,8 +321,12 @@ function App() {
     writeSession(
       workspaces.map((item) => item.root),
       workspace?.root ?? null,
+      {
+        activeMapId,
+        selectedNodeId: selected?.id ?? null,
+      },
     );
-  }, [workspaces, workspace?.root]);
+  }, [activeMapId, selected?.id, workspaces, workspace?.root]);
 
   useNoteDrop(openOnlyWorkspace);
 

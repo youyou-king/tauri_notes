@@ -12,7 +12,8 @@
 - 新增 capability policy 测试，manifest 不能自行越权。
 - 新增 E2E：禁用主题插件后仍可打开设置和插件管理器；
 - 配置显式 Tauri CSP；默认启用 WebView 沙箱，保留 `TAURI_NOTES_DISABLE_SANDBOX` 回退；
-- 设置 section 和 overlay 增加错误边界；初始化完成后停止文件打开轮询。
+- 设置 section 和 overlay 增加错误边界；初始化完成后停止文件打开轮询；
+- 会话快照保存 activeMapId 和 selectedNodeId，重启后恢复选中 map/节点。
 - 插件注册表从 `PluginProvider` 抽离到 `src/plugins/registry.ts`；
 - 插件注册失败进入 diagnostics，不再打断组合根；
 - 插件依赖激活失败时阻断依赖方，并记录 `blockedBy`。

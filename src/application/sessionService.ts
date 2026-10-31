@@ -1,7 +1,12 @@
 export const SESSION_KEY = "tauri-notes.session.v1";
 const TITLE_PREFIX = "tauri-notes.workspace-title:";
 
-export type SessionSnapshot = {
+export type SessionSelection = {
+  activeMapId: string | null;
+  selectedNodeId: string | null;
+};
+
+export type SessionSnapshot = SessionSelection & {
   version: 1;
   roots: string[];
   activeRoot: string | null;
@@ -17,6 +22,8 @@ export function readSession(): SessionSnapshot | null {
       roots?: unknown;
       active?: unknown;
       activeRoot?: unknown;
+      activeMapId?: unknown;
+      selectedNodeId?: unknown;
     };
     return {
       version: 1,
@@ -31,6 +38,14 @@ export function readSession(): SessionSnapshot | null {
           : typeof parsed.active === "string"
             ? parsed.active
             : null,
+      activeMapId:
+        typeof parsed.activeMapId === "string"
+          ? parsed.activeMapId
+          : null,
+      selectedNodeId:
+        typeof parsed.selectedNodeId === "string"
+          ? parsed.selectedNodeId
+          : null,
     };
   } catch {
     return null;
@@ -40,6 +55,10 @@ export function readSession(): SessionSnapshot | null {
 export function writeSession(
   roots: string[],
   activeRoot: string | null,
+  selection: SessionSelection = {
+    activeMapId: null,
+    selectedNodeId: null,
+  },
 ): void {
   window.localStorage.setItem(
     SESSION_KEY,
@@ -47,6 +66,8 @@ export function writeSession(
       version: 1,
       roots,
       activeRoot,
+      activeMapId: selection.activeMapId,
+      selectedNodeId: selection.selectedNodeId,
     }),
   );
 }
