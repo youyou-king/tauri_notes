@@ -12,6 +12,12 @@ const coreSources = import.meta.glob("./prototype/**/*.{ts,tsx}", {
   eager: true,
 }) as Record<string, string>;
 
+const allSources = import.meta.glob("./**/*.{ts,tsx}", {
+  query: "?raw",
+  import: "default",
+  eager: true,
+}) as Record<string, string>;
+
 function normalize(file: string, specifier: string): string {
   const parts = file.replace(/^\.\//, "").split("/");
   parts.pop();
@@ -131,4 +137,21 @@ describe("plugin UI boundaries", () => {
     }
     expect(violations).toEqual([]);
   });
+  it("app event names live in the typed registry", () => {
+    const violations: string[] = [];
+    for (const [file, source] of Object.entries(allSources)) {
+      if (
+        /\.test\.(ts|tsx)$/.test(file) ||
+        file.endsWith("kernel/events.ts") ||
+        file.endsWith("kernel/event/panelEvents.ts")
+      ) {
+        continue;
+      }
+      if (/"tauri-notes:[^"]+"/.test(source)) {
+        violations.push(file);
+      }
+    }
+    expect(violations).toEqual([]);
+  });
+
 });

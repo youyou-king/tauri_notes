@@ -19,4 +19,9 @@ describe("app events", () => {
     off();
   });
 
+  it("keeps event names unique", () => {
+    const names = Object.values(APP_EVENTS);
+    expect(new Set(names).size).toBe(names.length);
+  });
+
 });
