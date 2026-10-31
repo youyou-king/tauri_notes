@@ -158,7 +158,14 @@ cargo clippy --workspace --all-targets -- -D warnings
 
 ## 发布
 
-版本位于：
+版本以 `package.json` 为源，`scripts/version.mjs` 负责同步：
+
+```text
+npm run version:set 0.1.2
+npm run version:check
+```
+
+同步目标：
 
 ```text
 package.json

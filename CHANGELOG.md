@@ -13,7 +13,8 @@
 - 新增 E2E：禁用主题插件后仍可打开设置和插件管理器；
 - 配置显式 Tauri CSP；默认启用 WebView 沙箱，保留 `TAURI_NOTES_DISABLE_SANDBOX` 回退；
 - assetProtocol 静态 scope 改为空，打开工作区时动态授权对应目录；
-- NSIS 安装模型从 `perMachine` 改为 `currentUser`，与自定义安装器 `asInvoker` 对齐。
+- NSIS 安装模型从 `perMachine` 改为 `currentUser`，与自定义安装器 `asInvoker` 对齐；
+- 新增 `scripts/version.mjs`，以 package.json 为版本源同步 tauri/Cargo，并在 CI 检查。
 - 设置 section 和 overlay 增加错误边界；初始化完成后停止文件打开轮询；
 - 会话快照保存 activeMapId 和 selectedNodeId，重启后恢复选中 map/节点；
 - 工作区选择改为原子 `select(mapId, node)`，移除单独写 activeMapId 的入口；
