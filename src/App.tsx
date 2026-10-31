@@ -52,12 +52,10 @@ function App() {
   const selected = useWorkspaceSelectionStore(
     (state) => state.selectedNode,
   );
-  const setActiveMapId = useWorkspaceSelectionStore(
-    (state) => state.setActiveMapId,
-  );
   const setSelected = useWorkspaceSelectionStore(
     (state) => state.setSelectedNode,
   );
+  const select = useWorkspaceSelectionStore((state) => state.select);
   const workspace = useWorkspaceStore(selectActiveWorkspace);
   const setWorkspace = useWorkspaceStore(
     (state) => state.setActiveWorkspace,
@@ -159,12 +157,10 @@ function App() {
       if (workspace?.root !== target.root) {
         setWorkspace(target);
       }
-      setActiveMapId(map.id);
-      setSelected(map.root);
+      select(map.id, map.root);
     },
     [
-      setActiveMapId,
-      setSelected,
+      select,
       setWorkspace,
       workspace,
       workspaces,
@@ -197,8 +193,8 @@ function App() {
     selected,
     setWorkspace,
     setWorkspaces,
-    setActiveMapId,
     setSelected,
+    select,
     appendLog,
     confirmDiscard,
     setError,
@@ -223,8 +219,7 @@ function App() {
     rememberWorkspace,
     setWorkspace,
     setWorkspaces,
-    setActiveMapId,
-    setSelected,
+    select,
     renameWorkspaceDisplay,
     setBusy,
     setError,

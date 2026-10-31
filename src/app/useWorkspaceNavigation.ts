@@ -24,8 +24,8 @@ type Args = {
   selected: NodeView | null;
   setWorkspace: WorkspaceUpdater;
   setWorkspaces: WorkspacesUpdater;
-  setActiveMapId: (mapId: string | null) => void;
   setSelected: (node: NodeView | null) => void;
+  select: (mapId: string | null, node: NodeView | null) => void;
   appendLog: (line: string) => void;
   confirmDiscard: () => Promise<boolean>;
   setError: (message: string) => void;
@@ -39,8 +39,8 @@ export function useWorkspaceNavigation({
   selected,
   setWorkspace,
   setWorkspaces,
-  setActiveMapId,
   setSelected,
+  select,
   appendLog,
   confirmDiscard,
   setError,
@@ -69,8 +69,7 @@ export function useWorkspaceNavigation({
     if (targetWorkspace) {
       setWorkspace(targetWorkspace);
     }
-    setActiveMapId(map.id);
-    setSelected(map.root);
+    select(map.id, map.root);
     appendLog(`切换导图：${map.title}`);
     dockRef.current?.openMap(map.id, targetRoot);
   }
@@ -81,8 +80,10 @@ export function useWorkspaceNavigation({
       return;
     }
     setWorkspace(target);
-    setActiveMapId(target.maps[0]?.id ?? null);
-    setSelected(target.maps[0]?.root ?? null);
+    select(
+      target.maps[0]?.id ?? null,
+      target.maps[0]?.root ?? null,
+    );
   }
 
   function unloadWorkspace(root: string) {
@@ -95,8 +96,10 @@ export function useWorkspaceNavigation({
       const remaining = workspaces.filter((item) => item.root !== root);
       const next = remaining[remaining.length - 1] ?? null;
       setWorkspace(next);
-      setActiveMapId(next?.maps[0]?.id ?? null);
-      setSelected(next?.maps[0]?.root ?? null);
+      select(
+        next?.maps[0]?.id ?? null,
+        next?.maps[0]?.root ?? null,
+      );
     }
     appendLog(`卸载知识库：${root}`);
   }
@@ -130,8 +133,7 @@ export function useWorkspaceNavigation({
       setError("搜索结果对应的节点不存在");
       return;
     }
-    setActiveMapId(map.id);
-    setSelected(node);
+    select(map.id, node);
     appendLog(`搜索打开：${node.title}`);
     dockRef.current?.openDocument(map.id, node.id, node.title);
   }

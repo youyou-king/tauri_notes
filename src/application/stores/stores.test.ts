@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import type { WorkspaceView } from "../../types";
+import type { NodeView, WorkspaceView } from "../../types";
 import {
   selectActiveWorkspace,
   useWorkspaceStore,
@@ -61,9 +61,18 @@ describe("workspace stores", () => {
   });
 
   it("tracks selection", () => {
-    useWorkspaceSelectionStore.getState().setActiveMapId("map-1");
-    useWorkspaceSelectionStore.getState().setSelectedNode(null);
+    useWorkspaceSelectionStore.getState().select("map-1", null);
     expect(useWorkspaceSelectionStore.getState().activeMapId).toBe("map-1");
+  });
+
+  it("updates map and node atomically", () => {
+    const node = { id: "node-1", title: "Node" } as NodeView;
+    useWorkspaceSelectionStore.getState().select("map-1", node);
+    expect(useWorkspaceSelectionStore.getState().activeMapId).toBe("map-1");
+    expect(useWorkspaceSelectionStore.getState().selectedNode).toBe(node);
+    useWorkspaceSelectionStore.getState().select(null, null);
+    expect(useWorkspaceSelectionStore.getState().activeMapId).toBeNull();
+    expect(useWorkspaceSelectionStore.getState().selectedNode).toBeNull();
   });
 
   it("tracks dirty panels", () => {

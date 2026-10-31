@@ -35,8 +35,10 @@ type Args = {
   rememberWorkspace: (view: WorkspaceView) => void;
   setWorkspace: WorkspaceUpdater;
   setWorkspaces: WorkspacesUpdater;
-  setActiveMapId: (mapId: string | null) => void;
-  setSelected: (node: WorkspaceView["maps"][number]["root"] | null) => void;
+  select: (
+    mapId: string | null,
+    node: WorkspaceView["maps"][number]["root"] | null,
+  ) => void;
   renameWorkspaceDisplay: (root: string, title: string) => void;
   setBusy: (busy: boolean) => void;
   setError: (message: string | null) => void;
@@ -66,8 +68,7 @@ export function useWorkspaceOpen({
   rememberWorkspace,
   setWorkspace,
   setWorkspaces,
-  setActiveMapId,
-  setSelected,
+  select,
   renameWorkspaceDisplay,
   setBusy,
   setError,
@@ -123,8 +124,7 @@ export function useWorkspaceOpen({
       if (storedTitle) {
         renameWorkspaceDisplay(view.root, storedTitle);
       }
-      setActiveMapId(map?.id ?? null);
-      setSelected(root);
+      select(map?.id ?? null, root);
       setBackend(`已打开：${view.title}（${view.maps.length} 张导图）`);
       appendLog(`打开知识库：${view.title}`);
       if (map && isNote) {
@@ -248,8 +248,7 @@ export function useWorkspaceOpen({
       null;
     setWorkspaces(views);
     setWorkspace(active);
-    setActiveMapId(restoredMap?.id ?? null);
-    setSelected(restoredNode);
+    select(restoredMap?.id ?? null, restoredNode);
     if (views.length === 0) {
       dockRef.current?.resetLayout();
       return false;
@@ -271,8 +270,7 @@ export function useWorkspaceOpen({
   async function openOnlyWorkspace(path: string) {
     setWorkspaces([]);
     setWorkspace(null);
-    setActiveMapId(null);
-    setSelected(null);
+    select(null, null);
     dockRef.current?.resetLayout();
     await openWorkspacePath(path);
   }
