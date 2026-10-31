@@ -45,7 +45,7 @@ import { Fragment, type Node as PMNode } from "@tiptap/pm/model";
 import type { SelectedBlock } from "../../../application/state/editorSnapshot";
 import { BlockLayoutToolbar } from "./BlockLayoutToolbar";
 import { EditorFormatToolbar } from "./EditorFormatToolbar";
-import { EditorStats } from "./EditorStats";
+import { EditorStatusBar } from "./EditorStatusBar";
 import { useEditorField } from "./useEditorField";
 
 function blockSignature(block: {
@@ -981,13 +981,7 @@ export default function ImportedPreviewPane({
         </div>
         <EditorContent editor={editor} />
       </div>
-      <div
-        className="block-status-bar"
-        role="status"
-        aria-live="polite"
-      >
-        {saving ? "保存中…" : status} · <EditorStats editor={editor} />
-      </div>
+      <EditorStatusBar saving={saving} status={status} editor={editor} />
       {viewportRequest && ViewportSelectionPanel && (
         <ViewportSelectionPanel
           workspaceRoot={workspaceRoot}
