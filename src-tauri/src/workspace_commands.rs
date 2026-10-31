@@ -1,3 +1,4 @@
+use crate::command_error::CommandError;
 use std::path::Path;
 use tauri::Manager;
 use tauri_notes_workspace::workspace::{
@@ -18,7 +19,7 @@ fn allow_workspace_assets(app: &tauri::AppHandle, path: &str) {
 pub fn open_workspace(
     app: tauri::AppHandle,
     path: String,
-) -> Result<WorkspaceView, String> {
+) -> Result<WorkspaceView, CommandError> {
     let view = workspace::open_workspace(path.clone())?;
     allow_workspace_assets(&app, &path);
     Ok(view)
@@ -29,7 +30,7 @@ pub async fn create_note_file(
     app: tauri::AppHandle,
     path: String,
     title: String,
-) -> Result<WorkspaceView, String> {
+) -> Result<WorkspaceView, CommandError> {
     let view = workspace::create_note_file(path.clone(), title).await?;
     allow_workspace_assets(&app, &path);
     Ok(view)
@@ -39,15 +40,15 @@ pub async fn create_note_file(
 pub async fn open_note_workspace(
     app: tauri::AppHandle,
     path: String,
-) -> Result<WorkspaceView, String> {
+) -> Result<WorkspaceView, CommandError> {
     let view = workspace::open_note_workspace(path.clone()).await?;
     allow_workspace_assets(&app, &path);
     Ok(view)
 }
 
 #[tauri::command]
-pub async fn save_note_file(path: String) -> Result<String, String> {
-    workspace::save_note_file(path).await
+pub async fn save_note_file(path: String) -> Result<String, CommandError> {
+    workspace::save_note_file(path).await.map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -55,8 +56,8 @@ pub fn read_document(
     workspace: String,
     map_id: String,
     node_id: String,
-) -> Result<DocumentView, String> {
-    workspace::read_document(workspace, map_id, node_id)
+) -> Result<DocumentView, CommandError> {
+    workspace::read_document(workspace, map_id, node_id).map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -64,8 +65,8 @@ pub fn document_modified(
     workspace: String,
     map_id: String,
     node_id: String,
-) -> Result<u64, String> {
-    workspace::document_modified(workspace, map_id, node_id)
+) -> Result<u64, CommandError> {
+    workspace::document_modified(workspace, map_id, node_id).map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -73,8 +74,8 @@ pub fn index_document(
     workspace: String,
     map_id: String,
     node_id: String,
-) -> Result<BlockDocumentView, String> {
-    workspace::index_document(workspace, map_id, node_id)
+) -> Result<BlockDocumentView, CommandError> {
+    workspace::index_document(workspace, map_id, node_id).map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -84,8 +85,8 @@ pub fn save_block(
     node_id: String,
     block_index: usize,
     text: String,
-) -> Result<BlockDocumentView, String> {
-    workspace::save_block(workspace, map_id, node_id, block_index, text)
+) -> Result<BlockDocumentView, CommandError> {
+    workspace::save_block(workspace, map_id, node_id, block_index, text).map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -96,8 +97,8 @@ pub fn split_block(
     block_index: usize,
     before: String,
     after: String,
-) -> Result<BlockDocumentView, String> {
-    workspace::split_block(workspace, map_id, node_id, block_index, before, after)
+) -> Result<BlockDocumentView, CommandError> {
+    workspace::split_block(workspace, map_id, node_id, block_index, before, after).map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -107,8 +108,8 @@ pub fn merge_blocks(
     node_id: String,
     block_index: usize,
     current_text: String,
-) -> Result<BlockDocumentView, String> {
-    workspace::merge_blocks(workspace, map_id, node_id, block_index, current_text)
+) -> Result<BlockDocumentView, CommandError> {
+    workspace::merge_blocks(workspace, map_id, node_id, block_index, current_text).map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -119,7 +120,7 @@ pub fn save_block_range(
     start_index: usize,
     end_index: usize,
     text: String,
-) -> Result<BlockDocumentView, String> {
+) -> Result<BlockDocumentView, CommandError> {
     workspace::save_block_range(
         workspace,
         map_id,
@@ -128,6 +129,7 @@ pub fn save_block_range(
         end_index,
         text,
     )
+    .map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -136,8 +138,8 @@ pub fn write_document(
     map_id: String,
     node_id: String,
     content: String,
-) -> Result<BlockDocumentView, String> {
-    workspace::write_document(workspace, map_id, node_id, content)
+) -> Result<BlockDocumentView, CommandError> {
+    workspace::write_document(workspace, map_id, node_id, content).map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -146,8 +148,8 @@ pub fn delete_blocks(
     map_id: String,
     node_id: String,
     block_indices: Vec<usize>,
-) -> Result<BlockDocumentView, String> {
-    workspace::delete_blocks(workspace, map_id, node_id, block_indices)
+) -> Result<BlockDocumentView, CommandError> {
+    workspace::delete_blocks(workspace, map_id, node_id, block_indices).map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -157,8 +159,8 @@ pub fn insert_blocks(
     node_id: String,
     at_index: usize,
     markdown: String,
-) -> Result<BlockDocumentView, String> {
-    workspace::insert_blocks(workspace, map_id, node_id, at_index, markdown)
+) -> Result<BlockDocumentView, CommandError> {
+    workspace::insert_blocks(workspace, map_id, node_id, at_index, markdown).map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -166,8 +168,8 @@ pub fn search_workspace(
     workspace: String,
     query: String,
     limit: Option<usize>,
-) -> Result<Vec<SearchHit>, String> {
-    workspace::search_workspace(workspace, query, limit)
+) -> Result<Vec<SearchHit>, CommandError> {
+    workspace::search_workspace(workspace, query, limit).map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -175,6 +177,6 @@ pub async fn search_blocks_db(
     workspace: String,
     query: String,
     limit: Option<usize>,
-) -> Result<Vec<SearchHit>, String> {
-    workspace::search_blocks_db(workspace, query, limit).await
+) -> Result<Vec<SearchHit>, CommandError> {
+    workspace::search_blocks_db(workspace, query, limit).await.map_err(CommandError::from)
 }
