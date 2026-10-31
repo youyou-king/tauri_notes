@@ -11,6 +11,7 @@ export {
   ToolbarMenu,
   useToolbarPopover,
 } from "../toolbar/ToolbarMenu";
+export { useEditorSnapshot } from "../editor/useEditorSnapshot";
 export {
   isPluginDisabled,
   readDisabledPlugins,

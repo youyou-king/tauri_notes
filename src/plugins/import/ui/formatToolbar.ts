@@ -1,35 +1,40 @@
-import type { Editor } from "@tiptap/core";
+import type { EditorToolbarSnapshot } from "../../../application/state/editorSnapshot";
+
+export type FormatFlag =
+  | "bold"
+  | "italic"
+  | "strike"
+  | "code"
+  | "bulletList"
+  | "taskList"
+  | "blockquote"
+  | "codeBlock"
+  | "tableBlock"
+  | "link";
 
 export type FormatActive =
-  | string
+  | FormatFlag
   | {
-      type: string;
-      attrs?: Record<string, unknown>;
+      headingLevel: 1 | 2;
     };
 
 export type FormatToolbarItem = {
   label: string;
   title: string;
   active?: FormatActive;
-  disabled?: () => boolean;
+  disabled?: boolean;
   run: () => void;
 };
 
-type ActiveEditor = Pick<Editor, "isActive">;
-
-/**
- * `isActive("heading")` is true for every heading level. Toolbar buttons must
- * pass the level attributes so H1 and H2 cannot both look active.
- */
 export function isFormatActive(
-  editor: ActiveEditor,
+  toolbar: EditorToolbarSnapshot,
   active: FormatActive | undefined,
 ): boolean {
   if (!active) {
     return false;
   }
   if (typeof active === "string") {
-    return editor.isActive(active);
+    return toolbar[active];
   }
-  return editor.isActive(active.type, active.attrs);
+  return toolbar.headingLevel === active.headingLevel;
 }

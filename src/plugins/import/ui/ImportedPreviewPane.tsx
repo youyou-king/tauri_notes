@@ -6,6 +6,7 @@ import { importFeature } from "../manifest";
 import { flattenMindMap } from "../../../lib/mindMap";
 import {
   confirmDialog,
+  useEditorSnapshot,
   usePanelContext,
 } from "../../../ui/sdk";
 import { commandEventName } from "../../../kernel/sdk";
@@ -35,46 +36,18 @@ import {
   resolveImageSource,
   resolveImageSources,
 } from "../../../editor/importedMarkdown";
-import type { Editor } from "@tiptap/react";
 import { Fragment, type Node as PMNode } from "@tiptap/pm/model";
+import type { SelectedBlock } from "../../../application/state/editorSnapshot";
 import {
   isFormatActive,
   type FormatToolbarItem,
 } from "./formatToolbar";
-
-type SelectedBlock = {
-  pos: number;
-  type: string;
-  span: number;
-  heightMode: "auto" | "fixed";
-  heightPx: number;
-  zoom: number;
-};
 
 function blockSignature(block: {
   orderKey: string;
   contentJson: string;
 }): string {
   return `${block.orderKey}|${block.contentJson}`;
-}
-
-function findSelectedBlock(editor: Editor): SelectedBlock | null {
-  const { from } = editor.state.selection;
-  let found: SelectedBlock | null = null;
-  editor.state.doc.forEach((node, offset) => {
-    if (offset <= from && from <= offset + node.nodeSize) {
-      const attrs = node.attrs ?? {};
-      found = {
-        pos: offset,
-        type: node.type.name,
-        span: Math.max(1, Math.min(12, Number(attrs.span ?? 12))),
-        heightMode: attrs.heightMode === "fixed" ? "fixed" : "auto",
-        heightPx: Number(attrs.heightPx ?? 240),
-        zoom: Math.max(50, Math.min(200, Number(attrs.zoom ?? 100))),
-      };
-    }
-  });
-  return found;
 }
 
 function fileDataUrl(file: File): Promise<string> {
@@ -102,12 +75,10 @@ export default function ImportedPreviewPane({
   const [documentTitle, setDocumentTitle] = useState("");
   const editing = true;
   const [saving, setSaving] = useState(false);
-  const [selectedBlock, setSelectedBlock] = useState<SelectedBlock | null>(null);
   const [linkOpen, setLinkOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
   const [viewportRequest, setViewportRequest] =
     useState<ViewportPickRequest | null>(null);
-  const [stats, setStats] = useState({ blocks: 0, characters: 0 });
   const selectedRef = useRef("");
   const [editorReady, setEditorReady] = useState(false);
   const editingRef = useRef(true);
@@ -233,11 +204,6 @@ export default function ImportedPreviewPane({
       if (!editingRef.current || loadingRef.current) {
         return;
       }
-      setSelectedBlock(findSelectedBlock(current));
-      setStats({
-        blocks: current.state.doc.childCount,
-        characters: current.state.doc.textContent.length,
-      });
       setStatus("未保存");
       if (saveTimer.current !== null) {
         window.clearTimeout(saveTimer.current);
@@ -287,10 +253,11 @@ export default function ImportedPreviewPane({
           .finally(() => setSaving(false));
       };
     },
-    onSelectionUpdate: ({ editor: current }) => {
-      setSelectedBlock(findSelectedBlock(current));
-    },
   });
+
+  const editorSnapshot = useEditorSnapshot(editor);
+  const selectedBlock = editorSnapshot.selectedBlock;
+  const stats = editorSnapshot.stats;
 
   useEffect(() => {
     editingRef.current = editing;
@@ -352,12 +319,7 @@ export default function ImportedPreviewPane({
           ),
         );
         loadingRef.current = false;
-        setSelectedBlock(null);
         editor.view.dom.classList.toggle("large-document", blocks.length > 300);
-        setStats({
-          blocks: editor.state.doc.childCount,
-          characters: editor.state.doc.textContent.length,
-        });
         setStatus("已加载");
       })
       .catch((error) => {
@@ -645,7 +607,6 @@ export default function ImportedPreviewPane({
         Fragment.fromArray(blocks),
       ),
     );
-    setSelectedBlock(null);
   };
 
   const duplicateBlock = () => {
@@ -668,7 +629,6 @@ export default function ImportedPreviewPane({
         inserted,
       ),
     );
-    setSelectedBlock(null);
   };
 
   const deleteBlock = () => {
@@ -688,7 +648,6 @@ export default function ImportedPreviewPane({
         selectedBlock.pos + node.nodeSize,
       ),
     );
-    setSelectedBlock(null);
   };
 
   const ungroupBlock = () => {
@@ -711,15 +670,16 @@ export default function ImportedPreviewPane({
         Fragment.fromArray(children),
       ),
     );
-    setSelectedBlock(null);
   };
 
-  const updateLayout = (patch: Partial<SelectedBlock>) => {    if (!editor || !editing || !selectedBlock) {
+  const updateLayout = (patch: Partial<SelectedBlock>) => {
+    if (!editor || !editing || !selectedBlock) {
       return;
     }
     if (
       ["tableBlock", "codeBlock", "viewportBlock"].includes(selectedBlock.type)
-    ) {      const node = editor.state.doc.nodeAt(selectedBlock.pos);
+    ) {
+      const node = editor.state.doc.nodeAt(selectedBlock.pos);
       if (!node) {
         return;
       }
@@ -727,13 +687,6 @@ export default function ImportedPreviewPane({
       editor.view.dispatch(
         editor.state.tr.setNodeMarkup(selectedBlock.pos, undefined, next),
       );
-      setSelectedBlock({
-        ...selectedBlock,
-        span: Number(next.span ?? 12),
-        heightMode: next.heightMode === "fixed" ? "fixed" : "auto",
-        heightPx: Number(next.heightPx ?? 240),
-        zoom: Math.max(50, Math.min(200, Number(next.zoom ?? 100))),
-      });
       return;
     }
     const { from, to } = editor.state.selection;
@@ -754,7 +707,6 @@ export default function ImportedPreviewPane({
               Fragment.fromArray(children),
             ),
           );
-          setSelectedBlock(null);
         }
       }
       return;
@@ -782,17 +734,10 @@ export default function ImportedPreviewPane({
       return;
     }
     if (nodes.length === 1) {
-      const node = nodes[0];      const next = { ...node.attrs, ...patch };
+      const node = nodes[0];
+      const next = { ...node.attrs, ...patch };
       const transaction = editor.state.tr.setNodeMarkup(start, undefined, next);
       editor.view.dispatch(transaction);
-      setSelectedBlock({
-        ...selectedBlock,
-        pos: start,
-        span: Number(next.span ?? 12),
-        heightMode: next.heightMode === "fixed" ? "fixed" : "auto",
-        heightPx: Number(next.heightPx ?? 240),
-        zoom: Math.max(50, Math.min(200, Number(next.zoom ?? 100))),
-      });
       return;
     }
 
@@ -806,14 +751,6 @@ export default function ImportedPreviewPane({
         });
       });
       editor.view.dispatch(transaction);
-      setSelectedBlock({
-        ...selectedBlock,
-        pos: starts[0],
-        ...(patch.span === 12 ? { span: 12 } : {}),
-        ...(patch.heightMode === "auto"
-          ? { heightMode: "auto" as const }
-          : {}),
-      });
       return;
     }
     const groupType = editor.schema.nodes.blockGroup;
@@ -830,14 +767,6 @@ export default function ImportedPreviewPane({
     const group = groupType.create(attrs, nodes);
     const transaction = editor.state.tr.replaceWith(start, end, group);
     editor.view.dispatch(transaction);
-    setSelectedBlock({
-      pos: start,
-      type: "blockGroup",
-      span: Number(attrs.span ?? 12),
-      heightMode: attrs.heightMode === "fixed" ? "fixed" : "auto",
-      heightPx: Number(attrs.heightPx ?? 240),
-      zoom: Math.max(50, Math.min(200, Number(attrs.zoom ?? 100))),
-    });
   };
 
   const clearAtomPreview = () => {
@@ -938,13 +867,13 @@ export default function ImportedPreviewPane({
         {
           label: "↶",
           title: "撤销",
-          disabled: () => !editor.can().undo(),
+          disabled: !editorSnapshot.toolbar.canUndo,
           run: () => editor.chain().focus().undo().run(),
         },
         {
           label: "↷",
           title: "重做",
-          disabled: () => !editor.can().redo(),
+          disabled: !editorSnapshot.toolbar.canRedo,
           run: () => editor.chain().focus().redo().run(),
         },
         {
@@ -974,14 +903,14 @@ export default function ImportedPreviewPane({
         {
           label: "H1",
           title: "一级标题",
-          active: { type: "heading", attrs: { level: 1 } },
+          active: { headingLevel: 1 },
           run: () =>
             editor.chain().focus().toggleHeading({ level: 1 }).run(),
         },
         {
           label: "H2",
           title: "二级标题",
-          active: { type: "heading", attrs: { level: 2 } },
+          active: { headingLevel: 2 },
           run: () =>
             editor.chain().focus().toggleHeading({ level: 2 }).run(),
         },
@@ -1073,7 +1002,7 @@ export default function ImportedPreviewPane({
         {editing && editor && (
           <div className="block-format-toolbar">
             {formatItems.map((item) => {
-              const active = isFormatActive(editor, item.active);
+              const active = isFormatActive(editorSnapshot.toolbar, item.active);
               return (
                 <button
                   key={item.label}
@@ -1081,7 +1010,7 @@ export default function ImportedPreviewPane({
                   title={item.title}
                   className={active ? "active" : ""}
                   aria-pressed={item.active ? active : undefined}
-                  disabled={item.disabled?.() ?? false}
+                  disabled={item.disabled ?? false}
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={item.run}
                 >
@@ -1157,7 +1086,7 @@ export default function ImportedPreviewPane({
             >
               取消
             </button>
-            {editor.isActive("link") && (
+            {editorSnapshot.toolbar.link && (
               <button
                 type="button"
                 onMouseDown={(event) => event.preventDefault()}
