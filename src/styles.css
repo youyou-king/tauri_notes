@@ -2912,27 +2912,35 @@ button {
   position: relative;
 }
 
-.toolbar-menu > button,
-.toolbar-theme {
+.toolbar-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   padding: 5px 9px;
   border: 0;
   border-radius: 5px;
   background: transparent;
   color: var(--muted);
   font-size: 12px;
+  line-height: 1.4;
   cursor: pointer;
 }
 
-.toolbar-menu > button:hover,
-.toolbar-menu > button.active,
-.toolbar-theme:hover {
+.toolbar-trigger:hover,
+.toolbar-trigger.active {
   background: var(--bg-hover);
   color: var(--text);
 }
 
-.toolbar-theme:disabled {
+.toolbar-trigger:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+.toolbar-chevron {
+  font-size: 9px;
+  line-height: 1;
+  opacity: 0.65;
 }
 
 .toolbar-popover {
@@ -3392,27 +3400,7 @@ button {
   color: var(--heading);
 }
 
-.toolbar-help {
-  margin-left: 2px;
-  padding: 5px 10px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--muted);
-  font-size: 12px;
-  cursor: pointer;
-}
 
-.toolbar-help:hover:not(:disabled) {
-  border-color: var(--accent);
-  background: var(--bg-hover);
-  color: var(--text);
-}
-
-.toolbar-help:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
 
 .error-boundary {
   display: grid;

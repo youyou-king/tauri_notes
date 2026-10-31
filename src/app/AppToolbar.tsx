@@ -1,16 +1,15 @@
-import type { Dispatch, SetStateAction } from "react";
 import type { ToolbarItemContribution } from "../kernel/plugin";
 import { usePluginContributions } from "../ui/plugins/PluginProvider";
+import {
+  ToolbarButton,
+  ToolbarMenu,
+} from "../ui/toolbar/ToolbarMenu";
 import { CORE_TOOLBAR_ITEMS } from "./coreToolbar";
-
-export type NavbarMenu = string | null;
 
 type Props = {
   backend: string;
   busy: boolean;
   hasWorkspace: boolean;
-  menu: NavbarMenu;
-  setMenu: Dispatch<SetStateAction<NavbarMenu>>;
   runCommand: (id: string) => void;
 };
 
@@ -25,8 +24,6 @@ export function AppToolbar({
   backend,
   busy,
   hasWorkspace,
-  menu,
-  setMenu,
   runCommand,
 }: Props) {
   const pluginItems = usePluginContributions<ToolbarItemContribution>(
@@ -65,43 +62,29 @@ export function AppToolbar({
       </div>
       <div className="toolbar-menus">
         {menuGroups.map((group) => (
-          <div className="toolbar-menu" key={group.id}>
-            <button
-              type="button"
-              className={menu === group.id ? "active" : ""}
-              aria-haspopup="menu"
-              aria-expanded={menu === group.id}
-              onClick={() =>
-                setMenu((current) =>
-                  current === group.id ? null : group.id,
-                )
-              }
-            >
-              {group.title} ▾
-            </button>
-            {menu === group.id && (
-              <div className="toolbar-popover">
-                {group.items.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    disabled={
-                      (busy && item.requiresIdle) ||
-                      (!hasWorkspace && item.requiresWorkspace)
-                    }
-                    onClick={() => {
-                      setMenu(null);
-                      if (item.commandId) {
-                        runCommand(item.commandId);
-                      }
-                    }}
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <ToolbarMenu
+            key={group.id}
+            id={group.id}
+            label={group.title}
+          >
+            {group.items.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                disabled={
+                  (busy && item.requiresIdle) ||
+                  (!hasWorkspace && item.requiresWorkspace)
+                }
+                onClick={() => {
+                  if (item.commandId) {
+                    runCommand(item.commandId);
+                  }
+                }}
+              >
+                {item.label}
+              </button>
+            ))}
+          </ToolbarMenu>
         ))}
 
         {directItems.map((item) => {
@@ -113,20 +96,16 @@ export function AppToolbar({
             return null;
           }
           return (
-            <button
+            <ToolbarButton
               key={item.id}
-              type="button"
-              className="toolbar-help"
+              label={item.label}
               disabled={busy && item.requiresIdle}
               onClick={() => {
-                setMenu(null);
                 if (item.commandId) {
                   runCommand(item.commandId);
                 }
               }}
-            >
-              {item.label}
-            </button>
+            />
           );
         })}
       </div>

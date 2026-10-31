@@ -34,7 +34,7 @@ import {
   useAppCommandRunner,
   useAppHotkeys,
 } from "./app/useAppCommands";
-import { AppToolbar, type NavbarMenu } from "./app/AppToolbar";
+import { AppToolbar } from "./app/AppToolbar";
 import { ensureLibrary } from "./infrastructure/libraryBootstrapper";
 import type { BlockId, DocId } from "./domain/ids";
 import type { MapView, WorkspaceView } from "./types";
@@ -77,12 +77,8 @@ function App() {
     setWorkspace(view);
   }, []);
   const [backend, setBackend] = useState("未连接");
-  const [navbarMenu, setNavbarMenu] = useState<NavbarMenu>(null);
 
-  useAppShell({
-    menuOpen: Boolean(navbarMenu),
-    closeMenu: () => setNavbarMenu(null),
-  });
+  useAppShell();
 
   useEffect(() => {
     if (!workspace) {
@@ -313,8 +309,6 @@ function App() {
         backend={backend}
         busy={busy}
         hasWorkspace={Boolean(workspace)}
-        menu={navbarMenu}
-        setMenu={setNavbarMenu}
         runCommand={runNavCommand}
       />
 

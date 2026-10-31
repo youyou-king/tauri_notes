@@ -35,10 +35,12 @@ const BUILT_INS: Array<[ "dark" | "light" | "system", string]> = [
 export function ThemeMenu({
   onClose,
   inline = false,
+  embedded = false,
   onOpenSettings,
 }: {
   onClose: () => void;
   inline?: boolean;
+  embedded?: boolean;
   onOpenSettings?: () => void;
 }) {
   const {
@@ -306,7 +308,11 @@ export function ThemeMenu({
   return (
     <div
       className={
-        inline ? "theme-settings-body" : "toolbar-popover theme-popover"
+        inline
+          ? "theme-settings-body"
+          : embedded
+            ? "theme-popover"
+            : "toolbar-popover theme-popover"
       }
     >
       {BUILT_INS.map(([value, label]) => (

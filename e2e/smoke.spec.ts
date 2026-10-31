@@ -679,7 +679,7 @@ test("opens the console from the view menu", async ({ page }) => {
   await page.goto("/e2e.html");
   await expect(page.getByText(/演示知识库/).first()).toBeVisible();
 
-  await page.getByRole("button", { name: "视图 ▾", exact: true }).click();
+  await page.getByRole("button", { name: "视图", exact: true }).click();
   await page.getByRole("button", { name: "控制台" }).click();
   await expect(page.locator(".console-panel")).toBeVisible();
 });
@@ -688,7 +688,7 @@ test("opens the knowledge menu", async ({ page }) => {
   await page.goto("/e2e.html");
   await expect(page.getByText(/演示知识库/).first()).toBeVisible();
 
-  await page.getByRole("button", { name: "知识库 ▾", exact: true }).click();
+  await page.getByRole("button", { name: "知识库", exact: true }).click();
   await expect(page.getByRole("button", { name: "新建知识库…" })).toBeVisible();
   await expect(page.getByRole("button", { name: "打开知识库…" })).toBeVisible();
   await expect(page.getByRole("button", { name: "保存" })).toBeVisible();
@@ -698,7 +698,7 @@ test("closes the knowledge menu on outside click", async ({ page }) => {
   await page.goto("/e2e.html");
   await expect(page.getByText(/演示知识库/).first()).toBeVisible();
 
-  await page.getByRole("button", { name: "知识库 ▾", exact: true }).click();
+  await page.getByRole("button", { name: "知识库", exact: true }).click();
   await expect(page.getByRole("button", { name: "新建知识库…" })).toBeVisible();
 
   await page.locator(".dock-fill").click({ position: { x: 40, y: 40 } });

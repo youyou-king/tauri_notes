@@ -7,6 +7,11 @@ export {
   usePanelContext,
 } from "./primitives";
 export {
+  ToolbarButton,
+  ToolbarMenu,
+  useToolbarPopover,
+} from "../toolbar/ToolbarMenu";
+export {
   isPluginDisabled,
   readDisabledPlugins,
   setPluginDisabled,
