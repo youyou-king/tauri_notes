@@ -2,6 +2,8 @@
 
 Rust-side plugin and kernel crates.
 
+> 最后核对：2026-10-31 | 当前版本 v0.1.1 | 基线 133 / 38 / 33
+
 Current layout:
 
 ```text
