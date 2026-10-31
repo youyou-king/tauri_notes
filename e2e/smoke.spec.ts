@@ -707,11 +707,38 @@ test("closes the knowledge menu on outside click", async ({ page }) => {
   ).toHaveCount(0);
 });
 
+test("closes the theme menu on outside click and Escape", async ({
+  page,
+}) => {
+  await page.goto("/e2e.html");
+  await expect(page.getByText(/演示知识库/).first()).toBeVisible();
+
+  await page.getByRole("button", { name: "主题", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "新建主题…" }),
+  ).toBeVisible();
+  await page.locator(".dock-fill").click({ position: { x: 40, y: 40 } });
+  await expect(
+    page.getByRole("button", { name: "新建主题…" }),
+  ).toHaveCount(0);
+
+  await page.getByRole("button", { name: "主题", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "新建主题…" }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("button", { name: "新建主题…" }),
+  ).toHaveCount(0);
+});
+
 test("opens the help knowledge base from the toolbar", async ({ page }) => {
   await page.goto("/e2e.html");
   await expect(page.getByText(/演示知识库/).first()).toBeVisible();
 
-  await page.getByRole("button", { name: "帮助" }).click();
+  const help = page.getByRole("button", { name: "帮助" });
+  await expect(help).toHaveCSS("border-top-width", "0px");
+  await help.click();
   await expect
     .poll(() =>
       page.evaluate(() =>
