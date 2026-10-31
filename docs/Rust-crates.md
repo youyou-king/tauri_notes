@@ -1,13 +1,13 @@
-# Rust workspace crates
+# Rust crates
 
-Rust-side plugin and kernel crates.
+Rust 侧插件与内核 crate。
 
 > 最后核对：2026-10-31 | 当前版本 v0.1.1 | 基线 133 / 38 / 33
 
-Current layout:
+## 布局
 
 ```text
-crates/
+src-tauri/crates/
 ├─ board/             tauri-notes-board
 ├─ content/           tauri-notes-content
 ├─ document/          tauri-notes-document
@@ -20,7 +20,7 @@ crates/
 └─ theme/             tauri-notes-theme
 ```
 
-Implemented:
+## 职责
 
 ```text
 plugin-api
@@ -78,9 +78,17 @@ theme
 └─ legacy theme migration
 ```
 
-Rules:
+## 规则
 
-- the desktop package (`src-tauri`) is the composition root;
-- kernel crates do not depend on plugin crates;
-- plugin crates depend on `tauri-notes-plugin-api` and kernel contracts;
-- plugins must not depend on each other's implementation crates.
+- 桌面包 `src-tauri` 是组合根；
+- kernel crate 不依赖 plugin crate；
+- plugin crate 依赖 `tauri-notes-plugin-api` 和内核契约；
+- 插件之间不依赖对方的实现 crate；
+- Rust 命令入口只做参数包装和桌面组合，业务逻辑放在 crates；
+- 修改后至少运行：
+
+```powershell
+cd src-tauri
+cargo test --workspace
+cargo clippy --workspace --all-targets -- -D warnings
+```

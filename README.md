@@ -12,7 +12,8 @@ Tauri 2 + React 19 的本地优先 Markdown 知识库。
 https://github.com/youyou-king/tauri_notes/releases
 ```
 
-变更记录见 [`CHANGELOG.md`](CHANGELOG.md)。
+变更记录见 [`CHANGELOG.md`](CHANGELOG.md)，开发规则和目录约定见
+[`CONTRIBUTING.md`](CONTRIBUTING.md)。
 
 ## 当前架构
 
@@ -28,11 +29,12 @@ https://github.com/youyou-king/tauri_notes/releases
 
 架构说明：
 
-- [`docs/README.md`](docs/README.md)
+- [`docs/README.md`](docs/README.md) — 完整文档索引
 - [`docs/架构重构方案.md`](docs/架构重构方案.md)
 - [`docs/技术架构与插件化方案.md`](docs/技术架构与插件化方案.md)
 - [`docs/状态架构契约.md`](docs/状态架构契约.md)
 - [`docs/重构验收报告.md`](docs/重构验收报告.md)
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — 开发与插件规范
 
 ## 技术栈
 
@@ -115,9 +117,8 @@ Linux 安装 WebKitGTK / appindicator / rsvg / patchelf 依赖。
 
 重构验收与剩余事项见：
 
-```text
-docs/重构验收报告.md
-```
+- [`docs/重构验收报告.md`](docs/重构验收报告.md)
+- [`docs/状态架构契约.md`](docs/状态架构契约.md)
 
 ## 外观包签名
 
@@ -152,6 +153,9 @@ tauri_notes/
 │   ├── src/commands/        # Tauri 命令入口
 │   ├── src/services/        # 应用服务
 │   └── src/*_store.rs       # SQLite 仓储
+├── docs/                    # 设计文档、状态契约、专题文档
+├── CONTRIBUTING.md          # 开发与插件规范
+├── CHANGELOG.md             # 版本变更
 ├── help.note                # 内置使用帮助知识库
 ├── e2e/                     # Playwright 冒烟与视觉回归
 ├── installer/custom/        # 安装器 / 卸载器 C# 源码

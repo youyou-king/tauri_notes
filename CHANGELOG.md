@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### 文档
+
+- 将 `设计文档/` 移入仓库 `docs/`；
+- 移除 4 个模块 README，模块说明合并到 `docs/主题插件.md`、`docs/Rust-crates.md` 和 `CONTRIBUTING.md`；
+- 仓库只保留根 `README.md` 和 `docs/README.md` 两个 README。
+
 ## 0.1.1 — 2026-10-31
 
 ### 状态架构
