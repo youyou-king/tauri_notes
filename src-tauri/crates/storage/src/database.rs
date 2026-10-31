@@ -4,7 +4,7 @@ use sqlx::{Connection, SqliteConnection};
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-pub const SCHEMA_VERSION: i64 = 6;
+pub const SCHEMA_VERSION: i64 = 7;
 
 static DATABASE_INIT_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
@@ -128,6 +128,12 @@ ALTER TABLE assets ADD COLUMN data BLOB;
 
 const MIGRATION_6: &str = r#"
 ALTER TABLE maps ADD COLUMN document_id TEXT;
+"#;
+
+const MIGRATION_7: &str = r#"
+ALTER TABLE documents ADD COLUMN deleted_at TEXT;
+CREATE INDEX IF NOT EXISTS documents_deleted_at
+  ON documents(deleted_at);
 "#;
 
 #[derive(Debug, Clone, Serialize)]
@@ -276,6 +282,7 @@ async fn migrate(connection: &mut SqliteConnection, path: &Path) -> Result<i64, 
                 4 => MIGRATION_4,
                 5 => MIGRATION_5,
                 6 => MIGRATION_6,
+                7 => MIGRATION_7,
                 _ => return Err(format!("未知 schema 版本 {version}")),
             };
             apply_migration(connection, version, migration).await?;

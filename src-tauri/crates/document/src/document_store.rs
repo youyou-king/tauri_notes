@@ -73,6 +73,7 @@ pub async fn list_imported_documents(    workspace: String,
         "SELECT d.id, d.title, COUNT(b.id)
          FROM documents d
          LEFT JOIN blocks b ON b.document_id = d.id
+         WHERE d.deleted_at IS NULL
          GROUP BY d.id, d.title
          ORDER BY d.title",
     )
@@ -268,7 +269,7 @@ pub async fn index_blocks_db(
         "SELECT b.id, b.document_id, d.title, b.type, b.plain_text, b.content_json
          FROM blocks b
          JOIN documents d ON d.id = b.document_id
-         WHERE b.type <> 'viewport'
+         WHERE b.type <> 'viewport' AND d.deleted_at IS NULL
          ORDER BY d.title, b.order_key",
     )
     .fetch_all(&mut connection)
@@ -532,36 +533,56 @@ pub async fn delete_imported_document(
     document_id: String,
 ) -> Result<(), String> {
     let mut connection = database::open_for_import(&workspace).await?;
-    let mut transaction = connection
-        .begin()
-        .await
-        .map_err(|error| format!("开启删除事务失败: {error}"))?;
     sqlx::query(
-        "DELETE FROM block_fts
-         WHERE block_id IN (SELECT id FROM blocks WHERE document_id = ?1)",
+        "UPDATE documents
+         SET deleted_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+         WHERE id = ?1 AND deleted_at IS NULL",
     )
     .bind(&document_id)
-    .execute(&mut *transaction)
+    .execute(&mut connection)
     .await
-    .map_err(|error| format!("删除搜索索引失败: {error}"))?;
+    .map_err(|error| format!("删除文档失败: {error}"))?;
+    Ok(())
+}
+
+pub async fn list_deleted_documents(
+    workspace: String,
+) -> Result<Vec<ImportedDocument>, String> {
+    let mut connection = database::open_for_import(&workspace).await?;
+    let rows: Vec<(String, String, i64)> = sqlx::query_as(
+        "SELECT d.id, d.title, COUNT(b.id)
+         FROM documents d
+         LEFT JOIN blocks b ON b.document_id = d.id
+         WHERE d.deleted_at IS NOT NULL
+         GROUP BY d.id, d.title
+         ORDER BY d.deleted_at DESC",
+    )
+    .fetch_all(&mut connection)
+    .await
+    .map_err(|error| format!("读取回收站失败: {error}"))?;
+    Ok(rows
+        .into_iter()
+        .map(|(id, title, block_count)| ImportedDocument {
+            id,
+            title,
+            block_count,
+        })
+        .collect())
+}
+
+pub async fn restore_imported_document(
+    workspace: String,
+    document_id: String,
+) -> Result<(), String> {
+    let mut connection = database::open_for_import(&workspace).await?;
     sqlx::query(
-        "DELETE FROM block_references
-         WHERE target_document_id = ?1
-            OR viewport_block_id IN (SELECT id FROM blocks WHERE document_id = ?1)",
+        "UPDATE documents SET deleted_at = NULL WHERE id = ?1",
     )
     .bind(&document_id)
-    .execute(&mut *transaction)
+    .execute(&mut connection)
     .await
-    .map_err(|error| format!("删除引用失败: {error}"))?;
-    sqlx::query("DELETE FROM documents WHERE id = ?1")
-        .bind(&document_id)
-        .execute(&mut *transaction)
-        .await
-        .map_err(|error| format!("删除文档失败: {error}"))?;
-    transaction
-        .commit()
-        .await
-        .map_err(|error| format!("提交删除失败: {error}"))
+    .map_err(|error| format!("恢复文档失败: {error}"))?;
+    Ok(())
 }
 
 #[derive(Debug, Serialize)]
@@ -581,7 +602,7 @@ pub async fn load_document_tree(
     let rows = sqlx::query_as::<_, (String, String, Option<String>, String, String)>(
         "SELECT map_id, id, parent_id, title, order_key
          FROM documents
-         WHERE map_id IS NOT NULL
+         WHERE map_id IS NOT NULL AND deleted_at IS NULL
          ORDER BY map_id, order_key, title",
     )
     .fetch_all(&mut connection)
@@ -620,7 +641,7 @@ pub async fn load_blocks_preview(
         let row = sqlx::query_as::<_, (String, String, String, String, String, String)>(
             "SELECT b.id, b.document_id, d.title, b.type, b.plain_text, b.content_json
              FROM blocks b JOIN documents d ON d.id = b.document_id
-             WHERE b.id = ?1",
+             WHERE b.id = ?1 AND d.deleted_at IS NULL",
         )
         .bind(&block_id)
         .fetch_optional(&mut connection)
@@ -730,4 +751,76 @@ pub async fn save_imported_blocks(
         .map_err(|error| format!("提交保存事务失败: {error}"))?;
     crate::map_store::sync_document_headings(&workspace, &document_id).await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        create_imported_document, delete_imported_document,
+        list_deleted_documents, list_imported_documents,
+        restore_imported_document,
+    };
+    use std::fs;
+    use std::path::PathBuf;
+    use tauri_notes_storage::database;
+
+    fn block_on<F: std::future::Future>(future: F) -> F::Output {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("runtime")
+            .block_on(future)
+    }
+
+    fn workspace(name: &str) -> PathBuf {
+        std::env::temp_dir().join(format!(
+            "tauri-notes-document-{name}-{}",
+            std::process::id()
+        ))
+    }
+
+    #[test]
+    fn soft_deletes_and_restores_documents() {
+        let root = workspace("trash");
+        fs::create_dir_all(&root).unwrap();
+        let path = root.to_string_lossy().into_owned();
+        block_on(async {
+            database::initialize_database(path.clone()).await.unwrap();
+            create_imported_document(
+                path.clone(),
+                "map-1".into(),
+                "回收站测试".into(),
+            )
+            .await
+            .unwrap();
+            assert_eq!(
+                list_imported_documents(path.clone()).await.unwrap().len(),
+                1
+            );
+            let id = list_imported_documents(path.clone())
+                .await
+                .unwrap()[0]
+                .id
+                .clone();
+            delete_imported_document(path.clone(), id.clone())
+                .await
+                .unwrap();
+            assert!(list_imported_documents(path.clone())
+                .await
+                .unwrap()
+                .is_empty());
+            assert_eq!(
+                list_deleted_documents(path.clone()).await.unwrap().len(),
+                1
+            );
+            restore_imported_document(path.clone(), id)
+                .await
+                .unwrap();
+            assert_eq!(
+                list_imported_documents(path.clone()).await.unwrap().len(),
+                1
+            );
+        });
+        fs::remove_dir_all(root).unwrap();
+    }
 }

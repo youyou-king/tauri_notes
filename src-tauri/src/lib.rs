@@ -269,6 +269,8 @@ pub fn run() {
             document_commands::create_imported_document,
             document_commands::get_imported_document_title,
             document_commands::rename_imported_document,
+            document_commands::list_deleted_documents,
+            document_commands::restore_imported_document,
             document_commands::delete_imported_document,
             document_commands::load_document_tree,
             document_commands::load_mind_map,

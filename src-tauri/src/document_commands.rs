@@ -73,6 +73,21 @@ pub async fn rename_imported_document(
 }
 
 #[tauri::command]
+pub async fn list_deleted_documents(
+    workspace: String,
+) -> Result<Vec<ImportedDocument>, String> {
+    document_store::list_deleted_documents(workspace).await
+}
+
+#[tauri::command]
+pub async fn restore_imported_document(
+    workspace: String,
+    document_id: String,
+) -> Result<(), String> {
+    document_store::restore_imported_document(workspace, document_id).await
+}
+
+#[tauri::command]
 pub async fn delete_imported_document(
     workspace: String,
     document_id: String,

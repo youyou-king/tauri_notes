@@ -68,4 +68,17 @@ export const documentService = {
       documentId,
     });
   },
+
+  listDeleted(
+    workspace: string,
+  ): Promise<Array<{ id: string; title: string }>> {
+    return command("list_deleted_documents", { workspace });
+  },
+
+  restore(workspace: string, documentId: string): Promise<void> {
+    return command("restore_imported_document", {
+      workspace,
+      documentId,
+    });
+  },
 };
