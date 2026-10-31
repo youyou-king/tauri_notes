@@ -21,6 +21,7 @@ type CommandRunnerDeps = {
   openWorkspace: () => Promise<unknown> | void;
   openHelp: () => Promise<unknown> | void;
   backupLibrary: () => Promise<unknown> | void;
+  confirmDiscard: () => Promise<boolean>;
 };
 
 export function useAppCommandRunner({
@@ -33,6 +34,7 @@ export function useAppCommandRunner({
   openWorkspace,
   openHelp,
   backupLibrary,
+  confirmDiscard,
 }: CommandRunnerDeps): (id: string) => void {
   return useCallback(
     (id: string) => {
@@ -62,7 +64,13 @@ export function useAppCommandRunner({
         },
         toggleOutline: () => dockRef.current?.togglePanel("outline"),
         toggleConsole: () => dockRef.current?.togglePanel("console"),
-        resetLayout: () => dockRef.current?.resetLayout(),
+        resetLayout: () => {
+          void confirmDiscard().then((confirmed) => {
+            if (confirmed) {
+              dockRef.current?.resetLayout();
+            }
+          });
+        },
         openSettings,
       }).then((result) => {
         if (!result.ok) {
@@ -82,6 +90,7 @@ export function useAppCommandRunner({
       dockRef,
       openHelp,
       openWorkspace,
+      confirmDiscard,
       setBackend,
       setError,
       workspaceRoot,

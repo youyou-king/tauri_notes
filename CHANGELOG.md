@@ -21,7 +21,8 @@
 - 打开类事件收口为 typed `APP_EVENTS` / `emitAppEvent` / `onAppEvent`；
 - 新增标签关闭确认单元测试（关闭/确认/取消）；
 - 新增 tag release workflow：Windows 自定义安装器、macOS dmg、Linux AppImage/deb；
-- 贡献点强制使用插件 id 命名空间，阻止跨插件覆盖。
+- 贡献点强制使用插件 id 命名空间，阻止跨插件覆盖；
+- 重置布局、卸载工作区、打开帮助/单文件统一 dirty 确认，避免绕过标签关闭。
 - 设置 section 和 overlay 增加错误边界；初始化完成后停止文件打开轮询；
 - 会话快照保存 activeMapId 和 selectedNodeId，重启后恢复选中 map/节点；
 - 工作区选择改为原子 `select(mapId, node)`，移除单独写 activeMapId 的入口；

@@ -86,7 +86,10 @@ export function useWorkspaceNavigation({
     );
   }
 
-  function unloadWorkspace(root: string) {
+  async function unloadWorkspace(root: string) {
+    if (!(await confirmDiscard())) {
+      return;
+    }
     const target = workspaces.find((item) => item.root === root) ?? null;
     dockRef.current?.closeWorkspacePanels(root, target);
     setWorkspaces((current) =>

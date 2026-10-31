@@ -94,8 +94,11 @@ export function useWorkspaceOpen({
     }
   }
 
-  async function openWorkspacePath(picked: string) {
-    if (!(await confirmDiscard())) {
+  async function openWorkspacePath(
+    picked: string,
+    options: { skipDiscardCheck?: boolean } = {},
+  ) {
+    if (!options.skipDiscardCheck && !(await confirmDiscard())) {
       return;
     }
     setBusy(true);
@@ -145,6 +148,9 @@ export function useWorkspaceOpen({
   }
 
   async function createKnowledgeBase() {
+    if (!(await confirmDiscard())) {
+      return;
+    }
     setError(null);
     let pickedPath: string | null = null;
     try {
@@ -176,7 +182,7 @@ export function useWorkspaceOpen({
         "tauri-notes.last-note-directory",
         directory,
       );
-      await openWorkspacePath(view.root);
+      await openWorkspacePath(view.root, { skipDiscardCheck: true });
     } catch (error) {
       window.localStorage.removeItem("tauri-notes.last-note-directory");
       const raw = String(error);
@@ -205,7 +211,7 @@ export function useWorkspaceOpen({
       if (!picked || Array.isArray(picked)) {
         return;
       }
-      await openWorkspacePath(picked);
+      await openWorkspacePath(picked, { skipDiscardCheck: true });
     } catch (err) {
       setError(String(err));
     }
@@ -258,21 +264,27 @@ export function useWorkspaceOpen({
   }
 
   async function openHelp() {
+    if (!(await confirmDiscard())) {
+      return;
+    }
     setError(null);
     try {
       const path = await workspaceService.helpPath();
-      await openWorkspacePath(path);
+      await openWorkspacePath(path, { skipDiscardCheck: true });
     } catch (err) {
       setError(String(err));
     }
   }
 
   async function openOnlyWorkspace(path: string) {
+    if (!(await confirmDiscard())) {
+      return;
+    }
     setWorkspaces([]);
     setWorkspace(null);
     select(null, null);
     dockRef.current?.resetLayout();
-    await openWorkspacePath(path);
+    await openWorkspacePath(path, { skipDiscardCheck: true });
   }
 
   return {

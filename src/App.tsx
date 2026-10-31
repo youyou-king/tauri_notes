@@ -265,6 +265,7 @@ function App() {
     openWorkspace,
     openHelp,
     backupLibrary,
+    confirmDiscard,
   });
 
   useWindowTitle(dirtyCount);
