@@ -54,7 +54,7 @@ npm run dev
 
 ```powershell
 npm run check        # TypeScript + 131 个前端单元测试
-npm run e2e          # 32 个 Playwright E2E / 视觉回归
+npm run e2e          # 33 个 Playwright E2E / 视觉回归
 cd src-tauri
 cargo test -p tauri-notes --lib
 
