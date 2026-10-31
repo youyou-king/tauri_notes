@@ -335,6 +335,22 @@ pub async fn database_status(workspace: String) -> Result<DatabaseStatus, String
     read_status(&mut connection).await
 }
 
+pub async fn verify_database(workspace: String) -> Result<(), String> {
+    let mut connection = open_for_import(&workspace).await?;
+    let integrity: String = sqlx::query_scalar("PRAGMA integrity_check")
+        .fetch_one(&mut connection)
+        .await
+        .map_err(|error| format!("校验数据库失败: {error}"))?;
+    connection
+        .close()
+        .await
+        .map_err(|error| format!("关闭数据库连接失败: {error}"))?;
+    if integrity != "ok" {
+        return Err(format!("数据库完整性校验失败: {integrity}"));
+    }
+    Ok(())
+}
+
 pub async fn backup_database(workspace: String) -> Result<String, String> {
     let mut connection = open_for_import(&workspace).await?;
     let backup_dir = Path::new(&workspace).join("backups");
@@ -357,8 +373,8 @@ pub async fn backup_database(workspace: String) -> Result<String, String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        backup_database, initialize_database, open_for_import, MIGRATION_1,
-        SCHEMA_VERSION,
+        backup_database, initialize_database, open_for_import, verify_database,
+        MIGRATION_1, SCHEMA_VERSION,
     };
     use crate::sqlite;
     use sqlx::Connection;
@@ -546,6 +562,18 @@ mod tests {
                 .unwrap();
             assert_eq!(integrity, "ok");
             connection.close().await.unwrap();
+        });
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn verify_database_reports_ok() {
+        let root = workspace("verify");
+        fs::create_dir_all(&root).unwrap();
+        let path = root.to_string_lossy().into_owned();
+        block_on(async {
+            initialize_database(path.clone()).await.unwrap();
+            verify_database(path).await.unwrap();
         });
         fs::remove_dir_all(root).unwrap();
     }

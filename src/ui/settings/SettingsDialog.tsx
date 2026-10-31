@@ -4,8 +4,16 @@ import { Dialog } from "../dialog/Dialog";
 import { ErrorBoundary } from "../ErrorBoundary";
 import { usePluginContributions } from "../plugins/PluginProvider";
 import { PluginManagerSection } from "./PluginManagerSection";
+import { StorageSection } from "./StorageSection";
 
 export const CORE_SETTINGS_SECTIONS: SettingsSectionContribution[] = [
+  {
+    id: "core.storage",
+    title: "数据",
+    description: "备份、校验和恢复",
+    order: 80,
+    component: StorageSection,
+  },
   {
     id: "core.plugins",
     title: "插件",

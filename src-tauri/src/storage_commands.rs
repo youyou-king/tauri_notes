@@ -18,3 +18,8 @@ pub async fn database_status(
 pub async fn backup_database(workspace: String) -> Result<String, String> {
     database::backup_database(workspace).await
 }
+
+#[tauri::command]
+pub async fn verify_database(workspace: String) -> Result<(), String> {
+    database::verify_database(workspace).await
+}

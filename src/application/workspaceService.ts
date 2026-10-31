@@ -31,6 +31,10 @@ export const workspaceService = {
     return command("load_document_tree", { workspace });
   },
 
+  verifyDatabase(workspace: string): Promise<void> {
+    return command("verify_database", { workspace });
+  },
+
   backup(workspace: string, noteFile: boolean): Promise<string> {
     return command(
       noteFile ? "save_note_file" : "backup_database",
