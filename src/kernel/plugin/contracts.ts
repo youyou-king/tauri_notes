@@ -241,6 +241,7 @@ export class PluginRegistry {
     private readonly options: {
       allowedCapabilities?: ReadonlySet<string>;
       capabilityPolicy?: Readonly<Record<string, readonly string[]>>;
+      enforceContributionNamespaces?: boolean;
       eventSink?: (event: string, payload?: unknown) => void;
     } = {},
   ) {}
@@ -463,6 +464,15 @@ export class PluginRegistry {
         if (!declared.includes(contribution.id)) {
           throw new Error(
             `插件 ${registration.manifest.id} 未声明贡献点 ${kind}:${contribution.id}`,
+          );
+        }
+        if (
+          this.options.enforceContributionNamespaces &&
+          contribution.id !== registration.manifest.id &&
+          !contribution.id.startsWith(`${registration.manifest.id}.`)
+        ) {
+          throw new Error(
+            `插件 ${registration.manifest.id} 的贡献点 ${kind}:${contribution.id} 必须使用插件 id 命名空间`,
           );
         }
         const required = CONTRIBUTION_CAPABILITIES[kind];

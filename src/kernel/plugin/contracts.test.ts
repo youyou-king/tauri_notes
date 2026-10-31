@@ -350,4 +350,27 @@ describe("plugin contracts", () => {
     await registry.stop();
   });
 
+  it("enforces plugin contribution namespaces", async () => {
+    const registry = new PluginRegistry({
+      enforceContributionNamespaces: true,
+    });
+    registry.register(
+      manifest("board", {
+        contributes: { commands: ["other.run"] },
+      }),
+      {
+        activate: (context) =>
+          context.registerContribution("commands", {
+            id: "other.run",
+            label: "run",
+          }),
+      },
+    );
+    const failures = await registry.startSafely();
+    expect(failures).toContainEqual(
+      expect.objectContaining({ pluginId: "board" }),
+    );
+    await registry.stop();
+  });
+
 });

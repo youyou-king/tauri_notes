@@ -67,7 +67,10 @@ export function PluginProvider({
           RESERVED_PLUGIN_IDS.has(entry.manifest.id) ||
           !disabled.has(entry.manifest.id),
       ),
-      { capabilityPolicy: PLUGIN_CAPABILITY_POLICY },
+      {
+        capabilityPolicy: PLUGIN_CAPABILITY_POLICY,
+        enforceContributionNamespaces: true,
+      },
     );
   }
 
