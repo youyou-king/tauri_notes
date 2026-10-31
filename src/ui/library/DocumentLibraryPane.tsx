@@ -16,6 +16,10 @@ export default function DocumentLibraryPane({
   const [documents, setDocuments] = useState<ImportedDocumentSummary[]>([]);
   const [status, setStatus] = useState("加载文档库…");
   const [reload, setReload] = useState(0);
+  const [lastDeleted, setLastDeleted] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -37,6 +41,21 @@ export default function DocumentLibraryPane({
       cancelled = true;
     };
   }, [reload, workspaceRoot]);
+
+  async function undoDelete() {
+    if (!lastDeleted) {
+      return;
+    }
+    try {
+      await documentService.restore(workspaceRoot, lastDeleted.id);
+      setStatus(`已恢复 ${lastDeleted.title}`);
+      setLastDeleted(null);
+      setReload((current) => current + 1);
+      emitAppEvent(APP_EVENTS.documentChanged);
+    } catch (error) {
+      setStatus(`恢复失败：${String(error)}`);
+    }
+  }
 
   async function createDocument() {
     const title = window.prompt("新文档标题");
@@ -88,6 +107,7 @@ export default function DocumentLibraryPane({
     }
     try {
       await documentService.delete(workspaceRoot, document.id);
+      setLastDeleted({ id: document.id, title: document.title });
       setReload((current) => current + 1);
       emitAppEvent(APP_EVENTS.documentChanged);
     } catch (error) {
@@ -113,6 +133,11 @@ export default function DocumentLibraryPane({
           >
             刷新
           </button>
+          {lastDeleted && (
+            <button type="button" onClick={() => void undoDelete()}>
+              撤销删除
+            </button>
+          )}
         </>
       }
     >
