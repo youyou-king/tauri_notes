@@ -574,6 +574,104 @@ test("imports and validates an appearance pack", async ({ page }) => {
   );
 });
 
+test("switches appearance pack variants with the theme mode", async ({
+  page,
+}) => {
+  await page.goto("/e2e.html");
+  await expect(page.getByText(/演示知识库/).first()).toBeVisible();
+  await page.getByRole("button", { name: "主题", exact: true }).click();
+  await page.getByRole("button", { name: "导入外观包…" }).click();
+
+  const manifest = JSON.stringify({
+    schema: 1,
+    id: "e2e-variants",
+    name: "双模式外观",
+    version: "1.0.0",
+    modes: ["dark", "light"],
+    variants: {
+      dark: {
+        theme: { colors: { accent: "#112233" } },
+        skin: {
+          background: { image: "assets/dark.webp" },
+          decorations: [],
+        },
+      },
+      light: {
+        theme: { colors: { accent: "#ddeeff" } },
+        skin: {
+          background: { image: "assets/light.webp" },
+          decorations: [],
+        },
+      },
+    },
+  });
+  const buffer = storedZip([
+    ["appearance.json", manifest],
+    ["assets/dark.webp", "dark-image"],
+    ["assets/light.webp", "light-image"],
+  ]);
+  await page
+    .locator('input[accept=".tnlook,.zip"]')
+    .setInputFiles({
+      name: "e2e-variants.tnlook",
+      mimeType: "application/zip",
+      buffer,
+    });
+  await page.getByRole("button", { name: "应用外观" }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        document.documentElement.style.getPropertyValue("--accent"),
+      ),
+    )
+    .toBe("#112233");
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-appearance-mode",
+    "dark",
+  );
+
+  await page.getByRole("button", { name: "浅色" }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        document.documentElement.style.getPropertyValue("--accent"),
+      ),
+    )
+    .toBe("#ddeeff");
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-appearance-mode",
+    "light",
+  );
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-appearance-pack",
+    "e2e-variants",
+  );
+
+  await page.reload();
+  await expect(page.getByText(/演示知识库/).first()).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        document.documentElement.style.getPropertyValue("--accent"),
+      ),
+    )
+    .toBe("#ddeeff");
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-appearance-mode",
+    "light",
+  );
+
+  await page.getByRole("button", { name: "主题", exact: true }).click();
+  await page.getByRole("button", { name: "深色" }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        document.documentElement.style.getPropertyValue("--accent"),
+      ),
+    )
+    .toBe("#112233");
+});
+
 test("hides appearance decorations on narrow windows", async ({ page }) => {
   await page.setViewportSize({ width: 700, height: 800 });
   await page.goto("/e2e.html");

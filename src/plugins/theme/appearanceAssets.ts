@@ -1,3 +1,8 @@
+import type {
+  AppearanceMode,
+  AppearancePackManifest,
+} from "./appearancePack";
+
 const DB_NAME = "tauri-notes-assets";
 const STORE = "appearance";
 const WALLPAPER_KEY = "wallpaper";
@@ -134,5 +139,55 @@ export async function loadDecorationAssets(): Promise<Uint8Array[]> {
     }
   } catch {
     return [];
+  }
+}
+
+export type StoredDecorationAsset = {
+  bytes: Uint8Array;
+  anchor: "bottom-left" | "bottom-right" | "top-left" | "top-right";
+  width: string;
+  opacity: number;
+  hideBelow?: number;
+};
+
+export type StoredVariantAssets = {
+  wallpaper?: Uint8Array;
+  decorations: StoredDecorationAsset[];
+};
+
+export type StoredAppearanceRuntime = {
+  pack: AppearancePackManifest;
+  assets: Partial<Record<AppearanceMode, StoredVariantAssets>>;
+};
+
+const RUNTIME_KEY = "runtime:v1";
+
+export async function saveAppearanceRuntime(
+  runtime: StoredAppearanceRuntime,
+): Promise<void> {
+  await withStore("readwrite", (store) =>
+    store.put(runtime, RUNTIME_KEY),
+  );
+}
+
+export async function loadAppearanceRuntime(): Promise<StoredAppearanceRuntime | null> {
+  try {
+    const value = await withStore<StoredAppearanceRuntime | undefined>(
+      "readonly",
+      (store) => store.get(RUNTIME_KEY),
+    );
+    return value ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function clearAppearanceRuntime(): Promise<void> {
+  try {
+    await withStore("readwrite", (store) =>
+      store.delete(RUNTIME_KEY),
+    );
+  } catch {
+    // Clearing is best effort.
   }
 }

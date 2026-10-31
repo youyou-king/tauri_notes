@@ -7,16 +7,11 @@ import {
   readAppearanceAsset,
   readAppearancePack,
 } from "../appearanceZip";
+import { appliedAppearancePackId } from "../appearanceApplier";
 import {
-  appliedAppearancePackId,
-  applyAppearanceColors,
-  rollbackAppearance,
-  type DecorationAppearance,
-} from "../appearanceApplier";
-import {
-  saveDecorationAssets,
-  saveWallpaperAsset,
-} from "../appearanceAssets";
+  applyAppearancePack,
+  rollbackAppearanceRuntime,
+} from "../appearanceRuntime";
 import type { AppearancePackManifest } from "../appearancePack";
 import { AppearancePreview } from "./AppearancePreview";
 import { themeAppearancePackBytes } from "../exportPack";
@@ -67,7 +62,6 @@ export function ThemeMenu({
   const [publisher, setPublisher] = useState<AppearancePublisher | null>(
     null,
   );
-  const [wallpaperUrl, setWallpaperUrl] = useState<string | null>(null);
   const [previewWallpaperUrl, setPreviewWallpaperUrl] = useState<
     string | null
   >(null);
@@ -190,89 +184,24 @@ export function ThemeMenu({
 
   async function applyPack() {
     const pack = pendingPack;
-    if (!pack || (publisher && !publisher.trusted)) {
+    if (!pack || !pendingBuffer || (publisher && !publisher.trusted)) {
       return;
     }
-    const variantKey = pack.modes.includes(resolved)
-      ? resolved
-      : pack.modes[0];
-    const variant = pack.variants[variantKey];
-    const colors = variant?.theme?.colors ?? {};
-    const background = variant?.skin?.background as
-      | { image?: unknown }
-      | undefined;
-    const imagePath =
-      typeof background?.image === "string" ? background.image : undefined;
-    let nextWallpaper: string | null = null;
-    if (imagePath && pendingBuffer) {
-      const bytes = await readAppearanceAsset(pendingBuffer, imagePath);
-      if (bytes) {
-        if (wallpaperUrl) {
-          URL.revokeObjectURL(wallpaperUrl);
-        }
-        nextWallpaper = URL.createObjectURL(
-          new Blob([bytes as BlobPart], { type: "image/webp" }),
-        );
-        setWallpaperUrl(nextWallpaper);
-        void saveWallpaperAsset(bytes);
-      }
+    try {
+      const active = await applyAppearancePack(
+        pack,
+        pendingBuffer,
+        resolved,
+      );
+      setPackStatus(`已应用：${pack.name}（${active}）`);
+      setError(null);
+    } catch (reason) {
+      setError(`应用外观包失败：${String(reason)}`);
     }
-    const rawDecorations = variant?.skin?.decorations;
-    const decorationAssets: Uint8Array[] = [];
-    const decorations: DecorationAppearance[] = [];
-    if (Array.isArray(rawDecorations) && pendingBuffer) {
-      for (const raw of rawDecorations) {
-        const src = typeof raw.src === "string" ? raw.src : undefined;
-        if (!src) {
-          continue;
-        }
-        const bytes = await readAppearanceAsset(pendingBuffer, src);
-        if (!bytes) {
-          continue;
-        }
-        const url = URL.createObjectURL(
-          new Blob([bytes as BlobPart], { type: "image/webp" }),
-        );
-        decorationAssets.push(bytes);
-        decorations.push({
-          src: url,
-          anchor:
-            raw.anchor === "bottom-right" ||
-            raw.anchor === "top-left" ||
-            raw.anchor === "top-right"
-              ? raw.anchor
-              : "bottom-left",
-          width:
-            typeof raw.width === "string" ? raw.width : "22vw",
-          opacity:
-            typeof raw.opacity === "number" ? raw.opacity : 1,
-          hideBelow:
-            typeof raw.hideBelow === "number"
-              ? raw.hideBelow
-              : undefined,
-        });
-      }
-      if (decorationAssets.length > 0) {
-        void saveDecorationAssets(decorationAssets);
-      }
-    }
-    applyAppearanceColors(pack.id, colors, {
-      wallpaperUrl: nextWallpaper ?? undefined,
-      decorations,
-      surfaces:
-        (variant?.skin?.surfaces as
-          | Record<string, Record<string, unknown>>
-          | undefined) ?? {},
-    });
-    setPackStatus(`已应用：${pack.name}（${variantKey}）`);
   }
 
   function rollbackPack() {
-    if (wallpaperUrl) {
-      URL.revokeObjectURL(wallpaperUrl);
-      setWallpaperUrl(null);
-    }
-    rollbackAppearance();
+    void rollbackAppearanceRuntime();
     setPackStatus(
       pendingPack ? `已回退：${pendingPack.name}` : "已回退外观",
     );
