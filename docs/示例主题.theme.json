@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "id": "ocean",
+  "name": "深海蓝",
+  "base": "dark",
+  "tokens": {
+    "--bg": "#0b1020",
+    "--bg-panel": "#121a2b",
+    "--bg-elevated": "#1b2740",
+    "--bg-hover": "#243450",
+    "--border": "#2c3b57",
+    "--text": "#e6edf3",
+    "--muted": "#8fa3bf",
+    "--accent": "#58a6ff",
+    "--accent-soft": "rgba(88, 166, 255, 0.15)",
+    "--map-canvas-bg": "#0a0f1a",
+    "--map-node-bg": "#121a2b",
+    "--map-node-bg-selected": "#1b2740",
+    "--map-node-text": "#e6edf3",
+    "--map-node-border": "#2c3b57",
+    "--map-node-border-selected": "#58a6ff"
+  }
+}

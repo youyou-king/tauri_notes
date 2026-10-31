@@ -28,10 +28,11 @@ https://github.com/youyou-king/tauri_notes/releases
 
 架构说明：
 
-- [`../设计文档/架构重构方案.md`](../设计文档/架构重构方案.md)
-- [`../设计文档/技术架构与插件化方案.md`](../设计文档/技术架构与插件化方案.md)
-- [`../设计文档/状态架构契约.md`](../设计文档/状态架构契约.md)
-- [`../设计文档/重构验收报告.md`](../设计文档/重构验收报告.md)
+- [`docs/README.md`](docs/README.md)
+- [`docs/架构重构方案.md`](docs/架构重构方案.md)
+- [`docs/技术架构与插件化方案.md`](docs/技术架构与插件化方案.md)
+- [`docs/状态架构契约.md`](docs/状态架构契约.md)
+- [`docs/重构验收报告.md`](docs/重构验收报告.md)
 
 ## 技术栈
 
@@ -115,7 +116,7 @@ Linux 安装 WebKitGTK / appindicator / rsvg / patchelf 依赖。
 重构验收与剩余事项见：
 
 ```text
-../设计文档/重构验收报告.md
+docs/重构验收报告.md
 ```
 
 ## 外观包签名
