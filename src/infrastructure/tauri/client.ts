@@ -31,10 +31,28 @@ function classify(message: string): CommandErrorCode {
   return "COMMAND_FAILED";
 }
 
+const KNOWN_CODES: readonly CommandErrorCode[] = [
+  "COMMAND_DENIED",
+  "COMMAND_NOT_FOUND",
+  "COMMAND_FAILED",
+];
+
 export function toTauriCommandError(
   error: unknown,
   commandName: string,
 ): TauriCommandError {
+  if (
+    error &&
+    typeof error === "object" &&
+    "message" in error &&
+    typeof (error as { message?: unknown }).message === "string"
+  ) {
+    const record = error as { code?: unknown; message: string };
+    const code = KNOWN_CODES.includes(record.code as CommandErrorCode)
+      ? (record.code as CommandErrorCode)
+      : classify(record.message);
+    return new TauriCommandError(code, commandName, record.message);
+  }
   const message =
     error instanceof Error ? error.message : String(error);
   return new TauriCommandError(

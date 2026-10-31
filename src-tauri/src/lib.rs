@@ -3,6 +3,7 @@ mod commands;
 mod document_commands;
 mod import_commands;
 mod content_commands;
+mod command_error;
 mod storage_commands;
 mod workspace_commands;
 

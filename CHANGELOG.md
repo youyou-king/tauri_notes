@@ -40,7 +40,8 @@
 - session / theme 共用 typed migration runner，DATA-02 关闭；
 - Tauri capability 拆分为 core / window / dialog，全部显式绑定 main；
 - 数据 schema 升级到 v7，文档删除改为软删除，设置页新增回收站恢复；
-- 文档库删除后提供撤销按钮。
+- 文档库删除后提供撤销按钮；
+- storage 命令返回结构化 `CommandError`，前端解析 code/message。
 - 设置 section 和 overlay 增加错误边界；初始化完成后停止文件打开轮询；
 - 会话快照保存 activeMapId 和 selectedNodeId，重启后恢复选中 map/节点；
 - 工作区选择改为原子 `select(mapId, node)`，移除单独写 activeMapId 的入口；

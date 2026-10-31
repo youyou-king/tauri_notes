@@ -33,6 +33,18 @@ describe("tauri client", () => {
     });
   });
 
+  it("preserves structured backend errors", async () => {
+    vi.mocked(invoke).mockRejectedValue({
+      code: "COMMAND_FAILED",
+      message: "备份完整性校验失败: corrupt",
+    });
+    await expect(command("verify")).rejects.toMatchObject({
+      code: "COMMAND_FAILED",
+      commandName: "verify",
+      message: "备份完整性校验失败: corrupt",
+    });
+  });
+
   it("classifies other failures", async () => {
     vi.mocked(invoke).mockRejectedValue(new Error("disk full"));
     await expect(command("save")).rejects.toMatchObject({
