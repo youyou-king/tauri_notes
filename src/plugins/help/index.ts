@@ -1,7 +1,9 @@
-import type {
-  CommandContribution,
-  PluginModule,
-  ToolbarItemContribution,
+import {
+  APP_EVENTS,
+  emitAppEvent,
+  type CommandContribution,
+  type PluginModule,
+  type ToolbarItemContribution,
 } from "../../kernel/sdk";
 
 export const helpPlugin: PluginModule = {
@@ -10,7 +12,7 @@ export const helpPlugin: PluginModule = {
       id: "help.open",
       label: "使用帮助",
       run: () => {
-        window.dispatchEvent(new CustomEvent("help:open"));
+        emitAppEvent(APP_EVENTS.helpOpen);
       },
     };
     context.registerContribution("commands", command);

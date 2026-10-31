@@ -42,6 +42,7 @@ import { ensureLibrary } from "./infrastructure/libraryBootstrapper";
 import type { BlockId, DocId } from "./domain/ids";
 import type { MapView, WorkspaceView } from "./types";
 import { writeSession } from "./application/sessionService";
+import { APP_EVENTS, onAppEvent } from "./kernel/events";
 
 function App() {
   const pluginReady = usePluginReady();
@@ -233,8 +234,7 @@ function App() {
     const handler = () => {
       void openHelp();
     };
-    window.addEventListener("help:open", handler);
-    return () => window.removeEventListener("help:open", handler);
+    return onAppEvent(APP_EVENTS.helpOpen, handler);
   }, [openHelp]);
 
   useEffect(() => {
@@ -245,10 +245,7 @@ function App() {
       board.openBoard();
       dockRef.current?.openBoard();
     };
-    window.addEventListener("board:open", openBoard);
-    return () => {
-      window.removeEventListener("board:open", openBoard);
-    };
+    return onAppEvent(APP_EVENTS.boardOpen, openBoard);
   }, [board.openBoard, workspace]);
 
   useDocumentEvents({

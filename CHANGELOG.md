@@ -17,7 +17,8 @@
 - 新增 `scripts/version.mjs`，以 package.json 为版本源同步 tauri/Cargo，并在 CI 检查；
 - schema 升级前自动备份数据库，备份名包含版本、进程和时间戳；
 - 面板状态增加 idle/dirty/saving/saved/error，保存流程写入生命周期；
-- Dockview 标签关闭 dirty 文档时弹出放弃确认。
+- Dockview 标签关闭 dirty 文档时弹出放弃确认；
+- 打开类事件收口为 typed `APP_EVENTS` / `emitAppEvent` / `onAppEvent`。
 - 设置 section 和 overlay 增加错误边界；初始化完成后停止文件打开轮询；
 - 会话快照保存 activeMapId 和 selectedNodeId，重启后恢复选中 map/节点；
 - 工作区选择改为原子 `select(mapId, node)`，移除单独写 activeMapId 的入口；

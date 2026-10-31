@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { openSettings, ToolbarMenu, useTheme } from "../../ui/sdk";
+import { APP_EVENTS } from "../../kernel/sdk";
 import { restoreAppliedAppearance } from "./appearanceApplier";
 import {
   restoreAppearanceRuntime,
@@ -36,7 +37,7 @@ export function ThemeToolbarItem() {
     <ToolbarMenu
       id="theme"
       label="主题"
-      openEvent="theme:open"
+      openEvent={APP_EVENTS.themeOpen}
       closeOnSelect={false}
     >
       {(close) => (

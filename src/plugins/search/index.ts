@@ -4,6 +4,8 @@ import type {
   PluginModule,
 } from "../../kernel/sdk";
 import {
+  APP_EVENTS,
+  emitAppEvent,
   registerUiRenderer,
   unregisterUiRenderer,
 } from "../../kernel/sdk";
@@ -17,7 +19,7 @@ export const searchPlugin: PluginModule = {
       label: "搜索",
       shortcut: "Mod+P",
       run: () => {
-        window.dispatchEvent(new CustomEvent("search:open"));
+        emitAppEvent(APP_EVENTS.searchOpen);
       },
     };
     context.registerContribution("commands", command);

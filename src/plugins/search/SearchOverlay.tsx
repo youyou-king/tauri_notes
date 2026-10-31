@@ -1,5 +1,6 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { useWorkspacePort } from "../../ui/sdk";
+import { APP_EVENTS, onAppEvent } from "../../kernel/sdk";
 import { openSearchHit } from "../../app/searchNavigation";
 import SearchPalette from "./SearchPalette";
 import {
@@ -17,9 +18,7 @@ export function SearchOverlay() {
   const { activeWorkspace } = useWorkspacePort();
 
   useEffect(() => {
-    const handler = () => openSearchOverlay();
-    window.addEventListener("search:open", handler);
-    return () => window.removeEventListener("search:open", handler);
+    return onAppEvent(APP_EVENTS.searchOpen, () => openSearchOverlay());
   }, []);
 
   if (!open || !activeWorkspace) {

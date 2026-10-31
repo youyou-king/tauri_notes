@@ -1,5 +1,11 @@
 export * from "../plugin";
 export {
+  APP_EVENTS,
+  emitAppEvent,
+  onAppEvent,
+  type AppEventName,
+} from "../events";
+export {
   commandEventName,
   dispatchCommandEvent,
   type CommandDefinition,

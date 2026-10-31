@@ -7,6 +7,7 @@ import * as sdk from "./index";
  * deliberately and bump PLUGIN_SDK_VERSION when semantics change.
  */
 const EXPORTED_SURFACE = [
+  "APP_EVENTS",
   "CONTRIBUTION_KINDS",
   "CORE_CAPABILITIES",
   "PLUGIN_SDK_VERSION",
@@ -18,9 +19,11 @@ const EXPORTED_SURFACE = [
   "contrastWarnings",
   "createPluginHost",
   "dispatchCommandEvent",
+  "emitAppEvent",
   "getPanelDefinitions",
   "getUiRenderer",
   "hasUiRenderer",
+  "onAppEvent",
   "registerIntentHandler",
   "registerPanel",
   "registerUiRenderer",

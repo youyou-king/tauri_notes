@@ -9,6 +9,7 @@ import { recordConsoleEvent } from "../application/consoleLogStore";
 import { workspaceService } from "../application/workspaceService";
 import type { DockWorkspaceHandle } from "../components/DockWorkspace";
 import { openSettings } from "../ui/settings/settingsEvents";
+import { APP_EVENTS, emitAppEvent } from "../kernel/events";
 
 type CommandRunnerDeps = {
   busy: boolean;
@@ -108,8 +109,7 @@ export function useAppHotkeys({
         board.openBoard();
         dockRef.current?.openBoard();
       },
-      openSearch: () =>
-        window.dispatchEvent(new CustomEvent("search:open")),
+      openSearch: () => emitAppEvent(APP_EVENTS.searchOpen),
       openSettings,
     };
     function onKeyDown(event: KeyboardEvent) {

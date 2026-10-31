@@ -4,6 +4,8 @@ import type {
   PluginModule,
 } from "../../kernel/sdk";
 import {
+  APP_EVENTS,
+  emitAppEvent,
   registerUiRenderer,
   unregisterUiRenderer,
 } from "../../kernel/sdk";
@@ -17,7 +19,7 @@ export const boardPlugin: PluginModule = {
       label: "打开对照板",
       shortcut: "Mod+Shift+B",
       run: () => {
-        window.dispatchEvent(new CustomEvent("board:open"));
+        emitAppEvent(APP_EVENTS.boardOpen);
       },
     };
     context.registerContribution("commands", openCommand);
