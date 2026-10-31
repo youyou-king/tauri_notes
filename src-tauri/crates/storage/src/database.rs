@@ -1,6 +1,6 @@
 use crate::sqlite;
 use serde::Serialize;
-use sqlx::SqliteConnection;
+use sqlx::{Connection, SqliteConnection};
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -151,6 +151,41 @@ fn timestamp() -> String {
         .unwrap_or_default()
 }
 
+async fn apply_migration(
+    connection: &mut SqliteConnection,
+    version: i64,
+    sql: &str,
+) -> Result<(), String> {
+    let mut transaction = connection
+        .begin()
+        .await
+        .map_err(|error| format!("开始 schema v{version} 事务失败: {error}"))?;
+    for statement in sql.split(';') {
+        let statement = statement.trim();
+        if statement.is_empty() {
+            continue;
+        }
+        sqlx::query(statement)
+            .execute(&mut *transaction)
+            .await
+            .map_err(|error| {
+                format!("执行 schema v{version} 失败: {error}\n{statement}")
+            })?;
+    }
+    sqlx::query(
+        "INSERT INTO schema_migrations (version, applied_at) VALUES (?1, ?2)",
+    )
+    .bind(version)
+    .bind(timestamp())
+    .execute(&mut *transaction)
+    .await
+    .map_err(|error| format!("记录 schema v{version} 失败: {error}"))?;
+    transaction
+        .commit()
+        .await
+        .map_err(|error| format!("提交 schema v{version} 事务失败: {error}"))
+}
+
 async fn migrate(connection: &mut SqliteConnection) -> Result<i64, String> {    sqlx::query(
         "CREATE TABLE IF NOT EXISTS schema_migrations (
            version INTEGER PRIMARY KEY,
@@ -167,107 +202,19 @@ async fn migrate(connection: &mut SqliteConnection) -> Result<i64, String> {    
             .await
             .map_err(|error| format!("读取 schema 版本失败: {error}"))?;
 
-    if current.unwrap_or(0) < 1 {
-        for statement in MIGRATION_1.split(';') {
-            let sql = statement.trim();
-            if sql.is_empty() {
-                continue;
-            }
-            sqlx::query(sql)
-                .execute(&mut *connection)
-                .await
-                .map_err(|error| format!("执行 schema v1 失败: {error}\n{sql}"))?;
+    for version in 1..=SCHEMA_VERSION {
+        if current.unwrap_or(0) < version {
+            let migration = match version {
+                1 => MIGRATION_1,
+                2 => MIGRATION_2,
+                3 => MIGRATION_3,
+                4 => MIGRATION_4,
+                5 => MIGRATION_5,
+                6 => MIGRATION_6,
+                _ => return Err(format!("未知 schema 版本 {version}")),
+            };
+            apply_migration(connection, version, migration).await?;
         }
-        sqlx::query("INSERT INTO schema_migrations (version, applied_at) VALUES (1, ?1)")
-            .bind(timestamp())
-            .execute(&mut *connection)
-            .await
-            .map_err(|error| format!("记录 schema v1 失败: {error}"))?;
-    }
-    if current.unwrap_or(0) < 2 {
-        for statement in MIGRATION_2.split(';') {
-            let sql = statement.trim();
-            if sql.is_empty() {
-                continue;
-            }
-            sqlx::query(sql)
-                .execute(&mut *connection)
-                .await
-                .map_err(|error| format!("执行 schema v2 失败: {error}\n{sql}"))?;
-        }
-        sqlx::query("INSERT INTO schema_migrations (version, applied_at) VALUES (2, ?1)")
-            .bind(timestamp())
-            .execute(&mut *connection)
-            .await
-            .map_err(|error| format!("记录 schema v2 失败: {error}"))?;
-    }
-    if current.unwrap_or(0) < 3 {
-        for statement in MIGRATION_3.split(';') {
-            let sql = statement.trim();
-            if sql.is_empty() {
-                continue;
-            }
-            sqlx::query(sql)
-                .execute(&mut *connection)
-                .await
-                .map_err(|error| format!("执行 schema v3 失败: {error}\n{sql}"))?;
-        }
-        sqlx::query("INSERT INTO schema_migrations (version, applied_at) VALUES (3, ?1)")
-            .bind(timestamp())
-            .execute(&mut *connection)
-            .await
-            .map_err(|error| format!("记录 schema v3 失败: {error}"))?;
-    }
-    if current.unwrap_or(0) < 4 {
-        for statement in MIGRATION_4.split(';') {
-            let sql = statement.trim();
-            if sql.is_empty() {
-                continue;
-            }
-            sqlx::query(sql)
-                .execute(&mut *connection)
-                .await
-                .map_err(|error| format!("执行 schema v4 失败: {error}\n{sql}"))?;
-        }
-        sqlx::query("INSERT INTO schema_migrations (version, applied_at) VALUES (4, ?1)")
-            .bind(timestamp())
-            .execute(&mut *connection)
-            .await
-            .map_err(|error| format!("记录 schema v4 失败: {error}"))?;
-    }
-    if current.unwrap_or(0) < 5 {
-        for statement in MIGRATION_5.split(';') {
-            let sql = statement.trim();
-            if sql.is_empty() {
-                continue;
-            }
-            sqlx::query(sql)
-                .execute(&mut *connection)
-                .await
-                .map_err(|error| format!("执行 schema v5 失败: {error}\n{sql}"))?;
-        }
-        sqlx::query("INSERT INTO schema_migrations (version, applied_at) VALUES (5, ?1)")
-            .bind(timestamp())
-            .execute(&mut *connection)
-            .await
-            .map_err(|error| format!("记录 schema v5 失败: {error}"))?;
-    }
-    if current.unwrap_or(0) < 6 {
-        for statement in MIGRATION_6.split(';') {
-            let sql = statement.trim();
-            if sql.is_empty() {
-                continue;
-            }
-            sqlx::query(sql)
-                .execute(&mut *connection)
-                .await
-                .map_err(|error| format!("执行 schema v6 失败: {error}\n{sql}"))?;
-        }
-        sqlx::query("INSERT INTO schema_migrations (version, applied_at) VALUES (6, ?1)")
-            .bind(timestamp())
-            .execute(&mut *connection)
-            .await
-            .map_err(|error| format!("记录 schema v6 失败: {error}"))?;
     }
     Ok(SCHEMA_VERSION)
 }
@@ -445,5 +392,59 @@ mod tests {
         });
         fs::remove_dir_all(root).unwrap();
     }
+    #[test]
+    fn failed_migration_rolls_back_version() {
+        let root = workspace("rollback");
+        fs::create_dir_all(&root).unwrap();
+        let path = root.join("notes.db");
+        let workspace_text = root.to_string_lossy().into_owned();
+
+        block_on(async {
+            let mut connection = sqlite::connect(&path).await.unwrap();
+            sqlx::query(
+                "CREATE TABLE schema_migrations (
+                   version INTEGER PRIMARY KEY,
+                   applied_at TEXT NOT NULL
+                 ) STRICT",
+            )
+            .execute(&mut connection)
+            .await
+            .unwrap();
+            for statement in MIGRATION_1.split(';') {
+                let sql = statement.trim();
+                if !sql.is_empty() {
+                    sqlx::query(sql).execute(&mut connection).await.unwrap();
+                }
+            }
+            sqlx::query(
+                "INSERT INTO schema_migrations (version, applied_at)
+                 VALUES (1, '0')",
+            )
+            .execute(&mut connection)
+            .await
+            .unwrap();
+            // Simulate a migration that applied DDL but never recorded v2.
+            sqlx::query("ALTER TABLE documents ADD COLUMN map_id TEXT")
+                .execute(&mut connection)
+                .await
+                .unwrap();
+            drop(connection);
+
+            let error = initialize_database(workspace_text)
+                .await
+                .expect_err("migration must fail");
+            assert!(error.contains("schema v2"), "{error}");
+
+            let mut connection = sqlite::connect(&path).await.unwrap();
+            let applied: Option<i64> =
+                sqlx::query_scalar("SELECT MAX(version) FROM schema_migrations")
+                    .fetch_one(&mut connection)
+                    .await
+                    .unwrap();
+            assert_eq!(applied, Some(1));
+        });
+        fs::remove_dir_all(root).unwrap();
+    }
+
 }
 
