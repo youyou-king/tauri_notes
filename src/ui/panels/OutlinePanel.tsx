@@ -1,4 +1,5 @@
 import { useContext, useEffect, useRef, useState } from "react";
+import { APP_EVENTS, emitAppEvent, onAppEvent } from "../../kernel/events";
 import { mapService } from "../../application/mapService";
 import { documentService } from "../../application/documentService";
 import { crossPanelBus, PANEL_DRAG_MIME } from "../../kernel/event";
@@ -278,13 +279,13 @@ export function MultiOutlinePanel() {
     initialized.current = false;
     load();
     const handler = () => load();
-    window.addEventListener("tauri-notes:blocks-saved", handler);
-    window.addEventListener("tauri-notes:document-changed", handler);
-    window.addEventListener("tauri-notes:maps-changed", handler);
+    const unsubscribers = [
+      onAppEvent(APP_EVENTS.blocksSaved, handler),
+      onAppEvent(APP_EVENTS.documentChanged, handler),
+      onAppEvent(APP_EVENTS.mapsChanged, handler),
+    ];
     return () => {
-      window.removeEventListener("tauri-notes:blocks-saved", handler);
-      window.removeEventListener("tauri-notes:document-changed", handler);
-      window.removeEventListener("tauri-notes:maps-changed", handler);
+      unsubscribers.forEach((unsubscribe) => unsubscribe());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roots.join("|")]);
@@ -306,11 +307,7 @@ export function MultiOutlinePanel() {
   };
 
   const notify = (rootPath: string) => {
-    window.dispatchEvent(
-      new CustomEvent("tauri-notes:maps-changed", {
-        detail: { root: rootPath },
-      }),
-    );
+    emitAppEvent(APP_EVENTS.mapsChanged, { root: rootPath });
     load();
   };
 
@@ -339,11 +336,10 @@ export function MultiOutlinePanel() {
           .find((node) => node.id === rename.nodeId)?.documentId;
         await mapService.renameNode(rename.rootPath, rename.nodeId, title);
         if (targetDocument) {
-          window.dispatchEvent(
-            new CustomEvent("tauri-notes:document-renamed", {
-              detail: { documentId: targetDocument, title },
-            }),
-          );
+          emitAppEvent(APP_EVENTS.documentRenamed, {
+            documentId: targetDocument,
+            title,
+          });
         }
         notify(rename.rootPath);
       } else if (rename.kind === "doc" && rename.documentId) {
@@ -352,11 +348,10 @@ export function MultiOutlinePanel() {
           rename.documentId,
           title,
         );
-        window.dispatchEvent(
-          new CustomEvent("tauri-notes:document-renamed", {
-            detail: { documentId: rename.documentId, title },
-          }),
-        );
+        emitAppEvent(APP_EVENTS.documentRenamed, {
+          documentId: rename.documentId,
+          title,
+        });
         notify(rename.rootPath);
       }
       setRename(null);
@@ -419,11 +414,10 @@ export function MultiOutlinePanel() {
     try {
       await mapService.renameNode(rootPath, node.id, title);
       if (node.documentId) {
-        window.dispatchEvent(
-          new CustomEvent("tauri-notes:document-renamed", {
-            detail: { documentId: node.documentId, title },
-          }),
-        );
+        emitAppEvent(APP_EVENTS.documentRenamed, {
+          documentId: node.documentId,
+          title,
+        });
       }
       notify(rootPath);
     } catch (reason) {
@@ -899,11 +893,10 @@ export function MultiOutlinePanel() {
                     void documentService
                       .delete(rootPath, documentId)
                       .then(() => {
-                        window.dispatchEvent(
-                          new CustomEvent("tauri-notes:document-deleted", {
-                            detail: { root: rootPath, documentId },
-                          }),
-                        );
+                        emitAppEvent(APP_EVENTS.documentDeleted, {
+                          root: rootPath,
+                          documentId,
+                        });
                         notify(rootPath);
                       })
                       .catch((reason) => setError(String(reason)));

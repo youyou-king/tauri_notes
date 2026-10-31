@@ -13,6 +13,7 @@ export const APP_EVENTS = {
   openBlockDocument: "tauri-notes:open-block-document",
   openSource: "tauri-notes:open-source",
   saveNow: "tauri-notes:save-now",
+  insertEmbed: "tauri-notes:insert-embed",
 } as const;
 
 export type AppEventName =
@@ -38,7 +39,9 @@ type AppEventPayloads = {
     documentId?: string;
     title?: string;
   };
-  "tauri-notes:maps-changed": void;
+  "tauri-notes:maps-changed": {
+    root?: string;
+  };
   "tauri-notes:map-renamed": {
     mapId: string;
     title: string;
@@ -46,6 +49,10 @@ type AppEventPayloads = {
   "tauri-notes:open-block-document": string;
   "tauri-notes:open-source": string;
   "tauri-notes:save-now": void;
+  "tauri-notes:insert-embed": {
+    docId?: string;
+    marker: string;
+  };
 };
 
 export function emitAppEvent<K extends AppEventName>(

@@ -1,4 +1,5 @@
 import { Extension, Node, mergeAttributes } from "@tiptap/core";
+import { APP_EVENTS, onAppEvent } from "../kernel/events";
 import type { JSONContent } from "@tiptap/core";
 import { DOMSerializer } from "@tiptap/pm/model";
 import { Plugin } from "@tiptap/pm/state";
@@ -514,17 +515,14 @@ export const ViewportBlock = Node.create({
       } else {
         showEmpty();
       }
-      const onBlocksSaved = (event: Event) => {
+      const onBlocksSaved = (detail: {
+        blockIds: string[];
+        deletedBlockIds: string[];
+      }) => {
         if (targetBlockIds.length > 0) {
           loadMany(targetBlockIds);
           return;
         }
-        const detail = (
-          event as CustomEvent<{
-            blockIds?: string[];
-            deletedBlockIds?: string[];
-          }>
-        ).detail;
         if (
           detail?.blockIds &&
           targetBlockId &&
@@ -535,7 +533,7 @@ export const ViewportBlock = Node.create({
         }
         load(currentReference);
       };
-      window.addEventListener("tauri-notes:blocks-saved", onBlocksSaved);
+      const unsubscribe = onAppEvent(APP_EVENTS.blocksSaved, onBlocksSaved);
 
       return {
         dom,
@@ -576,7 +574,7 @@ export const ViewportBlock = Node.create({
         destroy: () => {
           previewEditor?.destroy();
           previewEditor = null;
-          window.removeEventListener("tauri-notes:blocks-saved", onBlocksSaved);
+          unsubscribe();
         },
       };
     };

@@ -86,8 +86,7 @@ function App() {
     if (!workspace) {
       return;
     }
-    const handler = (event: Event) => {
-      const detail = (event as CustomEvent<{ root?: string }>).detail;
+    return onAppEvent(APP_EVENTS.mapsChanged, (detail) => {
       const targetRoot = detail?.root ?? workspace.root;
       void workspaceService
         .open(targetRoot)
@@ -104,10 +103,7 @@ function App() {
           );
         })
         .catch((reason) => setError(String(reason)));
-    };
-    window.addEventListener("tauri-notes:maps-changed", handler);
-    return () =>
-      window.removeEventListener("tauri-notes:maps-changed", handler);
+    });
   }, [workspace?.root]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

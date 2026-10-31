@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { APP_EVENTS, emitAppEvent } from "../../../kernel/sdk";
 import {
   ZOOM_LEVELS,
   type BoardViewport,
@@ -145,14 +146,10 @@ function ViewportCard({
             type="button"
             title="把这张引用卡插入当前文档"
             onClick={() => {
-              window.dispatchEvent(
-                new CustomEvent("tauri-notes:insert-embed", {
-                  detail: {
-                    docId: targetDocId ?? item.reference.lastDocId,
-                    marker: `<!-- notes:embed=${item.reference.blockId};span=${item.span};height=${item.height};zoom=${item.zoom};width=60 -->`,
-                  },
-                }),
-              );
+              emitAppEvent(APP_EVENTS.insertEmbed, {
+                docId: targetDocId ?? item.reference.lastDocId,
+                marker: `<!-- notes:embed=${item.reference.blockId};span=${item.span};height=${item.height};zoom=${item.zoom};width=60 -->`,
+              });
             }}
           >
             插入文章

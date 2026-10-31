@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import type { IDockviewPanelProps } from "dockview-react";
 import MindMap from "../../components/MindMap";
 import { usePanelContext } from "./PanelContext";
+import { APP_EVENTS, onAppEvent } from "../../kernel/events";
 
 export type MapParams = {
   mapId?: string;
@@ -30,17 +31,11 @@ export function MapPanel(props: IDockviewPanelProps<MapParams>) {
   }, [map?.title, props.api]);
 
   useEffect(() => {
-    const handler = (event: Event) => {
-      const detail = (
-        event as CustomEvent<{ mapId?: string; title?: string }>
-      ).detail;
+    return onAppEvent(APP_EVENTS.mapRenamed, (detail) => {
       if (detail?.mapId === map?.id && detail.title) {
         props.api.setTitle(detail.title);
       }
-    };
-    window.addEventListener("tauri-notes:map-renamed", handler);
-    return () =>
-      window.removeEventListener("tauri-notes:map-renamed", handler);
+    });
   }, [map?.id, props.api]);
 
   if (map && mapWorkspace) {
