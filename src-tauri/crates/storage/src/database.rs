@@ -336,6 +336,7 @@ mod tests {
         initialize_database, open_for_import, MIGRATION_1, SCHEMA_VERSION,
     };
     use crate::sqlite;
+    use sqlx::Connection;
     use std::fs;
     use std::path::PathBuf;
 
@@ -375,6 +376,7 @@ mod tests {
                     .await
                     .unwrap();
             assert_eq!(applied, SCHEMA_VERSION);
+            connection.close().await.unwrap();
         });
         fs::remove_dir_all(root).unwrap();
     }
