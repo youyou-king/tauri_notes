@@ -21,7 +21,10 @@ Rules:
 - cross-plugin communication goes through commands, events, or ports;
 - every contribution must be declared in `feature.json`;
 - `feature.json` must declare the current `sdkVersion`;
-- architecture tests in `src/architecture.test.ts` enforce these rules.
+- architecture tests in `src/architecture.test.ts` enforce these rules;
+- business state has one owner; UI reads selectors or snapshots and must not
+  keep a writable mirror;
+- ephemeral state (menu open, hover, draft) may stay local to the component.
 
 Current plugins:
 

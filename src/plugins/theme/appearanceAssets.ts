@@ -38,14 +38,6 @@ async function withStore<T>(
   }
 }
 
-export async function saveWallpaperAsset(
-  bytes: Uint8Array,
-): Promise<void> {
-  await withStore("readwrite", (store) =>
-    store.put(bytes, WALLPAPER_KEY),
-  );
-}
-
 export async function loadWallpaperAsset(): Promise<Uint8Array | null> {
   try {
     const value = await withStore<Uint8Array | undefined>(
@@ -72,34 +64,6 @@ const DECORATION_COUNT_KEY = "decoration-count";
 
 function decorationKey(index: number): string {
   return `decoration:${index}`;
-}
-
-export async function saveDecorationAssets(
-  assets: Uint8Array[],
-): Promise<void> {
-  const database = await openDatabase();
-  try {
-    const transaction = database.transaction(STORE, "readwrite");
-    const store = transaction.objectStore(STORE);
-    await new Promise<void>((resolve, reject) => {
-      const count = store.put(assets.length, DECORATION_COUNT_KEY);
-      count.onsuccess = () => resolve();
-      count.onerror = () => reject(count.error);
-    });
-    await Promise.all(
-      assets.map(
-        (bytes, index) =>
-          new Promise<void>((resolve, reject) => {
-            const request = store.put(bytes, decorationKey(index));
-            request.onsuccess = () => resolve();
-            request.onerror = () => reject(request.error);
-          }),
-      ),
-    );
-    transaction.commit();
-  } finally {
-    database.close();
-  }
 }
 
 export async function loadDecorationAssets(): Promise<Uint8Array[]> {

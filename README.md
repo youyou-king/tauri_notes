@@ -2,7 +2,17 @@
 
 ![CI](https://github.com/youyou-king/tauri_notes/actions/workflows/ci.yml/badge.svg)
 
+[![Latest Release](https://img.shields.io/github/v/release/youyou-king/tauri_notes)](https://github.com/youyou-king/tauri_notes/releases/latest)
+
 Tauri 2 + React 19 的本地优先 Markdown 知识库。
+
+最新安装包发布在 GitHub Releases，不提交到 Git 仓库：
+
+```text
+https://github.com/youyou-king/tauri_notes/releases
+```
+
+变更记录见 [`CHANGELOG.md`](CHANGELOG.md)。
 
 ## 当前架构
 
@@ -12,12 +22,16 @@ Tauri 2 + React 19 的本地优先 Markdown 知识库。
 - React Flow 导图；
 - SQLite 搜索；
 - 深色 / 浅色 / 跟随系统 / 自定义主题；
+- `.tnlook` 外观包：预览、应用、签名信任、dark/light variant 切换；
+- 编辑器、主题、工作区和面板状态按单一数据源收敛；
 - Windows 安装器、卸载器和 `.note` 文件关联。
 
 架构说明：
 
 - [`../设计文档/架构重构方案.md`](../设计文档/架构重构方案.md)
 - [`../设计文档/技术架构与插件化方案.md`](../设计文档/技术架构与插件化方案.md)
+- [`../设计文档/状态架构契约.md`](../设计文档/状态架构契约.md)
+- [`../设计文档/重构验收报告.md`](../设计文档/重构验收报告.md)
 
 ## 技术栈
 
@@ -133,7 +147,7 @@ tauri_notes/
 │   ├── ui/                  # 面板、主题、设计系统、导入预览
 │   └── styles.css           # 组件与主题样式
 ├── src-tauri/
-│   ├── admin.manifest       # requireAdministrator 清单
+│   ├── admin.manifest       # Win32 应用清单（asInvoker）
 │   ├── src/commands/        # Tauri 命令入口
 │   ├── src/services/        # 应用服务
 │   └── src/*_store.rs       # SQLite 仓储
@@ -158,7 +172,9 @@ tauri_notes/
 - 设计 token：`src/ui/design-system/tokens/tokens.css`；
 - CSS Cascade Layers：`theme < vendor < tokens < base < components < layout < critical`；
 - 浅色主题采用暖中性色，Dockview 会随主题切换；
-- 自定义主题通过主题编辑器导入、导出和保存。
+- 自定义主题通过主题编辑器导入、导出和保存；
+- `.tnlook` 外观包由 `appearanceRuntime` 管理，完整保存 dark/light 资源；
+- 发布者签名、SHA-256 完整性、对比度预览和回退均可用。
 
 ## 安装包
 

@@ -33,3 +33,6 @@ ui/          UI renderer registry
 
 Plugins must import kernel contracts from `kernel/sdk` only. Direct imports
 from other `kernel/*` modules fail the architecture test.
+
+State ownership is documented in `设计文档/状态架构契约.md`: canonical state
+has one writer; selectors and snapshots are read-only projections.
