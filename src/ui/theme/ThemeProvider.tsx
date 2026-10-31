@@ -65,12 +65,23 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [systemDark, setSystemDark] = useState(
     () => window.matchMedia(DARK_QUERY).matches,
   );
+  const [appearanceActive, setAppearanceActive] = useState(false);
   const appliedTokens = useRef<string[]>([]);
 
   const activeCustom = mode.startsWith("custom:")
     ? customThemes.find((theme) => `custom:${theme.id}` === mode)
     : undefined;
   const resolved = resolveBase(mode, customThemes, systemDark);
+
+  useEffect(() => {
+    const update = () =>
+      setAppearanceActive(
+        document.documentElement.hasAttribute("data-appearance-pack"),
+      );
+    update();
+    window.addEventListener("appearance:applied", update);
+    return () => window.removeEventListener("appearance:applied", update);
+  }, []);
 
   useEffect(() => {
     const media = window.matchMedia(DARK_QUERY);
@@ -130,6 +141,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, [activeCustom, mode]);
 
   useEffect(() => {
+    if (appearanceActive) {
+      // Appearance packs own the color token layer while active. The base
+      // theme is applied again when the pack is rolled back.
+      return;
+    }
     const root = document.documentElement;
     for (const token of appliedTokens.current) {
       root.style.removeProperty(token);
@@ -148,7 +164,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
     root.dataset.theme = resolved;
     root.dataset.themeMode = mode;
-  }, [activeCustom, mode, resolved]);
+  }, [activeCustom, appearanceActive, mode, resolved]);
 
   const setMode = useCallback((next: ThemeSelection) => {
     setModeState(next);
