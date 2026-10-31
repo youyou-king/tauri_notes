@@ -302,4 +302,49 @@ describe("plugin contracts", () => {
     expect(deactivate).toHaveBeenCalledOnce();
     expect(registry.getContributions("commands")).toEqual([]);
   });
+  it("blocks dependents when a dependency fails activation", async () => {
+    const registry = new PluginRegistry();
+    const activated: string[] = [];
+    registry.register(manifest("base"), {
+      activate: () => {
+        throw new Error("base failed");
+      },
+    });
+    registry.register(
+      manifest("child", { dependencies: ["base"] }),
+      {
+        activate: () => {
+          activated.push("child");
+        },
+      },
+    );
+
+    const failures = await registry.startSafely();
+    expect(activated).toEqual([]);
+    expect(failures).toContainEqual(
+      expect.objectContaining({
+        pluginId: "child",
+        blockedBy: ["base"],
+      }),
+    );
+    await registry.stop();
+  });
+
+  it("rejects a failed dependent at the dependency boundary", async () => {
+    const registry = new PluginRegistry();
+    registry.register(manifest("base"), { activate: () => {} });
+    registry.registerEntrySafely(
+      manifest("child", { dependencies: ["missing"] }),
+      () => ({ activate: () => {} }),
+    );
+    const failures = await registry.startSafely();
+    expect(failures).toContainEqual(
+      expect.objectContaining({
+        pluginId: "child",
+        kind: "registration",
+      }),
+    );
+    await registry.stop();
+  });
+
 });

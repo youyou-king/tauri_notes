@@ -35,6 +35,11 @@ describe("plugin UI boundaries", () => {
       if (/\.test\.(ts|tsx)$/.test(file)) {
         continue;
       }
+      // This file is the compile-time composition registry, not a feature
+      // plugin. It is the one place allowed to import every plugin manifest.
+      if (file === "./plugins/registry.ts") {
+        continue;
+      }
       const owner = file.split("/")[2];
       for (const match of source.matchAll(
         /(?:from\s+|import\()\s*["']([^"']+)["']/g,

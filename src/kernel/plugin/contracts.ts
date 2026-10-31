@@ -83,6 +83,8 @@ export type PluginRegistration = {
 export type PluginActivationFailure = {
   pluginId: string;
   message: string;
+  kind?: "registration" | "activation";
+  blockedBy?: string[];
 };
 
 const CONTRIBUTION_CAPABILITIES: Partial<
@@ -227,6 +229,8 @@ export class PluginRegistry {
   private readonly active: PluginRegistration[] = [];
   private order: string[] = [];
   private failures = new Map<string, string>();
+  private blockedBy = new Map<string, string[]>();
+  private registrationFailures = new Map<string, string>();
   private operation: Promise<void> = Promise.resolve();
 
   constructor(
@@ -248,7 +252,37 @@ export class PluginRegistry {
       throw new Error(`插件重复注册：${manifest.id}`);
     }
     this.registrations.set(manifest.id, { manifest, module });
-    this.order = resolveOrder(this.registrations);
+    try {
+      this.order = resolveOrder(this.registrations);
+    } catch (error) {
+      this.registrations.delete(manifest.id);
+      throw error;
+    }
+  }
+
+  /**
+   * Registration must not take down the shell. Invalid or unresolved
+   * entries become diagnostics instead of render-time exceptions.
+   */
+  registerSafely(
+    manifest: PluginManifest,
+    module: PluginModule,
+  ): void {
+    this.registerEntrySafely(manifest, () => module);
+  }
+
+  registerEntrySafely(
+    manifest: PluginManifest,
+    createModule: () => PluginModule,
+  ): void {
+    try {
+      this.register(manifest, createModule());
+    } catch (error) {
+      this.registrationFailures.set(
+        manifest.id || "unknown",
+        String(error),
+      );
+    }
   }
 
   start(): Promise<void> {
@@ -282,12 +316,22 @@ export class PluginRegistry {
       }
       this.contributions.clear();
       this.failures.clear();
+      this.blockedBy.clear();
       for (const id of this.order) {
         const registration = this.registrations.get(id);
         if (!registration) {
           continue;
         }
         registration.contributions = [];
+        const blockedBy = this.unavailableDependencies(registration);
+        if (blockedBy.length > 0) {
+          this.failures.set(
+            id,
+            `依赖不可用：${blockedBy.join(", ")}`,
+          );
+          this.blockedBy.set(id, blockedBy);
+          continue;
+        }
         try {
           await registration.module.activate(
             this.createContext(registration),
@@ -308,10 +352,49 @@ export class PluginRegistry {
   }
 
   getFailures(): PluginActivationFailure[] {
-    return [...this.failures.entries()].map(([pluginId, message]) => ({
-      pluginId,
-      message,
-    }));
+    const failures = new Map<string, PluginActivationFailure>();
+    for (const [pluginId, message] of this.registrationFailures) {
+      failures.set(pluginId, {
+        pluginId,
+        message,
+        kind: "registration",
+      });
+    }
+    for (const [pluginId, message] of this.failures) {
+      failures.set(pluginId, {
+        pluginId,
+        message,
+        kind: "activation",
+        ...(this.blockedBy.has(pluginId)
+          ? { blockedBy: this.blockedBy.get(pluginId) }
+          : {}),
+      });
+    }
+    return [...failures.values()];
+  }
+
+  private unavailableDependencies(
+    registration: PluginRegistration,
+  ): string[] {
+    const providers = new Map<string, string>();
+    for (const [id, candidate] of this.registrations) {
+      for (const provided of candidate.manifest.provides) {
+        providers.set(provided, id);
+      }
+    }
+    const unavailable: string[] = [];
+    for (const dependency of registration.manifest.dependencies) {
+      const provider = providers.get(dependency);
+      if (
+        provider &&
+        provider !== registration.manifest.id &&
+        (this.failures.has(provider) ||
+          this.blockedBy.has(provider))
+      ) {
+        unavailable.push(provider);
+      }
+    }
+    return unavailable;
   }
 
   stop(): Promise<void> {

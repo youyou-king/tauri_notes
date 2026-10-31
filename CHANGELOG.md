@@ -7,7 +7,10 @@
 - 设置入口升级为 shell 能力：核心工具栏“设置”、`settings.open`、`Ctrl/Cmd + ,`；
 - 主题菜单不再拥有唯一设置入口；
 - 插件管理器 `manager` 设为保留插件，不能被禁用；
-- 新增 E2E：禁用主题插件后仍可打开设置和插件管理器。
+- 新增 E2E：禁用主题插件后仍可打开设置和插件管理器；
+- 插件注册表从 `PluginProvider` 抽离到 `src/plugins/registry.ts`；
+- 插件注册失败进入 diagnostics，不再打断组合根；
+- 插件依赖激活失败时阻断依赖方，并记录 `blockedBy`。
 
 ### 文档
 

@@ -28,22 +28,7 @@ import {
   PLUGIN_COMMAND_TIMEOUT_MS,
   withTimeout,
 } from "../../kernel/command/timeout";
-import { boardFeature } from "../../plugins/board/manifest";
-import { boardPlugin } from "../../plugins/board";
-import { referenceFeature } from "../../plugins/reference/manifest";
-import { referencePlugin } from "../../plugins/reference";
-import { themeFeature } from "../../plugins/theme/manifest";
-import { themePlugin } from "../../plugins/theme";
-import { searchFeature } from "../../plugins/search/manifest";
-import { searchPlugin } from "../../plugins/search";
-import { helpFeature } from "../../plugins/help/manifest";
-import { helpPlugin } from "../../plugins/help";
-import { importFeature } from "../../plugins/import/manifest";
-import { importPlugin } from "../../plugins/import";
-import { viewportFeature } from "../../plugins/viewport/manifest";
-import { viewportPlugin } from "../../plugins/viewport";
-import { managerFeature } from "../../plugins/manager/manifest";
-import { managerPlugin } from "../../plugins/manager";
+import { PLUGIN_ENTRIES } from "../../plugins/registry";
 import {
   readDisabledPlugins,
   RESERVED_PLUGIN_IDS,
@@ -61,44 +46,9 @@ export {
   usePluginReady,
 } from "./pluginContext";
 
-const defaultEntries = [
-  {
-    manifest: themeFeature,
-    createModule: () => themePlugin,
-  },
-  {
-    manifest: boardFeature,
-    createModule: () => boardPlugin,
-  },
-  {
-    manifest: referenceFeature,
-    createModule: () => referencePlugin,
-  },
-  {
-    manifest: searchFeature,
-    createModule: () => searchPlugin,
-  },
-  {
-    manifest: helpFeature,
-    createModule: () => helpPlugin,
-  },
-  {
-    manifest: importFeature,
-    createModule: () => importPlugin,
-  },
-  {
-    manifest: viewportFeature,
-    createModule: () => viewportPlugin,
-  },
-  {
-    manifest: managerFeature,
-    createModule: () => managerPlugin,
-  },
-];
-
 export function PluginProvider({
   children,
-  entries = defaultEntries,
+  entries = PLUGIN_ENTRIES,
 }: {
   children: ReactNode;
   entries?: PluginEntry[];

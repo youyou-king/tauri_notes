@@ -20,7 +20,7 @@ export function createPluginHost(
 ): PluginRegistry {
   const registry = new PluginRegistry(options);
   for (const entry of entries) {
-    registry.register(entry.manifest, entry.createModule());
+    registry.registerEntrySafely(entry.manifest, entry.createModule);
   }
   return registry;
 }

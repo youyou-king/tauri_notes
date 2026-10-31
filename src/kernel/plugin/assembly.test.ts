@@ -36,4 +36,46 @@ describe("plugin host assembly", () => {
     expect(activated).toEqual(["board", "reference"]);
     await host.stop();
   });
+
+  it("turns invalid manifests into diagnostics instead of startup crashes", async () => {
+    const host = createPluginHost([
+      {
+        manifest: { ...manifest("bad"), name: "" } as PluginManifest,
+        createModule: () => ({ activate: () => {} }),
+      },
+      {
+        manifest: manifest("good"),
+        createModule: () => ({ activate: () => {} }),
+      },
+    ]);
+
+    const failures = await host.startSafely();
+    expect(failures).toContainEqual(
+      expect.objectContaining({
+        pluginId: "bad",
+        kind: "registration",
+      }),
+    );
+    await host.stop();
+  });
+
+  it("turns module factory errors into diagnostics", async () => {
+    const host = createPluginHost([
+      {
+        manifest: manifest("broken"),
+        createModule: () => {
+          throw new Error("module unavailable");
+        },
+      },
+    ]);
+
+    const failures = await host.startSafely();
+    expect(failures).toContainEqual(
+      expect.objectContaining({
+        pluginId: "broken",
+        kind: "registration",
+      }),
+    );
+    await host.stop();
+  });
 });
