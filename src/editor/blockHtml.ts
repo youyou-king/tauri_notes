@@ -9,8 +9,8 @@ import {
   TaskItem,
   TaskList,
   ViewportBlock,
-} from "../prototype/blockExtensions";
-import { CodeBlockView } from "../prototype/codeBlockView";
+} from "./blockExtensions";
+import { CodeBlockView } from "./codeBlockView";
 import { importedBlocksToDocument } from "./importedMarkdown";
 
 let schema: ReturnType<typeof getSchema> | null = null;

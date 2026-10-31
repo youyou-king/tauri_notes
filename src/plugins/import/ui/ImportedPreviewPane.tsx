@@ -29,12 +29,12 @@ import {
   TaskList,
   ViewportBlock,
   type ViewportPickRequest,
-} from "../../../prototype/blockExtensions";
+} from "../../../editor/blockExtensions";
 import { TauriImportedDocumentRepository } from "../../../infrastructure/tauriImportedDocumentRepository";
-import { CodeBlockView } from "../../../prototype/codeBlockView";
-import { CodeHighlight } from "../../../prototype/codeHighlight";
-import { MarkdownInlineRules } from "../../../prototype/markdownInlineRules";
-import { BlockSelectionHighlight } from "../../../prototype/selectionHighlight";
+import { CodeBlockView } from "../../../editor/codeBlockView";
+import { CodeHighlight } from "../../../editor/codeHighlight";
+import { MarkdownInlineRules } from "../../../editor/markdownInlineRules";
+import { BlockSelectionHighlight } from "../../../editor/selectionHighlight";
 import {
   documentToSaveBlocks,
   importedBlocksToDocument,

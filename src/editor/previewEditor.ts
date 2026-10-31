@@ -9,9 +9,9 @@ import {
   TaskItem,
   TaskList,
   ViewportBlock,
-} from "../prototype/blockExtensions";
-import { CodeBlockView } from "../prototype/codeBlockView";
-import { CodeHighlight } from "../prototype/codeHighlight";
+} from "./blockExtensions";
+import { CodeBlockView } from "./codeBlockView";
+import { CodeHighlight } from "./codeHighlight";
 
 export function createDocumentPreview(
   workspaceRoot: string,

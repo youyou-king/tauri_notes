@@ -14,7 +14,7 @@ import {
 import { importedBlocksToDocument } from "../../../editor/importedMarkdown";
 import type { NodeView } from "../../../types";
 import { usePanelContext } from "../../../ui/sdk";
-import type { ViewportPickRequest } from "../../../prototype/blockExtensions";
+import type { ViewportPickRequest } from "../../../editor/blockExtensions";
 
 const pluginServices = createPluginServices(viewportFeature);
 

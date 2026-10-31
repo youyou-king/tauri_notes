@@ -149,7 +149,7 @@ tauri_notes/
 │   ├── components/          # DockWorkspace、导图、搜索
 │   ├── domain/              # 文档、块、对照板领域模型
 │   ├── infrastructure/      # Tauri IPC / 仓储
-│   ├── prototype/           # 生产使用的块编辑器扩展
+│   ├── editor/              # 生产使用的块编辑器扩展
 │   ├── ui/                  # 面板、主题、设计系统、导入预览
 │   └── styles.css           # 组件与主题样式
 ├── src-tauri/

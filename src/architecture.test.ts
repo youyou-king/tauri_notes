@@ -6,7 +6,7 @@ const sources = import.meta.glob("./plugins/**/*.{ts,tsx}", {
   eager: true,
 }) as Record<string, string>;
 
-const coreSources = import.meta.glob("./prototype/**/*.{ts,tsx}", {
+const editorSources = import.meta.glob("./editor/**/*.{ts,tsx}", {
   query: "?raw",
   import: "default",
   eager: true,
@@ -119,9 +119,9 @@ describe("plugin UI boundaries", () => {
     expect(source).not.toMatch(/from\s+["']\.\/plugins\//);
   });
 
-  it("editor prototype does not import feature plugins", () => {
+  it("editor core does not import feature plugins", () => {
     const violations: string[] = [];
-    for (const [file, source] of Object.entries(coreSources)) {
+    for (const [file, source] of Object.entries(editorSources)) {
       for (const match of source.matchAll(
         /(?:from\s+|import\()\s*["']([^"']+)["']/g,
       )) {
