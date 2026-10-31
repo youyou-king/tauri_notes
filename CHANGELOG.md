@@ -42,7 +42,8 @@
 - 数据 schema 升级到 v7，文档删除改为软删除，设置页新增回收站恢复；
 - 文档库删除后提供撤销按钮；
 - storage 命令返回结构化 `CommandError`，前端解析 code/message；
-- 明确 ThemeProvider 与 appearance pack 的 token 所有权，避免互相覆盖。
+- 明确 ThemeProvider 与 appearance pack 的 token 所有权，避免互相覆盖；
+- 实施记录拆分为当前摘要和历史归档；本地 `verify:all` 构建/安装器验证通过。
 - 设置 section 和 overlay 增加错误边界；初始化完成后停止文件打开轮询；
 - 会话快照保存 activeMapId 和 selectedNodeId，重启后恢复选中 map/节点；
 - 工作区选择改为原子 `select(mapId, node)`，移除单独写 activeMapId 的入口；
