@@ -1964,10 +1964,20 @@ button {
   cursor: pointer;
 }
 
-.block-format-toolbar button:hover,
-.block-format-toolbar button.active {
+.block-format-toolbar button:hover {
   border-color: var(--border);
   color: var(--accent);
+}
+
+.block-format-toolbar button.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.block-format-toolbar button:disabled {
+  cursor: default;
+  opacity: 0.35;
 }
 
 .block-link-popover {
