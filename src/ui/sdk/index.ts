@@ -13,6 +13,10 @@ export {
 } from "../toolbar/ToolbarMenu";
 export { useEditorSnapshot } from "../editor/useEditorSnapshot";
 export {
+  setPanelStatus,
+  type PanelLifecycle,
+} from "./panelStatus";
+export {
   openSettings,
   SETTINGS_OPEN_EVENT,
 } from "../settings/settingsEvents";

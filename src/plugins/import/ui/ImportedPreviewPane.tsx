@@ -6,6 +6,7 @@ import { importFeature } from "../manifest";
 import { flattenMindMap } from "../../../lib/mindMap";
 import {
   confirmDialog,
+  setPanelStatus,
   useEditorSnapshot,
   usePanelContext,
 } from "../../../ui/sdk";
@@ -101,6 +102,14 @@ export default function ImportedPreviewPane({
   const markPanelDirty = (dirty: boolean) => {
     if (dirtyKey && setPanelDirty) {
       setPanelDirty(dirtyKey, dirty);
+    }
+  };
+
+  const markPanelStatus = (
+    status: "idle" | "dirty" | "saving" | "saved" | "error",
+  ) => {
+    if (dirtyKey) {
+      setPanelStatus(dirtyKey, status);
     }
   };
 
@@ -223,6 +232,7 @@ export default function ImportedPreviewPane({
       }
       setStatus("未保存");
       markPanelDirty(true);
+      markPanelStatus("dirty");
       if (saveTimer.current !== null) {
         window.clearTimeout(saveTimer.current);
       }
@@ -242,9 +252,11 @@ export default function ImportedPreviewPane({
         if (changed.length === 0 && deleted.length === 0) {
           setStatus("已保存");
           markPanelDirty(false);
+          markPanelStatus("saved");
           return;
         }
         setSaving(true);
+        markPanelStatus("saving");
         void repository
           .saveBlocks(selectedRef.current, changed, deleted)
           .then(() => {
@@ -254,6 +266,7 @@ export default function ImportedPreviewPane({
             deleted.forEach((id) => savedRef.current.delete(id));
             setStatus("已保存");
             markPanelDirty(false);
+            markPanelStatus("saved");
             recordConsoleEvent(
               "document",
               "保存文档",
@@ -271,6 +284,7 @@ export default function ImportedPreviewPane({
           })
           .catch((error) => {
             markPanelDirty(true);
+            markPanelStatus("error");
             setStatus(`保存失败：${String(error)}`);
           })
           .finally(() => setSaving(false));
@@ -345,6 +359,7 @@ export default function ImportedPreviewPane({
         editor.view.dom.classList.toggle("large-document", blocks.length > 300);
         setStatus("已加载");
         markPanelDirty(false);
+        markPanelStatus("idle");
       })
       .catch((error) => {
         loadingRef.current = false;

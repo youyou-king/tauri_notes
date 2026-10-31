@@ -1,25 +1,46 @@
 import { create } from "zustand";
 
+export type PanelLifecycle =
+  | "idle"
+  | "dirty"
+  | "saving"
+  | "saved"
+  | "error";
+
 type PanelState = {
   dirtyPanels: Record<string, boolean>;
+  panelStatus: Record<string, PanelLifecycle>;
   setPanelDirty: (panelId: string, dirty: boolean) => void;
+  setPanelStatus: (panelId: string, status: PanelLifecycle) => void;
   clearDirtyPanels: () => void;
 };
 
 export const usePanelStore = create<PanelState>((set) => ({
   dirtyPanels: {},
+  panelStatus: {},
   setPanelDirty: (panelId, dirty) =>
     set((state) => {
-      if (Boolean(state.dirtyPanels[panelId]) === dirty) {
+      const alreadyDirty = Boolean(state.dirtyPanels[panelId]);
+      if (alreadyDirty === dirty) {
         return state;
       }
-      const next = { ...state.dirtyPanels };
+      const dirtyPanels = { ...state.dirtyPanels };
       if (dirty) {
-        next[panelId] = true;
+        dirtyPanels[panelId] = true;
       } else {
-        delete next[panelId];
+        delete dirtyPanels[panelId];
       }
-      return { dirtyPanels: next };
+      return {
+        dirtyPanels,
+        panelStatus: dirty
+          ? { ...state.panelStatus, [panelId]: "dirty" }
+          : state.panelStatus,
+      };
     }),
-  clearDirtyPanels: () => set({ dirtyPanels: {} }),
+  setPanelStatus: (panelId, status) =>
+    set((state) => ({
+      panelStatus: { ...state.panelStatus, [panelId]: status },
+    })),
+  clearDirtyPanels: () =>
+    set({ dirtyPanels: {}, panelStatus: {} }),
 }));

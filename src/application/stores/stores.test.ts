@@ -17,7 +17,7 @@ describe("workspace stores", () => {
       activeMapId: null,
       selectedNode: null,
     });
-    usePanelStore.setState({ dirtyPanels: {} });
+    usePanelStore.setState({ dirtyPanels: {}, panelStatus: {} });
   });
 
   it("derives the active workspace from activeRoot", () => {
@@ -78,6 +78,9 @@ describe("workspace stores", () => {
   it("tracks dirty panels", () => {
     usePanelStore.getState().setPanelDirty("doc:1", true);
     expect(usePanelStore.getState().dirtyPanels["doc:1"]).toBe(true);
+    expect(usePanelStore.getState().panelStatus["doc:1"]).toBe("dirty");
+    usePanelStore.getState().setPanelStatus("doc:1", "saving");
+    expect(usePanelStore.getState().panelStatus["doc:1"]).toBe("saving");
     usePanelStore.getState().setPanelDirty("doc:1", false);
     expect(usePanelStore.getState().dirtyPanels["doc:1"]).toBeUndefined();
   });
