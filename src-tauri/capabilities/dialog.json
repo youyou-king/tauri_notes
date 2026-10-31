@@ -1,0 +1,6 @@
+{
+  "identifier": "dialog",
+  "description": "Native dialogs for the main shell only",
+  "windows": ["main"],
+  "permissions": ["dialog:default"]
+}

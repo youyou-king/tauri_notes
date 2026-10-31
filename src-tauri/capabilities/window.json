@@ -1,0 +1,10 @@
+{
+  "identifier": "window",
+  "description": "Window controls for the main shell only",
+  "windows": ["main"],
+  "permissions": [
+    "core:window:allow-close",
+    "core:window:allow-destroy",
+    "core:window:allow-set-title"
+  ]
+}

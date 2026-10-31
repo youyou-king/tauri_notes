@@ -5,6 +5,11 @@ const workflowFiles = import.meta.glob(
   { query: "?raw", import: "default", eager: true },
 ) as Record<string, string>;
 
+const capabilityFiles = import.meta.glob(
+  "../src-tauri/capabilities/*.json",
+  { query: "?raw", import: "default", eager: true },
+) as Record<string, string>;
+
 const configFiles = import.meta.glob("../src-tauri/tauri.conf.json", {
   query: "?raw",
   import: "default",
@@ -36,4 +41,24 @@ describe("release readiness", () => {
     expect(config.app.security.csp).toBeTruthy();
     expect(config.app.security.assetProtocol.scope).toEqual([]);
   });
+  it("scopes capabilities to explicit windows", () => {
+    const capabilities = Object.values(capabilityFiles).map(
+      (raw) =>
+        JSON.parse(raw) as {
+          identifier: string;
+          windows: string[];
+          permissions: string[];
+        },
+    );
+    expect(capabilities.length).toBeGreaterThan(0);
+    expect(new Set(capabilities.map((item) => item.identifier)).size).toBe(
+      capabilities.length,
+    );
+    for (const capability of capabilities) {
+      expect(capability.windows.length).toBeGreaterThan(0);
+      expect(capability.windows).not.toContain("*");
+      expect(capability.permissions.length).toBeGreaterThan(0);
+    }
+  });
+
 });
