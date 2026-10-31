@@ -23,11 +23,27 @@ describe("sessionService", () => {
       selectedNodeId: "node-2",
     });
     expect(readSession()).toEqual({
-      version: 1,
+      version: 2,
       roots: ["/a.note", "/b.note"],
       activeRoot: "/b.note",
       activeMapId: "map-1",
       selectedNodeId: "node-2",
+    });
+  });
+
+  it("migrates legacy active field to activeRoot", () => {
+    window.localStorage.setItem(
+      SESSION_KEY,
+      JSON.stringify({
+        roots: ["/legacy.note"],
+        active: "/legacy.note",
+      }),
+    );
+    expect(readSession()).toMatchObject({
+      version: 2,
+      activeRoot: "/legacy.note",
+      activeMapId: null,
+      selectedNodeId: null,
     });
   });
 
@@ -41,6 +57,7 @@ describe("sessionService", () => {
       }),
     );
     expect(readSession()).toMatchObject({
+      version: 2,
       activeMapId: null,
       selectedNodeId: null,
     });

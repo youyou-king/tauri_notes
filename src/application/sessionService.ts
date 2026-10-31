@@ -1,5 +1,54 @@
 export const SESSION_KEY = "tauri-notes.session.v1";
+export const SESSION_VERSION = 2;
 const TITLE_PREFIX = "tauri-notes.workspace-title:";
+
+type StoredSession = {
+  version?: unknown;
+  roots?: unknown;
+  active?: unknown;
+  activeRoot?: unknown;
+  activeMapId?: unknown;
+  selectedNodeId?: unknown;
+};
+
+type SessionMigration = {
+  version: number;
+  migrate: (record: StoredSession) => StoredSession;
+};
+
+const SESSION_MIGRATIONS: SessionMigration[] = [
+  {
+    version: 2,
+    migrate: (record) => ({
+      ...record,
+      activeRoot:
+        record.activeRoot ??
+        (typeof record.active === "string" ? record.active : null),
+      activeMapId:
+        typeof record.activeMapId === "string" ? record.activeMapId : null,
+      selectedNodeId:
+        typeof record.selectedNodeId === "string"
+          ? record.selectedNodeId
+          : null,
+    }),
+  },
+];
+
+function migrateSession(record: StoredSession): StoredSession {
+  const version =
+    typeof record.version === "number" && Number.isFinite(record.version)
+      ? record.version
+      : 1;
+  if (version > SESSION_VERSION) {
+    return record;
+  }
+  const initial: StoredSession = { ...record, version };
+  return SESSION_MIGRATIONS.reduce<StoredSession>(
+    (current, migration) =>
+      version < migration.version ? migration.migrate(current) : current,
+    initial,
+  );
+}
 
 export type SessionSelection = {
   activeMapId: string | null;
@@ -7,7 +56,7 @@ export type SessionSelection = {
 };
 
 export type SessionSnapshot = SessionSelection & {
-  version: 1;
+  version: typeof SESSION_VERSION;
   roots: string[];
   activeRoot: string | null;
 };
@@ -18,33 +67,32 @@ export function readSession(): SessionSnapshot | null {
     if (!raw) {
       return null;
     }
-    const parsed = JSON.parse(raw) as {
-      roots?: unknown;
-      active?: unknown;
-      activeRoot?: unknown;
-      activeMapId?: unknown;
-      selectedNodeId?: unknown;
-    };
+    const parsed = JSON.parse(raw) as StoredSession;
+    if (
+      typeof parsed.version === "number" &&
+      parsed.version > SESSION_VERSION
+    ) {
+      return null;
+    }
+    const migrated = migrateSession(parsed);
     return {
-      version: 1,
-      roots: Array.isArray(parsed.roots)
-        ? parsed.roots.filter(
+      version: SESSION_VERSION,
+      roots: Array.isArray(migrated.roots)
+        ? migrated.roots.filter(
             (root): root is string => typeof root === "string",
           )
         : [],
       activeRoot:
-        typeof parsed.activeRoot === "string"
-          ? parsed.activeRoot
-          : typeof parsed.active === "string"
-            ? parsed.active
-            : null,
+        typeof migrated.activeRoot === "string"
+          ? migrated.activeRoot
+          : null,
       activeMapId:
-        typeof parsed.activeMapId === "string"
-          ? parsed.activeMapId
+        typeof migrated.activeMapId === "string"
+          ? migrated.activeMapId
           : null,
       selectedNodeId:
-        typeof parsed.selectedNodeId === "string"
-          ? parsed.selectedNodeId
+        typeof migrated.selectedNodeId === "string"
+          ? migrated.selectedNodeId
           : null,
     };
   } catch {
@@ -63,7 +111,7 @@ export function writeSession(
   window.localStorage.setItem(
     SESSION_KEY,
     JSON.stringify({
-      version: 1,
+      version: SESSION_VERSION,
       roots,
       activeRoot,
       activeMapId: selection.activeMapId,
