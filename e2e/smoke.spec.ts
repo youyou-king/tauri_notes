@@ -416,6 +416,7 @@ test("disables a plugin from the plugin manager", async ({ page }) => {
   await page.getByRole("button", { name: /主题/ }).click();
   await page.getByRole("button", { name: "外观设置…" }).click();
   await page.getByRole("button", { name: "插件", exact: true }).click();
+  await expect(page.locator(".plugin-health")).toBeVisible();
 
   const helpRow = page
     .locator(".plugin-manager-list li")

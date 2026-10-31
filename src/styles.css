@@ -4604,6 +4604,21 @@ html[data-appearance-pack] .mind-map-flow {
   border: 1px solid var(--border);
 }
 
+.plugin-health {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.plugin-health span {
+  padding: 2px 7px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
 .plugin-manager p {
   margin: 0 0 12px;
   color: var(--muted);

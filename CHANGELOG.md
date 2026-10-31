@@ -15,7 +15,8 @@
 - assetProtocol 静态 scope 改为空，打开工作区时动态授权对应目录。
 - 设置 section 和 overlay 增加错误边界；初始化完成后停止文件打开轮询；
 - 会话快照保存 activeMapId 和 selectedNodeId，重启后恢复选中 map/节点；
-- 工作区选择改为原子 `select(mapId, node)`，移除单独写 activeMapId 的入口。
+- 工作区选择改为原子 `select(mapId, node)`，移除单独写 activeMapId 的入口；
+- 核心插件管理区增加注册/启用/禁用/异常/依赖阻塞汇总。
 - 插件注册表从 `PluginProvider` 抽离到 `src/plugins/registry.ts`；
 - 插件注册失败进入 diagnostics，不再打断组合根；
 - 插件依赖激活失败时阻断依赖方，并记录 `blockedBy`。
