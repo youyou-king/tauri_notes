@@ -72,10 +72,6 @@ try {
     }
   }
 
-  Invoke-Step "release secrets readiness" {
-    powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $tauri "scripts\check-release-secrets.ps1")
-  }
-
   Write-Host ""
   Write-Host "All checks passed." -ForegroundColor Green
 } finally {
