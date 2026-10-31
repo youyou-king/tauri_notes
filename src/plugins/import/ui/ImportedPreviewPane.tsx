@@ -48,6 +48,7 @@ import {
   createFormatToolbarItems,
   isFormatActive,
 } from "./formatToolbar";
+import { LinkPopover } from "./LinkPopover";
 
 function blockSignature(block: {
   orderKey: string;
@@ -993,63 +994,13 @@ export default function ImportedPreviewPane({
           </div>
         )}
         {editing && editor && linkOpen && (
-          <div className="block-link-popover">
-            <input
-              autoFocus
-              value={linkUrl}
-              placeholder="https://…"
-              onChange={(event) => setLinkUrl(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Escape") {
-                  setLinkOpen(false);
-                }
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  editor
-                    .chain()
-                    .focus()
-                    .extendMarkRange("link")
-                    .setLink({ href: linkUrl })
-                    .run();
-                  setLinkOpen(false);
-                }
-              }}
-            />
-            <button
-              type="button"
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => {
-                editor
-                  .chain()
-                  .focus()
-                  .extendMarkRange("link")
-                  .setLink({ href: linkUrl })
-                  .run();
-                setLinkOpen(false);
-              }}
-            >
-              应用
-            </button>
-            <button
-              type="button"
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => setLinkOpen(false)}
-            >
-              取消
-            </button>
-            {editorSnapshot.toolbar.link && (
-              <button
-                type="button"
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => {
-                  editor.chain().focus().unsetLink().run();
-                  setLinkOpen(false);
-                }}
-              >
-                移除
-              </button>
-            )}
-          </div>
+          <LinkPopover
+            editor={editor}
+            linkUrl={linkUrl}
+            showRemove={editorSnapshot.toolbar.link}
+            onLinkUrlChange={setLinkUrl}
+            onLinkOpenChange={setLinkOpen}
+          />
         )}
         {editing && selectedBlock && (
           <div className="block-layout-toolbar">
