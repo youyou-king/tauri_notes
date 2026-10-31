@@ -74,6 +74,29 @@ test("opens a document from a mind-map node", async ({ page }) => {
   await expect(page.getByText("测试文档").first()).toBeVisible();
 });
 
+test("keeps document blocks compact when the editor has spare height", async ({
+  page,
+}) => {
+  await page.goto("/e2e.html");
+  await page.locator(".mind-map-node-doc").first().click();
+  await expect(page.getByText("测试文档").first()).toBeVisible();
+
+  const gaps = await page
+    .locator(".block-prototype-prosemirror")
+    .evaluate((root) => {
+      const children = [...root.children].filter(
+        (node): node is HTMLElement => node instanceof HTMLElement,
+      );
+      return children.slice(1).map((node, index) => {
+        const previous = children[index].getBoundingClientRect();
+        return node.getBoundingClientRect().top - previous.bottom;
+      });
+    });
+
+  expect(gaps.length).toBeGreaterThan(1);
+  expect(Math.max(...gaps)).toBeLessThan(24);
+});
+
 test("inserts a table with its operation toolbar", async ({ page }) => {
   await page.goto("/e2e.html");
   await page.locator(".mind-map-node-doc").first().click();

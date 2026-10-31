@@ -1600,6 +1600,7 @@ button {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
   align-items: start;
+  align-content: start;
   column-gap: 16px;
   row-gap: 0;
   max-width: 860px;
@@ -2438,128 +2439,37 @@ button {
   border-color: var(--accent);
 }
 
-.imported-preview .proto-viewport.ProseMirror-selectednode {
-  border-color: var(--accent);
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  background: var(--bg-panel);
-}
-
-.imported-preview .proto-viewport.ProseMirror-selectednode > strong::after {
-  content: "已选中";
-  margin-left: 8px;
-  padding: 1px 6px;
-  border: 1px solid var(--accent);
-  border-radius: 999px;
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-size: 9px;
-  font-weight: 500;
-  vertical-align: middle;
-}
-
-.imported-preview > .block-selected {
-  border-radius: 4px;
-  background: var(--accent-soft);
-  box-shadow: inset 3px 0 var(--accent);
-}
-
-.imported-preview .proto-viewport.block-selected {
-  border-color: var(--accent);
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  background: var(--bg-panel);
-}
-
-.imported-preview .proto-viewport.block-selected > strong::after {
-  content: "已选中";
-  margin-left: 8px;
-  padding: 1px 6px;
-  border: 1px solid var(--accent);
-  border-radius: 999px;
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-size: 9px;
-  font-weight: 500;
-  vertical-align: middle;
-}
-
-.proto-viewport.block-selection-preview {
-  border-color: var(--accent);
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  background: var(--bg-panel);
-}
-
-.proto-viewport.block-selection-preview > strong::after {
-  content: "将选中";
-  margin-left: 8px;
-  padding: 1px 6px;
-  border: 1px solid var(--accent);
-  border-radius: 999px;
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-size: 9px;
-  font-weight: 500;
-  vertical-align: middle;
-}
-
-.proto-table-container.block-selection-preview,
-.code-block-shell.block-selection-preview {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.imported-preview .code-block-shell.block-selected {
-  border-color: var(--accent);
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.imported-preview .code-block-shell.block-selected .code-block-header::after {
-  content: "已选中";
-  margin-left: auto;
-  padding: 1px 6px;
-  border: 1px solid var(--accent);
-  border-radius: 999px;
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-size: 9px;
-  font-weight: 500;
-}
-
-.imported-preview .code-block-shell.block-selection-preview {
-  border-color: var(--accent);
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.imported-preview
-  .code-block-shell.block-selection-preview
-  .code-block-header::after {
-  content: "将选中";
-  margin-left: auto;
-  padding: 1px 6px;
-  border: 1px solid var(--accent);
-  border-radius: 999px;
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-size: 9px;
-  font-weight: 500;
-}
-
-
-
-.imported-preview .proto-table-wrap.block-selected {
-  border-color: var(--accent);
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.imported-preview .proto-table-wrap.block-selected:has(input:focus) {
+/* One selected-state language for text, atom cards and previews. */
+.imported-preview .proto-viewport.ProseMirror-selectednode,
+.imported-preview .proto-viewport.block-selected,
+.imported-preview .code-block-shell.block-selected,
+.imported-preview .proto-table-wrap.block-selected,
+.imported-preview .block-selected {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  border-radius: 6px;
+  background-color: color-mix(in srgb, var(--accent) 10%, var(--bg-panel));
+  box-shadow: inset 2px 0 var(--accent);
   outline: none;
-  box-shadow: none;
-  background: transparent;
+}
+
+/* Pending drop/selection previews keep a dashed edge, but share the tint. */
+.proto-viewport.block-selection-preview,
+.proto-table-container.block-selection-preview,
+.proto-table-wrap.block-selection-preview,
+.code-block-shell.block-selection-preview {
+  border-radius: 6px;
+  outline: 1px dashed var(--accent);
+  outline-offset: 0;
+  background-color: color-mix(in srgb, var(--accent) 6%, var(--bg-panel));
+}
+
+/* Use the accent for native text selection everywhere in the editors. */
+.block-prototype-prosemirror ::selection,
+.imported-preview ::selection,
+.markdown-editor ::selection,
+.cm-content ::selection {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  color: inherit;
 }
 
 .block-height-mode {
