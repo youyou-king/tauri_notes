@@ -151,6 +151,24 @@ fn timestamp() -> String {
         .unwrap_or_default()
 }
 
+async fn verify_backup(path: &Path) -> Result<(), String> {
+    let mut connection = sqlite::connect(path).await.map_err(|error| {
+        format!("备份文件无法打开 {}: {error}", path.display())
+    })?;
+    let integrity: String = sqlx::query_scalar("PRAGMA integrity_check")
+        .fetch_one(&mut connection)
+        .await
+        .map_err(|error| format!("校验备份失败: {error}"))?;
+    connection
+        .close()
+        .await
+        .map_err(|error| format!("关闭备份连接失败: {error}"))?;
+    if integrity != "ok" {
+        return Err(format!("备份完整性校验失败: {integrity}"));
+    }
+    Ok(())
+}
+
 async fn backup_before_migration(
     connection: &mut SqliteConnection,
     path: &Path,
@@ -190,6 +208,7 @@ async fn backup_before_migration(
         .execute(&mut *connection)
         .await
         .map_err(|error| format!("迁移前备份失败: {error}"))?;
+    verify_backup(&target).await?;
     Ok(())
 }
 
@@ -327,13 +346,19 @@ pub async fn backup_database(workspace: String) -> Result<String, String> {
         .execute(&mut connection)
         .await
         .map_err(|error| format!("备份数据库失败: {error}"))?;
+    connection
+        .close()
+        .await
+        .map_err(|error| format!("关闭数据库连接失败: {error}"))?;
+    verify_backup(&target).await?;
     Ok(target.to_string_lossy().into_owned())
 }
 
 #[cfg(test)]
 mod tests {
     use super::{
-        initialize_database, open_for_import, MIGRATION_1, SCHEMA_VERSION,
+        backup_database, initialize_database, open_for_import, MIGRATION_1,
+        SCHEMA_VERSION,
     };
     use crate::sqlite;
     use sqlx::Connection;
@@ -496,6 +521,31 @@ mod tests {
                     .await
                     .unwrap();
             assert_eq!(applied, Some(1));
+        });
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn backup_database_is_integrity_checked() {
+        let root = workspace("backup");
+        fs::create_dir_all(&root).unwrap();
+        let path = root.to_string_lossy().into_owned();
+        let backup = block_on(async {
+            initialize_database(path).await.unwrap();
+            backup_database(root.to_string_lossy().into_owned())
+                .await
+                .unwrap()
+        });
+        let backup_path = PathBuf::from(backup);
+        assert!(backup_path.is_file());
+        block_on(async {
+            let mut connection = sqlite::connect(&backup_path).await.unwrap();
+            let integrity: String = sqlx::query_scalar("PRAGMA integrity_check")
+                .fetch_one(&mut connection)
+                .await
+                .unwrap();
+            assert_eq!(integrity, "ok");
+            connection.close().await.unwrap();
         });
         fs::remove_dir_all(root).unwrap();
     }
