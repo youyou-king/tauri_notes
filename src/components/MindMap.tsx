@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { APP_EVENTS, emitAppEvent, onAppEvent } from "../kernel/events";
 import { mapService } from "../application/mapService";
 import { confirmDialog } from "../ui/dialog/confirmDialog";
 import {
@@ -78,11 +79,12 @@ function MindMapInner({
     const handler = () => {
       void load();
     };
-    window.addEventListener("tauri-notes:blocks-saved", handler);
-    window.addEventListener("tauri-notes:document-changed", handler);
+    const unsubscribers = [
+      onAppEvent(APP_EVENTS.blocksSaved, handler),
+      onAppEvent(APP_EVENTS.documentChanged, handler),
+    ];
     return () => {
-      window.removeEventListener("tauri-notes:blocks-saved", handler);
-      window.removeEventListener("tauri-notes:document-changed", handler);
+      unsubscribers.forEach((unsubscribe) => unsubscribe());
     };
   }, [load]);
 
@@ -156,12 +158,8 @@ function MindMapInner({
           void mapService
             .renameMap(workspaceRoot, mapId, title)
             .then(() => {
-            window.dispatchEvent(
-              new CustomEvent("tauri-notes:map-renamed", {
-                detail: { mapId, title },
-              }),
-            );
-            window.dispatchEvent(new CustomEvent("tauri-notes:maps-changed"));
+            emitAppEvent(APP_EVENTS.mapRenamed, { mapId, title });
+            emitAppEvent(APP_EVENTS.mapsChanged);
             void load();
           });
           return;
@@ -174,13 +172,12 @@ function MindMapInner({
                 ?.documentId
             : null;
           if (documentId) {
-            window.dispatchEvent(
-              new CustomEvent("tauri-notes:document-renamed", {
-                detail: { documentId, title },
-              }),
-            );
+            emitAppEvent(APP_EVENTS.documentRenamed, {
+              documentId,
+              title,
+            });
           }
-          window.dispatchEvent(new CustomEvent("tauri-notes:maps-changed"));
+          emitAppEvent(APP_EVENTS.mapsChanged);
           void load();
         });
       },
@@ -269,7 +266,7 @@ function MindMapInner({
     }
     try {
       await mapService.deleteNode(workspaceRoot, node.id);
-      window.dispatchEvent(new CustomEvent("tauri-notes:maps-changed"));
+      emitAppEvent(APP_EVENTS.mapsChanged);
       await load();
     } catch (reason) {
       setError(String(reason));

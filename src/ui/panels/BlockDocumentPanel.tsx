@@ -4,6 +4,7 @@ import { documentService } from "../../application/documentService";
 import { findNode } from "../../domain/tree";
 import { getUiRenderer } from "../../kernel/ui";
 import { usePanelContext } from "./PanelContext";
+import { APP_EVENTS, onAppEvent } from "../../kernel/events";
 
 export type BlockDocParams = {
   documentId?: string;
@@ -32,11 +33,12 @@ export function BlockDocumentPanel(
         .catch(() => {});
     };
     refresh();
-    window.addEventListener("tauri-notes:document-renamed", refresh);
-    window.addEventListener("tauri-notes:maps-changed", refresh);
+    const unsubscribers = [
+      onAppEvent(APP_EVENTS.documentRenamed, refresh),
+      onAppEvent(APP_EVENTS.mapsChanged, refresh),
+    ];
     return () => {
-      window.removeEventListener("tauri-notes:document-renamed", refresh);
-      window.removeEventListener("tauri-notes:maps-changed", refresh);
+      unsubscribers.forEach((unsubscribe) => unsubscribe());
     };
   }, [workspaceRoot, documentId, props.api]);
 
@@ -53,17 +55,11 @@ export function BlockDocumentPanel(
   }, [documentWorkspace, documentId, props.api]);
 
   useEffect(() => {
-    const handler = (event: Event) => {
-      const detail = (
-        event as CustomEvent<{ documentId?: string; title?: string }>
-      ).detail;
+    return onAppEvent(APP_EVENTS.documentRenamed, (detail) => {
       if (detail?.documentId === documentId && detail.title) {
         props.api.setTitle(detail.title);
       }
-    };
-    window.addEventListener("tauri-notes:document-renamed", handler);
-    return () =>
-      window.removeEventListener("tauri-notes:document-renamed", handler);
+    });
   }, [documentId, props.api]);
 
   if (!workspaceRoot || !documentId) {

@@ -10,7 +10,12 @@ import {
   useEditorSnapshot,
   usePanelContext,
 } from "../../../ui/sdk";
-import { commandEventName } from "../../../kernel/sdk";
+import {
+  APP_EVENTS,
+  commandEventName,
+  emitAppEvent,
+  onAppEvent,
+} from "../../../kernel/sdk";
 
 const pluginServices = createPluginServices(importFeature);
 import { getUiRenderer } from "../../../kernel/sdk";
@@ -160,15 +165,14 @@ export default function ImportedPreviewPane({
         })
         .catch(() => {});
     };
-    window.addEventListener("tauri-notes:blocks-saved", refresh);
-    window.addEventListener("tauri-notes:document-changed", refresh);
-    window.addEventListener("tauri-notes:document-renamed", refresh);
-    window.addEventListener("tauri-notes:maps-changed", refresh);
+    const unsubscribers = [
+      onAppEvent(APP_EVENTS.blocksSaved, refresh),
+      onAppEvent(APP_EVENTS.documentChanged, refresh),
+      onAppEvent(APP_EVENTS.documentRenamed, refresh),
+      onAppEvent(APP_EVENTS.mapsChanged, refresh),
+    ];
     return () => {
-      window.removeEventListener("tauri-notes:blocks-saved", refresh);
-      window.removeEventListener("tauri-notes:document-changed", refresh);
-      window.removeEventListener("tauri-notes:document-renamed", refresh);
-      window.removeEventListener("tauri-notes:maps-changed", refresh);
+      unsubscribers.forEach((unsubscribe) => unsubscribe());
     };
   }, [activeDocumentId, workspaceRoot]);
 
@@ -272,15 +276,11 @@ export default function ImportedPreviewPane({
               "保存文档",
               selectedRef.current,
             );
-            window.dispatchEvent(
-              new CustomEvent("tauri-notes:blocks-saved", {
-                detail: {
-                  documentId: selectedRef.current,
-                  blockIds: changed.map((block) => block.id),
-                  deletedBlockIds: deleted,
-                },
-              }),
-            );
+            emitAppEvent(APP_EVENTS.blocksSaved, {
+              documentId: selectedRef.current,
+              blockIds: changed.map((block) => block.id),
+              deletedBlockIds: deleted,
+            });
           })
           .catch((error) => {
             markPanelDirty(true);
@@ -318,10 +318,10 @@ export default function ImportedPreviewPane({
       }
       flushSave.current?.();
     };
-    window.addEventListener("tauri-notes:save-now", handler);
+    const unsubscribe = onAppEvent(APP_EVENTS.saveNow, handler);
     window.addEventListener("pagehide", handler);
     return () => {
-      window.removeEventListener("tauri-notes:save-now", handler);
+      unsubscribe();
       window.removeEventListener("pagehide", handler);
     };
   }, []);
@@ -604,8 +604,8 @@ export default function ImportedPreviewPane({
         workspaceRoot,
         node.id,
       );
-      window.dispatchEvent(new CustomEvent("tauri-notes:maps-changed"));
-      window.dispatchEvent(new CustomEvent("tauri-notes:document-changed"));
+      emitAppEvent(APP_EVENTS.mapsChanged);
+      emitAppEvent(APP_EVENTS.documentChanged);
       if (updated.documentId) {
         context.onActivateWorkspace(workspaceRoot);
         context.openBlockDocument(

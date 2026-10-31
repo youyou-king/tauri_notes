@@ -6,6 +6,7 @@ import {
   mergeDatabaseDocuments,
 } from "../application/workspaceTree";
 import type { WorkspaceView } from "../types";
+import { APP_EVENTS, onAppEvent } from "../kernel/events";
 
 type Args = {
   workspaceRoot: string | null;
@@ -26,15 +27,11 @@ export function useDocumentEvents({
   dockRef,
 }: Args) {
   useEffect(() => {
-    const handler = (event: Event) => {
-      const documentId = (event as CustomEvent<string>).detail;
+    return onAppEvent(APP_EVENTS.openBlockDocument, (documentId) => {
       if (documentId) {
         dockRef.current?.openBlockDocument(documentId);
       }
-    };
-    window.addEventListener("tauri-notes:open-block-document", handler);
-    return () =>
-      window.removeEventListener("tauri-notes:open-block-document", handler);
+    });
   }, [dockRef]);
 
   useEffect(() => {
@@ -59,14 +56,11 @@ export function useDocumentEvents({
         }
       })();
     };
-    window.addEventListener("tauri-notes:document-changed", handler);
-    return () =>
-      window.removeEventListener("tauri-notes:document-changed", handler);
+    return onAppEvent(APP_EVENTS.documentChanged, handler);
   }, [appendLog, setWorkspace, workspaceRoot]);
 
   useEffect(() => {
-    const handler = (event: Event) => {
-      const docId = (event as CustomEvent<string>).detail;
+    return onAppEvent(APP_EVENTS.openSource, (docId) => {
       const separator = docId?.indexOf("/") ?? -1;
       if (separator > 0) {
         dockRef.current?.openDocument(
@@ -74,9 +68,6 @@ export function useDocumentEvents({
           docId.slice(separator + 1),
         );
       }
-    };
-    window.addEventListener("tauri-notes:open-source", handler);
-    return () =>
-      window.removeEventListener("tauri-notes:open-source", handler);
+    });
   }, [dockRef]);
 }

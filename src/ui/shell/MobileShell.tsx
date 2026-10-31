@@ -11,6 +11,7 @@ import {
 import MindMap from "../../components/MindMap";
 import type { MapView, NodeView, WorkspaceView } from "../../types";
 import { openSettings } from "../settings/settingsEvents";
+import { APP_EVENTS, emitAppEvent, onAppEvent } from "../../kernel/events";
 
 type MobileTab = "map" | "library" | "document";
 
@@ -101,20 +102,13 @@ export function MobileShell({
   const map = activeMap ?? workspace?.maps[0] ?? null;
 
   useEffect(() => {
-    const handler = (event: Event) => {
-      const detail = (event as CustomEvent<string>).detail;
-      if (detail) {
-        setDocumentId(detail);
+    return onAppEvent(APP_EVENTS.openBlockDocument, (documentId) => {
+      if (documentId) {
+        setDocumentId(documentId);
         setEditing(false);
         setTab("document");
       }
-    };
-    window.addEventListener("tauri-notes:open-block-document", handler);
-    return () =>
-      window.removeEventListener(
-        "tauri-notes:open-block-document",
-        handler,
-      );
+    });
   }, []);
 
   if (!workspace || !map) {
@@ -127,7 +121,7 @@ export function MobileShell({
 
   const requestSave = () => {
     if (editing) {
-      window.dispatchEvent(new Event("tauri-notes:save-now"));
+      emitAppEvent(APP_EVENTS.saveNow);
     }
   };
 
@@ -229,9 +223,7 @@ export function MobileShell({
                   <button
                     type="button"
                     onClick={() =>
-                      window.dispatchEvent(
-                        new Event("tauri-notes:save-now"),
-                      )
+                      emitAppEvent(APP_EVENTS.saveNow)
                     }
                   >
                     保存
@@ -239,9 +231,7 @@ export function MobileShell({
                   <button
                     type="button"
                     onClick={() => {
-                      window.dispatchEvent(
-                        new Event("tauri-notes:save-now"),
-                      );
+                      emitAppEvent(APP_EVENTS.saveNow);
                       setEditing(false);
                     }}
                   >

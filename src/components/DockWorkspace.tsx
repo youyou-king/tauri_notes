@@ -17,6 +17,7 @@ import {
   PanelContext,
   type PanelContextValue,
 } from "../ui/panels/PanelContext";
+import { APP_EVENTS, onAppEvent } from "../kernel/events";
 import { ConsolePanel } from "../ui/panels/ConsolePanel";
 import { DocumentLibraryPanel } from "../ui/panels/DocumentLibraryPanel";
 import { MapPanel, type MapParams } from "../ui/panels/MapPanel";
@@ -621,10 +622,7 @@ export default forwardRef<
   }
 
   useEffect(() => {
-    const handler = (event: Event) => {
-      const detail = (
-        event as CustomEvent<{ root?: string; documentId?: string }>
-      ).detail;
+    return onAppEvent(APP_EVENTS.documentDeleted, (detail) => {
       const api = apiRef.current;
       if (!api || !detail?.documentId) {
         return;
@@ -644,10 +642,7 @@ export default forwardRef<
           panel.api.close();
         }
       }
-    };
-    window.addEventListener("tauri-notes:document-deleted", handler);
-    return () =>
-      window.removeEventListener("tauri-notes:document-deleted", handler);
+    });
   }, []);
 
   const contextValue: PanelContextValue = {

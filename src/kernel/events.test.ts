@@ -11,4 +11,12 @@ describe("app events", () => {
     emitAppEvent(APP_EVENTS.searchOpen);
     expect(handler).toHaveBeenCalledOnce();
   });
+  it("carries document event payloads", () => {
+    const handler = vi.fn();
+    const off = onAppEvent(APP_EVENTS.openBlockDocument, handler);
+    emitAppEvent(APP_EVENTS.openBlockDocument, "map-1/node-1");
+    expect(handler).toHaveBeenCalledWith("map-1/node-1");
+    off();
+  });
+
 });

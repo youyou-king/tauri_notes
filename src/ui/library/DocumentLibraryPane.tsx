@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { APP_EVENTS, emitAppEvent } from "../../kernel/events";
 import { TauriImportedDocumentRepository } from "../../infrastructure/tauriImportedDocumentRepository";
 import { documentService } from "../../application/documentService";
 import { confirmDialog } from "../dialog/confirmDialog";
@@ -48,13 +49,9 @@ export default function DocumentLibraryPane({
         mapId,
         title.trim(),
       );
-      window.dispatchEvent(
-        new CustomEvent("tauri-notes:open-block-document", {
-          detail: created.id,
-        }),
-      );
+      emitAppEvent(APP_EVENTS.openBlockDocument, created.id);
       setReload((current) => current + 1);
-      window.dispatchEvent(new CustomEvent("tauri-notes:document-changed"));
+      emitAppEvent(APP_EVENTS.documentChanged);
     } catch (error) {
       setStatus(`新建失败：${String(error)}`);
     }
@@ -72,7 +69,7 @@ export default function DocumentLibraryPane({
         title.trim(),
       );
       setReload((current) => current + 1);
-      window.dispatchEvent(new CustomEvent("tauri-notes:document-changed"));
+      emitAppEvent(APP_EVENTS.documentChanged);
     } catch (error) {
       setStatus(`重命名失败：${String(error)}`);
     }
@@ -92,7 +89,7 @@ export default function DocumentLibraryPane({
     try {
       await documentService.delete(workspaceRoot, document.id);
       setReload((current) => current + 1);
-      window.dispatchEvent(new CustomEvent("tauri-notes:document-changed"));
+      emitAppEvent(APP_EVENTS.documentChanged);
     } catch (error) {
       setStatus(`删除失败：${String(error)}`);
     }
@@ -126,11 +123,7 @@ export default function DocumentLibraryPane({
               type="button"
               className="document-library-open"
               onClick={() =>
-                window.dispatchEvent(
-                  new CustomEvent("tauri-notes:open-block-document", {
-                    detail: document.id,
-                  }),
-                )
+                emitAppEvent(APP_EVENTS.openBlockDocument, document.id)
               }
             >
               <span>{document.title}</span>
