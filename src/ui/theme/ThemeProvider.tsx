@@ -18,12 +18,15 @@ import {
 } from "./themeSchema";
 import { themeRepository } from "../../infrastructure/tauri/themeRepository";
 import { recordConsoleEvent } from "../../application/consoleLogStore";
+import {
+  readThemeSelection,
+  writeThemeSelection,
+} from "./themeStorage";
 
 export type { ThemeManifest, ThemeMode, ThemeSelection };
 
 export type ResolvedTheme = "dark" | "light";
 
-const STORAGE_KEY = "tauri-notes.theme";
 const DARK_QUERY = "(prefers-color-scheme: dark)";
 
 type ThemeContextValue = {
@@ -37,17 +40,6 @@ type ThemeContextValue = {
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
-
-function readSelection(): ThemeSelection {
-  const stored = window.localStorage.getItem(STORAGE_KEY);
-  if (stored === "light" || stored === "system" || stored === "dark") {
-    return stored;
-  }
-  if (stored?.startsWith("custom:")) {
-    return stored as ThemeSelection;
-  }
-  return "dark";
-}
 
 function resolveBase(
   selection: ThemeSelection,
@@ -67,7 +59,7 @@ function resolveBase(
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [mode, setModeState] = useState<ThemeSelection>(readSelection);
+  const [mode, setModeState] = useState<ThemeSelection>(readThemeSelection);
   const [customThemes, setCustomThemes] =
     useState<ThemeManifest[]>(loadCustomThemes);
   const [systemDark, setSystemDark] = useState(
@@ -133,7 +125,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (mode.startsWith("custom:") && !activeCustom) {
       setModeState("dark");
-      window.localStorage.setItem(STORAGE_KEY, "dark");
+      writeThemeSelection("dark");
     }
   }, [activeCustom, mode]);
 
@@ -160,7 +152,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const setMode = useCallback((next: ThemeSelection) => {
     setModeState(next);
-    window.localStorage.setItem(STORAGE_KEY, next);
+    writeThemeSelection(next);
     recordConsoleEvent("theme", "切换主题", next);
   }, []);
 

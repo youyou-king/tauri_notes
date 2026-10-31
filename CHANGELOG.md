@@ -27,7 +27,8 @@
 - 大纲、地图、应用级地图刷新和嵌入事件完成迁移，应用事件不再使用裸字符串；
 - 会话快照升级到 v2，加入 legacy `active` → `activeRoot` 迁移和版本保护；
 - 新增事件 registry 唯一性和裸字符串扫描 fitness test；
-- 新增共享 `shellActions`，桌面、移动和插件统一走同一能力入口。
+- 新增共享 `shellActions`，桌面、移动和插件统一走同一能力入口；
+- 主题选择升级为 versioned envelope，兼容 legacy 裸字符串。
 - 设置 section 和 overlay 增加错误边界；初始化完成后停止文件打开轮询；
 - 会话快照保存 activeMapId 和 selectedNodeId，重启后恢复选中 map/节点；
 - 工作区选择改为原子 `select(mapId, node)`，移除单独写 activeMapId 的入口；
