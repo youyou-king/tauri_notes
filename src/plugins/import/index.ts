@@ -1,5 +1,8 @@
 import { lazy, type ComponentType } from "react";
-import type { PluginModule } from "../../kernel/sdk";
+import type {
+  PluginModule,
+  UiRendererProps,
+} from "../../kernel/sdk";
 import {
   registerUiRenderer,
   unregisterUiRenderer,
@@ -14,7 +17,7 @@ export const importPlugin: PluginModule = {
     registerUiRenderer(
       "document.importedView",
       ImportedPreviewPane as unknown as ComponentType<
-        Record<string, unknown>
+        UiRendererProps["document.importedView"]
       >,
     );
   },

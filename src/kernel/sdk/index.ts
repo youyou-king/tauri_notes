@@ -31,6 +31,7 @@ export {
   registerUiRenderer,
   unregisterUiRenderer,
 } from "../ui";
+export type { UiRendererProps } from "../ui";
 export {
   contrastRatio,
   contrastWarnings,

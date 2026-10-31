@@ -34,7 +34,8 @@
 - 新增 release workflow / Tauri bundle 配置的静态就绪测试；
 - 移动 shell 补齐搜索、帮助、看板、主题入口，统一走 `shellActions`；
 - appearance IndexedDB 升级到 v2，新增 meta/schemaVersion 迁移；
-- 设置页新增数据维护：校验数据库、创建备份。
+- 设置页新增数据维护：校验数据库、创建备份；
+- 内置 UI renderer 增加 typed props contract。
 - 设置 section 和 overlay 增加错误边界；初始化完成后停止文件打开轮询；
 - 会话快照保存 activeMapId 和 selectedNodeId，重启后恢复选中 map/节点；
 - 工作区选择改为原子 `select(mapId, node)`，移除单独写 activeMapId 的入口；
