@@ -31,6 +31,7 @@ https://github.com/youyou-king/tauri_notes/releases
 架构说明：
 
 - [`docs/README.md`](docs/README.md) — 完整文档索引
+- [`docs/架构审视与改进计划.md`](docs/架构审视与改进计划.md) — 风险、优先级与分阶段计划
 - [`docs/架构重构方案.md`](docs/架构重构方案.md)
 - [`docs/技术架构与插件化方案.md`](docs/技术架构与插件化方案.md)
 - [`docs/状态架构契约.md`](docs/状态架构契约.md)

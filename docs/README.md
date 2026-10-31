@@ -27,6 +27,7 @@
 | 文件 | 角色 |
 | --- | --- |
 | [贡献指南](../CONTRIBUTING.md) | 开发环境、架构边界、插件规则、状态规则、验证与发布 |
+| [架构审视与改进计划](架构审视与改进计划.md) | 发现登记、P0/P1/P2 优先级、分阶段任务和 fitness functions |
 | [主题插件](主题插件.md) | 主题运行时、`.tnlook`、签名与测试 |
 | [Rust crates](Rust-crates.md) | Rust workspace 结构、职责和依赖规则 |
 
