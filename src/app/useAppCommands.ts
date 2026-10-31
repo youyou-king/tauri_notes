@@ -8,6 +8,7 @@ import {
 import { recordConsoleEvent } from "../application/consoleLogStore";
 import { workspaceService } from "../application/workspaceService";
 import type { DockWorkspaceHandle } from "../components/DockWorkspace";
+import { openSettings } from "../ui/settings/settingsEvents";
 
 type CommandRunnerDeps = {
   busy: boolean;
@@ -61,6 +62,7 @@ export function useAppCommandRunner({
         toggleOutline: () => dockRef.current?.togglePanel("outline"),
         toggleConsole: () => dockRef.current?.togglePanel("console"),
         resetLayout: () => dockRef.current?.resetLayout(),
+        openSettings,
       }).then((result) => {
         if (!result.ok) {
           setError(result.error.message);
@@ -108,6 +110,7 @@ export function useAppHotkeys({
       },
       openSearch: () =>
         window.dispatchEvent(new CustomEvent("search:open")),
+      openSettings,
     };
     function onKeyDown(event: KeyboardEvent) {
       const command = findCommandForEvent(event, context);

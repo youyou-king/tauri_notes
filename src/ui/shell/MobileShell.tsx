@@ -10,6 +10,7 @@ import {
 } from "../panels/PanelContext";
 import MindMap from "../../components/MindMap";
 import type { MapView, NodeView, WorkspaceView } from "../../types";
+import { openSettings } from "../settings/settingsEvents";
 
 type MobileTab = "map" | "library" | "document";
 
@@ -185,7 +186,7 @@ export function MobileShell({
           aria-label="打开设置"
           onClick={() => {
             requestSave();
-            window.dispatchEvent(new Event("settings:open"));
+            openSettings();
           }}
         >
           设置
@@ -310,7 +311,7 @@ export function MobileShell({
           type="button"
           onClick={() => {
             requestSave();
-            window.dispatchEvent(new Event("settings:open"));
+            openSettings();
           }}
         >
           设置

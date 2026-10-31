@@ -81,4 +81,10 @@ export const CORE_TOOLBAR_ITEMS: ToolbarItemContribution[] = [
     order: 30,
     commandId: "view.reset-layout",
   },
+  {
+    id: "settings.open",
+    label: "设置",
+    order: 90,
+    commandId: "settings.open",
+  },
 ];

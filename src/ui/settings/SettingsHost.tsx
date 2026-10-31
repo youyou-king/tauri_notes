@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { SETTINGS_OPEN_EVENT } from "./settingsEvents";
 import { SettingsDialog } from "./SettingsDialog";
 
 export function SettingsHost() {
@@ -6,8 +7,8 @@ export function SettingsHost() {
 
   useEffect(() => {
     const handler = () => setOpen(true);
-    window.addEventListener("settings:open", handler);
-    return () => window.removeEventListener("settings:open", handler);
+    window.addEventListener(SETTINGS_OPEN_EVENT, handler);
+    return () => window.removeEventListener(SETTINGS_OPEN_EVENT, handler);
   }, []);
 
   if (!open) {

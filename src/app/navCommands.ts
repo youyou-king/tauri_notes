@@ -11,6 +11,7 @@ export type NavCommandContext = {
   toggleOutline: () => void;
   toggleConsole: () => void;
   resetLayout: () => void;
+  openSettings: () => void;
 };
 
 registerCommand<NavCommandContext>({
@@ -62,4 +63,11 @@ registerCommand<NavCommandContext>({
   id: "view.reset-layout",
   label: "重置布局",
   run: (context) => context.resetLayout(),
+});
+
+registerCommand<NavCommandContext>({
+  id: "settings.open",
+  label: "设置",
+  shortcut: "mod+,",
+  run: (context) => context.openSettings(),
 });

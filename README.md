@@ -25,6 +25,7 @@ https://github.com/youyou-king/tauri_notes/releases
 - 深色 / 浅色 / 跟随系统 / 自定义主题；
 - `.tnlook` 外观包：预览、应用、签名信任、dark/light variant 切换；
 - 编辑器、主题、工作区和面板状态按单一数据源收敛；
+- 顶栏“设置”是 shell 入口，插件管理器不依赖主题插件；
 - Windows 安装器、卸载器和 `.note` 文件关联。
 
 架构说明：
@@ -59,6 +60,8 @@ npm run tauri dev
 
 顶部“帮助”按钮会打开内置 `help.note` 使用帮助知识库。
 
+顶部“设置”按钮或 `Ctrl/Cmd + ,` 打开设置；插件管理在“设置 → 插件”中。
+
 只运行前端：
 
 ```powershell
@@ -70,8 +73,8 @@ npm run dev
 ## 验证
 
 ```powershell
-npm run check        # TypeScript + 133 个前端单元测试
-npm run e2e          # 33 个 Playwright E2E / 视觉回归
+npm run check        # TypeScript + 136 个前端单元测试
+npm run e2e          # 35 个 Playwright E2E / 视觉回归
 cd src-tauri
 cargo test -p tauri-notes --lib
 

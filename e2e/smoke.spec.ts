@@ -429,6 +429,39 @@ test("disables a plugin from the plugin manager", async ({ page }) => {
   ).toHaveCount(0);
 });
 
+test("opens settings from the core toolbar", async ({ page }) => {
+  await page.goto("/e2e.html");
+  await expect(page.getByText(/演示知识库/).first()).toBeVisible();
+
+  await page.getByRole("button", { name: "设置", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "设置" })).toBeVisible();
+  await page.getByRole("button", { name: "插件", exact: true }).click();
+  await expect(page.locator(".plugin-manager-list")).toBeVisible();
+});
+
+test("keeps settings available when the theme plugin is disabled", async ({
+  page,
+}) => {
+  await page.goto("/e2e.html");
+  await expect(page.getByText(/演示知识库/).first()).toBeVisible();
+
+  await page.getByRole("button", { name: "设置", exact: true }).click();
+  await page.getByRole("button", { name: "插件", exact: true }).click();
+  const themeRow = page
+    .locator(".plugin-manager-list li")
+    .filter({ hasText: "theme" });
+  await themeRow.getByRole("checkbox").uncheck();
+  await page.getByRole("button", { name: "重新加载以应用" }).click();
+
+  await expect(page.getByText(/演示知识库/).first()).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "主题", exact: true }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "设置", exact: true }).click();
+  await page.getByRole("button", { name: "插件", exact: true }).click();
+  await expect(page.locator(".plugin-manager-list")).toBeVisible();
+});
+
 test("imports and validates an appearance pack", async ({ page }) => {
   await page.goto("/e2e.html");
   await expect(page.getByText(/演示知识库/).first()).toBeVisible();

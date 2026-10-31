@@ -97,6 +97,23 @@ src/plugins/<id>/
 - 插件激活失败必须隔离，不影响其他插件；
 - 主题和 `.tnlook` 的实现细节见 [`docs/主题插件.md`](docs/主题插件.md)。
 
+## 设置与插件管理
+
+设置是 shell 能力，不属于主题插件：
+
+```text
+src/ui/settings/
+├─ SettingsHost.tsx      监听 SETTINGS_OPEN_EVENT
+├─ settingsEvents.ts     openSettings / SETTINGS_OPEN_EVENT
+└─ SettingsDialog.tsx    读取 settingsSections 贡献
+```
+
+- 核心命令 `settings.open` 和工具栏“设置”按钮提供独立入口；
+- 快捷键 `Ctrl/Cmd + ,` 可以打开设置；
+- 主题菜单的“外观设置…”只是另一个入口，不是唯一入口；
+- 功能插件只贡献 `settingsSections`，不能拥有设置入口；
+- `manager` 是保留插件，不能被禁用；插件管理器必须始终能重新启用其他插件。
+
 ## 验证
 
 ```powershell
@@ -109,9 +126,9 @@ npm run verify:all   # 全量门禁 + 安装包
 当前基线：
 
 ```text
-前端单元测试    133 个通过
+前端单元测试    136 个通过
 Rust 测试        38 个通过
-E2E / 视觉回归   33 个通过
+E2E / 视觉回归   35 个通过
 ```
 
 Rust：

@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { ToolbarMenu, useTheme } from "../../ui/sdk";
+import { openSettings, ToolbarMenu, useTheme } from "../../ui/sdk";
 import { restoreAppliedAppearance } from "./appearanceApplier";
 import {
   restoreAppearanceRuntime,
@@ -45,7 +45,7 @@ export function ThemeToolbarItem() {
           onClose={close}
           onOpenSettings={() => {
             close();
-            window.dispatchEvent(new CustomEvent("settings:open"));
+            openSettings();
           }}
         />
       )}

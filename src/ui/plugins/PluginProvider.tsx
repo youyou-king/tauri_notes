@@ -44,7 +44,10 @@ import { viewportFeature } from "../../plugins/viewport/manifest";
 import { viewportPlugin } from "../../plugins/viewport";
 import { managerFeature } from "../../plugins/manager/manifest";
 import { managerPlugin } from "../../plugins/manager";
-import { readDisabledPlugins } from "./pluginPreferences";
+import {
+  readDisabledPlugins,
+  RESERVED_PLUGIN_IDS,
+} from "./pluginPreferences";
 import {
   PluginHostContext,
   type PluginHostContextValue,
@@ -108,7 +111,11 @@ export function PluginProvider({
   if (!hostRef.current) {
     const disabled = readDisabledPlugins();
     hostRef.current = createPluginHost(
-      entries.filter((entry) => !disabled.has(entry.manifest.id)),
+      entries.filter(
+        (entry) =>
+          RESERVED_PLUGIN_IDS.has(entry.manifest.id) ||
+          !disabled.has(entry.manifest.id),
+      ),
     );
   }
 
