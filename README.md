@@ -53,8 +53,8 @@ npm run dev
 ## 验证
 
 ```powershell
-npm run check        # TypeScript + 125 个前端单元测试
-npm run e2e          # 30 个 Playwright E2E / 视觉回归
+npm run check        # TypeScript + 127 个前端单元测试
+npm run e2e          # 31 个 Playwright E2E / 视觉回归
 cd src-tauri
 cargo test -p tauri-notes --lib
 
