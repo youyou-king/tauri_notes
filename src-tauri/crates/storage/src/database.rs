@@ -151,6 +151,48 @@ fn timestamp() -> String {
         .unwrap_or_default()
 }
 
+async fn backup_before_migration(
+    connection: &mut SqliteConnection,
+    path: &Path,
+    version: i64,
+) -> Result<(), String> {
+    let stamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_millis())
+        .unwrap_or(0);
+    let target = if path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("note"))
+    {
+        let name = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("notes.note");
+        path.with_file_name(format!(
+            "{name}.schema-v{version}-{}-{stamp}.bak",
+            std::process::id(),
+        ))
+    } else {
+        let dir = path
+            .parent()
+            .unwrap_or_else(|| Path::new("."))
+            .join("backups");
+        std::fs::create_dir_all(&dir)
+            .map_err(|error| format!("创建迁移备份目录失败: {error}"))?;
+        dir.join(format!(
+            "notes-schema-v{version}-{}-{stamp}.db",
+            std::process::id(),
+        ))
+    };
+    let target_text = target.to_string_lossy().replace('\'', "\'\'");
+    sqlx::query(&format!("VACUUM INTO '{target_text}'"))
+        .execute(&mut *connection)
+        .await
+        .map_err(|error| format!("迁移前备份失败: {error}"))?;
+    Ok(())
+}
+
 async fn apply_migration(
     connection: &mut SqliteConnection,
     version: i64,
@@ -186,7 +228,7 @@ async fn apply_migration(
         .map_err(|error| format!("提交 schema v{version} 事务失败: {error}"))
 }
 
-async fn migrate(connection: &mut SqliteConnection) -> Result<i64, String> {    sqlx::query(
+async fn migrate(connection: &mut SqliteConnection, path: &Path) -> Result<i64, String> {    sqlx::query(
         "CREATE TABLE IF NOT EXISTS schema_migrations (
            version INTEGER PRIMARY KEY,
            applied_at TEXT NOT NULL
@@ -201,6 +243,10 @@ async fn migrate(connection: &mut SqliteConnection) -> Result<i64, String> {    
             .fetch_one(&mut *connection)
             .await
             .map_err(|error| format!("读取 schema 版本失败: {error}"))?;
+
+    if current.unwrap_or(0) > 0 && current.unwrap_or(0) < SCHEMA_VERSION {
+        backup_before_migration(connection, path, current.unwrap_or(0)).await?;
+    }
 
     for version in 1..=SCHEMA_VERSION {
         if current.unwrap_or(0) < version {
@@ -256,7 +302,7 @@ pub async fn open_for_import(
     let _guard = DATABASE_INIT_LOCK.lock().await;
     let path = database_path(workspace);
     let mut connection = sqlite::connect(&path).await?;
-    migrate(&mut connection).await?;
+    migrate(&mut connection, &path).await?;
     Ok(connection)
 }
 
@@ -369,6 +415,12 @@ mod tests {
             let status =
                 initialize_database(workspace_text.clone()).await.unwrap();
             assert_eq!(status.version, SCHEMA_VERSION);
+
+            let backups = fs::read_dir(root.join("backups")).unwrap();
+            assert!(
+                backups.into_iter().any(|entry| entry.is_ok()),
+                "migration must leave a backup"
+            );
 
             let mut connection =
                 open_for_import(&workspace_text).await.unwrap();
