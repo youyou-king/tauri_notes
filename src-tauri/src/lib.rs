@@ -207,7 +207,7 @@ pub fn run() {
                 ))
             })?;
 
-            let window = WebviewWindowBuilder::new(
+            let mut builder = WebviewWindowBuilder::new(
                 app,
                 "main",
                 WebviewUrl::App("index.html".into()),
@@ -215,12 +215,19 @@ pub fn run() {
             .title("Tauri Notes")
             .inner_size(1100.0, 760.0)
             .min_inner_size(900.0, 600.0)
-            .data_directory(data_dir)
-            .additional_browser_args("--no-sandbox")
-            // 关闭 Tauri 原生拖放处理器，否则 WebView2 内 Dockview 标签拖拽失效。
-            .disable_drag_drop_handler()
-            .build()
-            .map_err(|error| std::io::Error::other(format!("创建窗口失败: {error}")))?;
+            .data_directory(data_dir);
+
+            // Keep the WebView sandbox by default. The escape hatch exists
+            // for environments where WebView2 cannot start with its sandbox.
+            if std::env::var_os("TAURI_NOTES_DISABLE_SANDBOX").is_some() {
+                builder = builder.additional_browser_args("--no-sandbox");
+            }
+
+            let window = builder
+                // 关闭 Tauri 原生拖放处理器，否则 WebView2 内 Dockview 标签拖拽失效。
+                .disable_drag_drop_handler()
+                .build()
+                .map_err(|error| std::io::Error::other(format!("创建窗口失败: {error}")))?;
 
             window.set_focus()?;
             Ok(())

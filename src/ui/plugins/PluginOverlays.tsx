@@ -1,6 +1,7 @@
 import { Suspense, type ComponentType } from "react";
 import { getUiRenderer } from "../../kernel/ui";
 import type { OverlayContribution } from "../../kernel/plugin";
+import { ErrorBoundary } from "../ErrorBoundary";
 import { usePluginContributions } from "./pluginContext";
 
 export function PluginOverlays() {
@@ -16,9 +17,15 @@ export function PluginOverlays() {
           return null;
         }
         return (
-          <Suspense key={overlay.id} fallback={null}>
-            <Component />
-          </Suspense>
+          <ErrorBoundary
+            key={overlay.id}
+            compact
+            title={`覆盖层加载失败：${overlay.id}`}
+          >
+            <Suspense fallback={null}>
+              <Component />
+            </Suspense>
+          </ErrorBoundary>
         );
       })}
     </>

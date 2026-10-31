@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { SettingsSectionContribution } from "../../kernel/plugin";
 import { Dialog } from "../dialog/Dialog";
+import { ErrorBoundary } from "../ErrorBoundary";
 import { usePluginContributions } from "../plugins/PluginProvider";
 import { PluginManagerSection } from "./PluginManagerSection";
 
@@ -63,7 +64,16 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
           ))}
         </nav>
         <section className="settings-section">
-          {Component ? <Component /> : <p>没有可用的设置项。</p>}
+          {Component ? (
+            <ErrorBoundary
+              compact
+              title={`设置区加载失败：${active?.title ?? ""}`}
+            >
+              <Component />
+            </ErrorBoundary>
+          ) : (
+            <p>没有可用的设置项。</p>
+          )}
         </section>
       </div>
     </Dialog>

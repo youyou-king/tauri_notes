@@ -69,6 +69,14 @@ export function usePendingNoteFile({
     let cancelled = false;
     let initialized = false;
     let handling = false;
+    let timer: number | undefined;
+
+    const stopPolling = () => {
+      if (timer !== undefined) {
+        window.clearInterval(timer);
+        timer = undefined;
+      }
+    };
 
     const tick = async () => {
       if (cancelled || handling) {
@@ -82,12 +90,14 @@ export function usePendingNoteFile({
         }
         if (path) {
           initialized = true;
+          stopPolling();
           sessionReady.current = true;
           await openOnlyWorkspace(path);
           return;
         }
         if (!initialized) {
           initialized = true;
+          stopPolling();
           const restored = await restoreSession();
           sessionReady.current = true;
           if (!restored) {
@@ -101,16 +111,16 @@ export function usePendingNoteFile({
       }
     };
 
-    void tick();
-    const timer = window.setInterval(() => {
+    timer = window.setInterval(() => {
       void tick();
     }, 800);
+    void tick();
     const unlisten = listen<string>("open-note-file", () => {
       void tick();
     });
     return () => {
       cancelled = true;
-      window.clearInterval(timer);
+      stopPolling();
       void unlisten.then((stop) => stop());
     };
     // Startup only: callbacks are intentionally read once.
