@@ -4,11 +4,10 @@ import type {
   PluginModule,
 } from "../../kernel/sdk";
 import {
-  APP_EVENTS,
-  emitAppEvent,
   registerUiRenderer,
   unregisterUiRenderer,
 } from "../../kernel/sdk";
+import { shellActions } from "../../ui/sdk";
 import { SearchOverlay } from "./SearchOverlay";
 
 export const searchPlugin: PluginModule = {
@@ -19,7 +18,7 @@ export const searchPlugin: PluginModule = {
       label: "搜索",
       shortcut: "Mod+P",
       run: () => {
-        emitAppEvent(APP_EVENTS.searchOpen);
+        shellActions.openSearch();
       },
     };
     context.registerContribution("commands", command);

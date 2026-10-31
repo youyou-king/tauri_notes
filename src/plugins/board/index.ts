@@ -4,11 +4,10 @@ import type {
   PluginModule,
 } from "../../kernel/sdk";
 import {
-  APP_EVENTS,
-  emitAppEvent,
   registerUiRenderer,
   unregisterUiRenderer,
 } from "../../kernel/sdk";
+import { shellActions } from "../../ui/sdk";
 import { BoardPanel } from "./BoardPanel";
 
 export const boardPlugin: PluginModule = {
@@ -19,7 +18,7 @@ export const boardPlugin: PluginModule = {
       label: "打开对照板",
       shortcut: "Mod+Shift+B",
       run: () => {
-        emitAppEvent(APP_EVENTS.boardOpen);
+        shellActions.openBoard();
       },
     };
     context.registerContribution("commands", openCommand);

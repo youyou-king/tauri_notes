@@ -1,4 +1,5 @@
-import { APP_EVENTS, emitAppEvent } from "../../kernel/events";
+import { APP_EVENTS } from "../../kernel/events";
+import { shellActions } from "../shell/shellActions";
 
 export const SETTINGS_OPEN_EVENT = APP_EVENTS.settingsOpen;
 
@@ -7,5 +8,5 @@ export const SETTINGS_OPEN_EVENT = APP_EVENTS.settingsOpen;
  * shell entry point or plugin can request the shared settings host.
  */
 export function openSettings(): void {
-  emitAppEvent(APP_EVENTS.settingsOpen);
+  shellActions.openSettings();
 }

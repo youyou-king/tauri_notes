@@ -38,3 +38,5 @@ export {
   type ThemeMode,
   type ThemeSelection,
 } from "./theme";
+
+export { shellActions } from "../shell/shellActions";

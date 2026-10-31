@@ -1,12 +1,11 @@
-import {
-  APP_EVENTS,
-  emitAppEvent,
-  type AppearancePackContribution,
-  type CommandContribution,
-  type PluginModule,
-  type SettingsSectionContribution,
-  type ToolbarItemContribution,
+import type {
+  AppearancePackContribution,
+  CommandContribution,
+  PluginModule,
+  SettingsSectionContribution,
+  ToolbarItemContribution,
 } from "../../kernel/sdk";
+import { shellActions } from "../../ui/sdk";
 import { ThemeToolbarItem } from "./ThemeToolbarItem";
 import { ThemeSettingsSection } from "./ui/ThemeSettingsSection";
 
@@ -22,7 +21,7 @@ export const themePlugin: PluginModule = {
       label: "打开外观设置",
       shortcut: "Mod+Shift+T",
       run: () => {
-        emitAppEvent(APP_EVENTS.themeOpen);
+        shellActions.openTheme();
       },
     };
     context.registerContribution("commands", openCommand);
