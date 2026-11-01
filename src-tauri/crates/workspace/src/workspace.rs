@@ -871,6 +871,7 @@ mod tests {
             .join("..")
             .join("..")
             .join("..")
+            .join("resources")
             .join("help.note");
         let view = block_on(open_note_workspace(
             path.to_string_lossy().into_owned(),
