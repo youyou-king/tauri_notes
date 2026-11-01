@@ -1,11 +1,9 @@
 use tauri::Manager;
-use tauri_notes_platform::MobilePlatform;
+use crate::platform_state::PlatformState;
 
 /// Mobile has no desktop window creation, single-instance plugin, or file
 /// association registration. Tauri owns the App WebView.
 pub fn prepare() {}
-
-pub struct MobilePlatformState(pub MobilePlatform);
 
 /// Adds mobile-only state. The platform is injected into the common command
 /// layer; commands do not branch on Android/iOS.
@@ -16,7 +14,7 @@ pub fn configure(
         let home = app.path().home_dir()?;
         let data = app.path().app_data_dir()?;
         let cache = app.path().app_cache_dir()?;
-        app.manage(MobilePlatformState(MobilePlatform::new(home, data, cache)));
+        app.manage(PlatformState::mobile(home, data, cache));
         Ok(())
     })
 }

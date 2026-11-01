@@ -1,3 +1,4 @@
+use crate::platform_state::PlatformState;
 use crate::queue_note_path;
 use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
@@ -55,6 +56,7 @@ pub fn configure(
     builder: tauri::Builder<tauri::Wry>,
 ) -> tauri::Builder<tauri::Wry> {
     builder
+        .manage(PlatformState::desktop())
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
             if let Some(path) = argv
                 .iter()

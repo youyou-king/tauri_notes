@@ -10,6 +10,7 @@ mod command_error;
 #[cfg(mobile)]
 mod mobile;
 mod platform_commands;
+mod platform_state;
 mod storage_commands;
 mod workspace_commands;
 
@@ -22,8 +23,6 @@ use std::collections::HashSet;
 use std::sync::Mutex;
 use tauri_notes_plugin_api::{validate_manifest, PluginManifest};
 use tauri_notes_plugin_runtime::plan_activation;
-#[cfg(desktop)]
-use tauri_notes_platform::{NativePlatform, PlatformAdapter};
 
 static PENDING_NOTE: Mutex<Option<String>> = Mutex::new(None);
 
@@ -105,29 +104,19 @@ fn take_pending_note_file() -> Option<String> {
 }
 
 #[tauri::command]
-fn register_note_association() -> Result<(), String> {
-    #[cfg(desktop)]
-    {
-        let exe = std::env::current_exe()
-            .map_err(|error| format!("获取程序路径失败: {error}"))?;
-        NativePlatform::new().register_file_association(&exe)
-    }
-    #[cfg(mobile)]
-    {
-        Err("移动端不支持 .note 文件关联".to_string())
-    }
+fn register_note_association(
+    state: tauri::State<'_, platform_state::PlatformState>,
+) -> Result<(), String> {
+    let exe = std::env::current_exe()
+        .map_err(|error| format!("获取程序路径失败: {error}"))?;
+    state.adapter.register_file_association(&exe)
 }
 
 #[tauri::command]
-fn unregister_note_association() -> Result<(), String> {
-    #[cfg(desktop)]
-    {
-        NativePlatform::new().unregister_file_association()
-    }
-    #[cfg(mobile)]
-    {
-        Err("移动端不支持 .note 文件关联".to_string())
-    }
+fn unregister_note_association(
+    state: tauri::State<'_, platform_state::PlatformState>,
+) -> Result<(), String> {
+    state.adapter.unregister_file_association()
 }
 
 

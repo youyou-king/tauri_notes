@@ -1,25 +1,34 @@
-use tauri_notes_platform::{NativePlatform, PlatformAdapter};
+use crate::platform_state::PlatformState;
+use tauri::State;
 use tauri_notes_theme::ThemeStore;
 
-fn store() -> Result<ThemeStore, String> {
-    let platform = NativePlatform::new();
+fn store(state: &PlatformState) -> Result<ThemeStore, String> {
     Ok(ThemeStore::new(
-        platform.data_dir()?,
-        platform.legacy_theme_dir(),
+        state.adapter.data_dir()?,
+        state.adapter.legacy_theme_dir(),
     ))
 }
 
 #[tauri::command]
-pub fn list_custom_themes() -> Result<Vec<String>, String> {
-    store()?.list()
+pub fn list_custom_themes(
+    state: State<'_, PlatformState>,
+) -> Result<Vec<String>, String> {
+    store(&state)?.list()
 }
 
 #[tauri::command]
-pub fn save_custom_theme(id: String, json: String) -> Result<(), String> {
-    store()?.save(&id, &json)
+pub fn save_custom_theme(
+    state: State<'_, PlatformState>,
+    id: String,
+    json: String,
+) -> Result<(), String> {
+    store(&state)?.save(&id, &json)
 }
 
 #[tauri::command]
-pub fn delete_custom_theme(id: String) -> Result<(), String> {
-    store()?.delete(&id)
+pub fn delete_custom_theme(
+    state: State<'_, PlatformState>,
+    id: String,
+) -> Result<(), String> {
+    store(&state)?.delete(&id)
 }
