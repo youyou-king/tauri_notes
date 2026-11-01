@@ -16,7 +16,6 @@ export const boardPlugin: PluginModule = {
       id: "board.open",
       capability: "board.read",
       label: "打开对照板",
-      shortcut: "Mod+Shift+B",
       run: () => {
         shellActions.openBoard();
       },

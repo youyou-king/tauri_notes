@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   executeCommand,
-  findCommandForEvent,
   getCommand,
   registerCommand,
   runCommand,
@@ -10,44 +9,7 @@ import {
   type CommandDefinition,
 } from "./registry";
 
-function key(
-  value: string,
-  options: Partial<{
-    ctrlKey: boolean;
-    metaKey: boolean;
-    shiftKey: boolean;
-    altKey: boolean;
-  }> = {},
-): KeyboardEvent {
-  return {
-    key: value,
-    ctrlKey: false,
-    metaKey: false,
-    shiftKey: false,
-    altKey: false,
-    ...options,
-  } as KeyboardEvent;
-}
-
 describe("command registry", () => {
-  it("matches Mod and Shift", () => {
-    const command: CommandDefinition<{ ok: boolean }> = {
-      id: "test.match",
-      label: "match",
-      shortcut: "Mod+Shift+B",
-      run: () => {},
-    };
-    registerCommand(command);
-    expect(
-      findCommandForEvent(key("b", { ctrlKey: true, shiftKey: true }), {
-        ok: true,
-      })?.id,
-    ).toBe("test.match");
-    expect(
-      findCommandForEvent(key("b", { ctrlKey: true }), { ok: true }),
-    ).toBeUndefined();
-  });
-
   it("unregisters plugin commands", () => {
     registerCommand({
       id: "test.unregister",

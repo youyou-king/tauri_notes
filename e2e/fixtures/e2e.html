@@ -100,6 +100,10 @@
             case "take_pending_note_file":
             case "startup_note_file":
               return null;
+            case "load_keymap":
+              return { version: 2, bindings: [] };
+            case "save_keymap":
+              return null;
             case "help_note_path":
               return "C:\\e2e\\help.note";
             case "open_note_workspace":

@@ -12,6 +12,7 @@ export type NavCommandContext = {
   toggleConsole: () => void;
   resetLayout: () => void;
   openSettings: () => void;
+  openHelp: () => void;
 };
 
 registerCommand<NavCommandContext>({
@@ -66,8 +67,13 @@ registerCommand<NavCommandContext>({
 });
 
 registerCommand<NavCommandContext>({
+  id: "help.open",
+  label: "使用帮助",
+  run: (context) => context.openHelp(),
+});
+
+registerCommand<NavCommandContext>({
   id: "settings.open",
   label: "设置",
-  shortcut: "mod+,",
   run: (context) => context.openSettings(),
 });

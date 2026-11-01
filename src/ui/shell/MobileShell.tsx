@@ -1,8 +1,18 @@
 import { Suspense, useEffect, useState } from "react";
 import { documentService } from "../../application/documentService";
+import { useMobileShellStore } from "../../application/stores/mobileShellStore";
+import type { MobileTab } from "../../application/stores/mobileShellStore";
 import type { StoredBlock } from "../../domain/importedDocument";
 import type { BoardControllerPort } from "../../kernel/panel/boardPort";
 import { getUiRenderer } from "../../kernel/sdk";
+import {
+  applyKeymap,
+  createInputRouter,
+  listActions,
+  type KeymapDocument,
+} from "../../kernel/action";
+import { keymapService } from "../../application/keymapService";
+import { runCommandById } from "../../kernel/command";
 import { renderMarkdownHtml } from "../sdk";
 import {
   PanelContext,
@@ -12,8 +22,6 @@ import MindMap from "../../components/MindMap";
 import type { MapView, NodeView, WorkspaceView } from "../../types";
 import { shellActions } from "./shellActions";
 import { APP_EVENTS, emitAppEvent, onAppEvent } from "../../kernel/events";
-
-type MobileTab = "map" | "library" | "document";
 
 type MobileDocumentLink = {
   id: string;
@@ -96,17 +104,34 @@ export function MobileShell({
   selected: NodeView | null;
   board: BoardControllerPort;
 }) {
-  const [tab, setTab] = useState<MobileTab>("map");
-  const [documentId, setDocumentId] = useState<string | null>(null);
-  const [editing, setEditing] = useState(false);
+  const {
+    tab,
+    documentId,
+    editing,
+    hydrate,
+    setTab: setStoredTab,
+    openDocument: openStoredDocument,
+    setEditing,
+  } = useMobileShellStore();
+  const [keymap, setKeymap] = useState<KeymapDocument | null>(null);
   const map = activeMap ?? workspace?.maps[0] ?? null;
+
+  useEffect(() => {
+    void keymapService.load().then(setKeymap);
+  }, []);
+
+  useEffect(() => {
+    hydrate(workspace?.root ?? null);
+  }, [hydrate, workspace?.root]);
 
   useEffect(() => {
     return onAppEvent(APP_EVENTS.openBlockDocument, (documentId) => {
       if (documentId) {
-        setDocumentId(documentId);
-        setEditing(false);
-        setTab("document");
+        const current = useMobileShellStore.getState();
+        if (current.editing) {
+          emitAppEvent(APP_EVENTS.saveNow);
+        }
+        current.openDocument(documentId);
       }
     });
   }, []);
@@ -129,14 +154,38 @@ export function MobileShell({
     if (next !== tab) {
       requestSave();
     }
-    setTab(next);
+    setStoredTab(next);
   };
 
   const openDocument = (id: string) => {
     requestSave();
-    setDocumentId(id);
-    setEditing(false);
-    setTab("document");
+    openStoredDocument(id);
+  };
+
+  const runMobileCommand = (id: string) => {
+    void runCommandById(id, {
+      hasWorkspace: true,
+      openSettings: shellActions.openSettings,
+      openSearch: shellActions.openSearch,
+      openBoard: shellActions.openBoard,
+      openHelp: shellActions.openHelp,
+    }).then((result) => {
+      if (!result.ok) {
+        console.error(`Mobile action ${id} failed`, result.error);
+      }
+    });
+  };
+  const actionRuntime = {
+    hasWorkspace: true,
+    runCommand: runMobileCommand,
+  };
+  const actionRouter = createInputRouter({
+    platform: "mobile",
+    actions: applyKeymap(listActions(), keymap),
+  });
+  const runMobileAction = (surface: string) => {
+    requestSave();
+    return actionRouter.triggerSurface(surface, actionRuntime);
   };
 
   const documents: MobileDocumentLink[] = [];
@@ -175,27 +224,17 @@ export function MobileShell({
           </strong>
           <span>{workspace.title}</span>
         </div>
-        <button
-          type="button"
-          aria-label="打开设置"
-          onClick={() => {
-            requestSave();
-            shellActions.openSettings();
-          }}
-        >
-          设置
-        </button>
         <div className="mobile-shell-actions" style={{ display: "flex", gap: 8 }}>
-          <button type="button" onClick={() => { requestSave(); shellActions.openSearch(); }}>
+          <button type="button" onClick={() => runMobileAction("search.open")}>
             鎼滅储
           </button>
-          <button type="button" onClick={() => { requestSave(); shellActions.openHelp(); }}>
+          <button type="button" onClick={() => runMobileAction("help.open")}>
             甯姪
           </button>
-          <button type="button" onClick={() => { requestSave(); shellActions.openBoard(); }}>
+          <button type="button" onClick={() => runMobileAction("board.open")}>
             鐪嬫澘
           </button>
-          <button type="button" onClick={() => { requestSave(); shellActions.openTheme(); }}>
+          <button type="button" onClick={() => runMobileAction("theme.open")}>
             涓婚
           </button>
         </div>
@@ -313,10 +352,7 @@ export function MobileShell({
         </button>
         <button
           type="button"
-          onClick={() => {
-            requestSave();
-            shellActions.openSettings();
-          }}
+          onClick={() => runMobileAction("settings.open")}
         >
           设置
         </button>

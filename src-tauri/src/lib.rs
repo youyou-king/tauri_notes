@@ -2,6 +2,7 @@ mod board_commands;
 mod commands;
 mod document_commands;
 mod import_commands;
+mod keymap_commands;
 mod content_commands;
 mod command_error;
 mod storage_commands;
@@ -241,6 +242,8 @@ pub fn run() {
             help_note_path,
             validate_plugin_manifest,
             plugin_sdk_version,
+            keymap_commands::load_keymap,
+            keymap_commands::save_keymap,
             plan_plugin_activation,
             workspace_commands::open_workspace,
             workspace_commands::create_note_file,

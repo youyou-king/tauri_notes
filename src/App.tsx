@@ -17,6 +17,7 @@ import { usePanelStore } from "./application/stores/panelStore";
 import { recordConsoleEvent } from "./application/consoleLogStore";
 import { ConfirmDialogHost } from "./ui/dialog/confirmDialog";
 import "./app/navCommands";
+import "./app/actions";
 import { useAppShell } from "./app/useAppShell";
 import { useWorkspaceNavigation } from "./app/useWorkspaceNavigation";
 import { usePluginReady } from "./ui/plugins/PluginProvider";

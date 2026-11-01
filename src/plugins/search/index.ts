@@ -16,7 +16,6 @@ export const searchPlugin: PluginModule = {
       id: "search.open",
       capability: "document.read",
       label: "搜索",
-      shortcut: "Mod+P",
       run: () => {
         shellActions.openSearch();
       },

@@ -106,7 +106,6 @@ export function PluginProvider({
           registerCommand({
             id: command.id,
             label: command.label,
-            shortcut: command.shortcut,
             run: (context) =>
               withTimeout(
                 Promise.resolve().then(() =>

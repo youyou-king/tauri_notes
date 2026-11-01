@@ -25,12 +25,6 @@ export function validateContribution(
         errors.push("命令缺少 label");
       }
       if (
-        contribution.shortcut !== undefined &&
-        !text(contribution.shortcut)
-      ) {
-        errors.push("命令 shortcut 必须是非空字符串");
-      }
-      if (
         contribution.capability !== undefined &&
         !text(contribution.capability)
       ) {

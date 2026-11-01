@@ -19,7 +19,6 @@ export const themePlugin: PluginModule = {
       id: "theme.open",
       capability: "appearance.read",
       label: "打开外观设置",
-      shortcut: "Mod+Shift+T",
       run: () => {
         shellActions.openTheme();
       },

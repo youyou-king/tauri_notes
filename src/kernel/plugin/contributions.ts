@@ -11,7 +11,6 @@ export type PluginCommandContext = {
 export type CommandContribution = {
   id: string;
   label: string;
-  shortcut?: string;
   description?: string;
   capability?: string;
   run?: (context: PluginCommandContext) => void | Promise<void>;

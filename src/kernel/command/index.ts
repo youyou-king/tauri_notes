@@ -4,7 +4,6 @@ export {
 } from "./events";
 export {
   executeCommand,
-  findCommandForEvent,
   getCommand,
   listCommands,
   registerCommand,

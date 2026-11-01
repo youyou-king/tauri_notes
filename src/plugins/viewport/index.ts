@@ -15,7 +15,6 @@ export const viewportPlugin: PluginModule = {
       id: "viewport.pick",
       capability: "document.write",
       label: "选择视图内容",
-      shortcut: "Mod+Alt+V",
     };
     context.registerContribution("commands", command);
     registerUiRenderer(

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { getAction } from "../kernel/action";
 import { getCommand } from "../kernel/command";
 import "./navCommands";
+import "./actions";
 import { CORE_TOOLBAR_ITEMS } from "./coreToolbar";
 
 describe("core toolbar", () => {
@@ -14,6 +16,7 @@ describe("core toolbar", () => {
       order: 90,
     });
     expect(settings?.menu).toBeUndefined();
-    expect(getCommand("settings.open")?.shortcut).toBe("mod+,");
+    expect(getCommand("settings.open")).toBeDefined();
+    expect(getAction("settings.open")?.defaultBindings.length).toBeGreaterThan(0);
   });
 });
