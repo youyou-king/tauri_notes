@@ -1,0 +1,110 @@
+version = 2
+
+# Default keymap for Tauri Notes. User overrides live in keymap.toml and
+# replace the binding for the same action + platform.
+
+[[bindings]]
+action = "settings.open"
+platform = "desktop"
+key = ","
+ctrl = true
+scope = "global"
+
+[[bindings]]
+action = "settings.open"
+platform = "mac"
+key = ","
+meta = true
+scope = "global"
+
+[[bindings]]
+action = "settings.open"
+platform = "mobile"
+surface = "settings.open"
+scope = "mobile"
+
+[[bindings]]
+action = "search.open"
+platform = "desktop"
+key = "p"
+ctrl = true
+scope = "global"
+
+[[bindings]]
+action = "search.open"
+platform = "mac"
+key = "p"
+meta = true
+scope = "global"
+
+[[bindings]]
+action = "search.open"
+platform = "mobile"
+surface = "search.open"
+scope = "mobile"
+
+[[bindings]]
+action = "help.open"
+platform = "mobile"
+surface = "help.open"
+scope = "mobile"
+
+[[bindings]]
+action = "board.open"
+platform = "desktop"
+key = "b"
+ctrl = true
+shift = true
+scope = "global"
+
+[[bindings]]
+action = "board.open"
+platform = "mac"
+key = "b"
+meta = true
+shift = true
+scope = "global"
+
+[[bindings]]
+action = "board.open"
+platform = "mobile"
+surface = "board.open"
+scope = "mobile"
+
+[[bindings]]
+action = "theme.open"
+platform = "desktop"
+key = "t"
+ctrl = true
+shift = true
+scope = "global"
+
+[[bindings]]
+action = "theme.open"
+platform = "mac"
+key = "t"
+meta = true
+shift = true
+scope = "global"
+
+[[bindings]]
+action = "theme.open"
+platform = "mobile"
+surface = "theme.open"
+scope = "mobile"
+
+[[bindings]]
+action = "viewport.pick"
+platform = "desktop"
+key = "v"
+ctrl = true
+alt = true
+scope = "global"
+
+[[bindings]]
+action = "viewport.pick"
+platform = "mac"
+key = "v"
+meta = true
+alt = true
+scope = "global"

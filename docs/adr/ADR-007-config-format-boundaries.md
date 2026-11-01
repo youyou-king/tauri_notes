@@ -39,9 +39,7 @@
 
 ```text
 keymap.toml                 用户快捷键覆盖
-keymap/default-desktop.toml 桌面默认绑定
-keymap/default-mac.toml     macOS 默认绑定
-keymap/default-mobile.toml  移动端默认入口
+resources/keymap/default.toml 内置默认绑定（编译期嵌入）
 config/app.default.toml     应用默认设置（未来）
 ```
 

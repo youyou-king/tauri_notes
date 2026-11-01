@@ -21,6 +21,7 @@
 - 编辑器快照按 `EditorState` 缓存，避免同一 transaction 多订阅重复全量计算。
 - 移动端增加返回栈和“返回”按钮，保留 tab/document 导航历史。
 - 统一 keymap 状态，桌面工具栏根据有效绑定显示 shortcut hint；支持快捷键 TOML 导入/导出。
+- 内置默认 keymap 资源化为 `resources/keymap/default.toml`，编译期嵌入并由 Rust 返回。
 - 新增 E2E：禁用主题插件后仍可打开设置和插件管理器；
 - 配置显式 Tauri CSP；默认启用 WebView 沙箱，保留 `TAURI_NOTES_DISABLE_SANDBOX` 回退；
 - assetProtocol 静态 scope 改为空，打开工作区时动态授权对应目录；

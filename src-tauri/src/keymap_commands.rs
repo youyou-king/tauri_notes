@@ -27,6 +27,16 @@ pub struct KeymapBinding {
     pub shift: bool,
 }
 
+const DEFAULT_KEYMAP: &str = include_str!("../../resources/keymap/default.toml");
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KeymapView {
+    pub version: u32,
+    pub bindings: Vec<KeymapBinding>,
+    pub defaults: Vec<KeymapBinding>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct KeymapFile {
@@ -197,9 +207,22 @@ fn write_keymap(path: &PathBuf, keymap: &KeymapFile) -> Result<(), String> {
     fs::write(path, text).map_err(|error| format!("写入 keymap 失败: {error}"))
 }
 
+fn default_keymap() -> Result<KeymapFile, String> {
+    let parsed: KeymapFile =
+        toml::from_str(DEFAULT_KEYMAP).map_err(|error| format!("内置 keymap 解析失败: {error}"))?;
+    validate_keymap(&parsed)?;
+    Ok(parsed)
+}
+
 #[tauri::command]
-pub fn load_keymap(app: AppHandle) -> Result<KeymapFile, String> {
-    read_keymap(&keymap_path(&app)?)
+pub fn load_keymap(app: AppHandle) -> Result<KeymapView, String> {
+    let user = read_keymap(&keymap_path(&app)?)?;
+    let defaults = default_keymap()?;
+    Ok(KeymapView {
+        version: user.version,
+        bindings: user.bindings,
+        defaults: defaults.bindings,
+    })
 }
 
 #[tauri::command]
@@ -275,6 +298,13 @@ surface = "search.open"
         let text = toml::to_string_pretty(&keymap).expect("serialize");
         assert!(text.contains("[[bindings]]"));
         assert!(text.contains("action = \"settings.open\""));
+    }
+
+    #[test]
+    fn embedded_default_keymap_is_valid() {
+        let keymap = default_keymap().expect("default keymap");
+        assert_eq!(keymap.version, 2);
+        assert!(!keymap.bindings.is_empty());
     }
 
     #[test]

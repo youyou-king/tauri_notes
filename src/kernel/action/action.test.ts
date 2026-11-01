@@ -216,6 +216,36 @@ describe("input router", () => {
     ).toBe(false);
   });
 });
+describe("keymap profile defaults", () => {
+  it("uses TOML defaults for covered actions", () => {
+    const original = action("test.profile");
+    const [merged] = applyKeymap([original], {
+      version: 2,
+      bindings: [],
+      defaults: [
+        {
+          action: "test.profile",
+          platform: "desktop",
+          key: "j",
+          ctrl: true,
+        },
+      ],
+    });
+    expect(
+      merged.defaultBindings.some(
+        (binding) =>
+          binding.kind === "key" && binding.key === "j",
+      ),
+    ).toBe(true);
+    expect(
+      merged.defaultBindings.some(
+        (binding) =>
+          binding.kind === "key" && binding.key === "p",
+      ),
+    ).toBe(false);
+  });
+});
+
 describe("keymap overrides", () => {
   it("replaces only the overridden platform", () => {
     const original = action("test.override", {

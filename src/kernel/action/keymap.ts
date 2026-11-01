@@ -20,6 +20,7 @@ export type KeymapRecord = {
 export type KeymapDocument = {
   version: number;
   bindings: KeymapRecord[];
+  defaults?: KeymapRecord[];
 };
 
 function recordToBinding(record: KeymapRecord): ActionBinding | null {
@@ -55,34 +56,62 @@ function recordToBinding(record: KeymapRecord): ActionBinding | null {
  * defaults for the same platform, so a platform can be remapped without
  * touching the other platforms' defaults.
  */
+function groupRecords(
+  records: KeymapRecord[] | undefined,
+): Map<string, KeymapRecord[]> {
+  const grouped = new Map<string, KeymapRecord[]>();
+  for (const record of records ?? []) {
+    const bucket = grouped.get(record.action) ?? [];
+    bucket.push(record);
+    grouped.set(record.action, bucket);
+  }
+  return grouped;
+}
+
+function recordsToBindings(records: KeymapRecord[]): ActionBinding[] {
+  return records
+    .map(recordToBinding)
+    .filter((binding): binding is ActionBinding => binding !== null);
+}
+
+/**
+ * Applies the TOML-provided defaults and user overrides on top of the action
+ * definitions. A TOML profile becomes the source of truth for the actions it
+ * covers; actions without a profile entry keep their code fallback.
+ */
 export function applyKeymap(
   definitions: ActionDefinition[],
   document: KeymapDocument | null,
 ): ActionDefinition[] {
-  if (!document || document.bindings.length === 0) {
+  if (!document) {
     return definitions;
   }
-  const byAction = new Map<string, KeymapRecord[]>();
-  for (const record of document.bindings) {
-    const bucket = byAction.get(record.action) ?? [];
-    bucket.push(record);
-    byAction.set(record.action, bucket);
+  const defaultsByAction = groupRecords(document.defaults);
+  const userByAction = groupRecords(document.bindings);
+  const hasDefaults = defaultsByAction.size > 0;
+  if (!hasDefaults && userByAction.size === 0) {
+    return definitions;
   }
   return definitions.map((action) => {
-    const records = byAction.get(action.id);
-    if (!records || records.length === 0) {
-      return action;
+    const profileDefaults = defaultsByAction.get(action.id);
+    const base = profileDefaults
+      ? recordsToBindings(profileDefaults)
+      : action.defaultBindings;
+    const userRecords = userByAction.get(action.id);
+    if (!userRecords || userRecords.length === 0) {
+      return base === action.defaultBindings
+        ? action
+        : { ...action, defaultBindings: base };
     }
-    const overriddenPlatforms = new Set(records.map((record) => record.platform));
-    const defaults = action.defaultBindings.filter(
+    const overriddenPlatforms = new Set(
+      userRecords.map((record) => record.platform),
+    );
+    const retained = base.filter(
       (binding) => !overriddenPlatforms.has(binding.platform),
     );
-    const bindings = records
-      .map(recordToBinding)
-      .filter((binding): binding is ActionBinding => binding !== null);
     return {
       ...action,
-      defaultBindings: [...defaults, ...bindings],
+      defaultBindings: [...retained, ...recordsToBindings(userRecords)],
     };
   });
 }

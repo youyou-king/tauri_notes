@@ -29,10 +29,16 @@ export const keymapService = {
             .map(normalizeRecord)
             .filter((record): record is KeymapRecord => record !== null)
         : [];
+      const defaults = Array.isArray(document?.defaults)
+        ? document.defaults
+            .map(normalizeRecord)
+            .filter((record): record is KeymapRecord => record !== null)
+        : [];
       return {
         version:
           typeof document?.version === "number" ? document.version : 2,
         bindings,
+        defaults,
       };
     } catch {
       // A missing/malformed keymap must not block startup; defaults still work.
