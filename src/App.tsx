@@ -189,6 +189,7 @@ function App() {
     backupLibrary,
     createKnowledgeBase,
     openWorkspace,
+    openWorkspacePath,
     openHelp,
     restoreSession,
     openOnlyWorkspace,
@@ -290,6 +291,7 @@ function App() {
         dockRef={dockRef}
         onOpenWorkspace={openWorkspace}
         onCreateKnowledgeBase={createKnowledgeBase}
+        onOpenWorkspacePath={openWorkspacePath}
         workspace={workspace}
         workspaces={workspaces}
         activeMap={activeMap}

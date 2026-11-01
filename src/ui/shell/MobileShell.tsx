@@ -1,5 +1,9 @@
 import { Suspense, useEffect, useState } from "react";
 import { documentService } from "../../application/documentService";
+import {
+  managedLibraryService,
+  type ManagedLibrarySummary,
+} from "../../application/managedLibraryService";
 import { useMobileShellStore } from "../../application/stores/mobileShellStore";
 import { MobileActionSheet } from "./MobileActionSheet";
 import { useLongPress } from "../interaction/useLongPress";
@@ -147,6 +151,7 @@ export function MobileShell({
   board,
   onOpenWorkspace,
   onCreateKnowledgeBase,
+  onOpenWorkspacePath,
 }: {
   workspace: WorkspaceView | null;
   activeMap: MapView | null;
@@ -154,6 +159,7 @@ export function MobileShell({
   board: BoardControllerPort;
   onOpenWorkspace?: () => Promise<void> | void;
   onCreateKnowledgeBase?: () => Promise<void> | void;
+  onOpenWorkspacePath?: (path: string) => Promise<void> | void;
 }) {
   const {
     tab,
@@ -170,6 +176,9 @@ export function MobileShell({
   const loadKeymap = useKeymapStore((state) => state.load);
   const [menuDocument, setMenuDocument] =
     useState<MobileDocumentLink | null>(null);
+  const [managedLibraries, setManagedLibraries] = useState<
+    ManagedLibrarySummary[]
+  >([]);
   const map = activeMap ?? workspace?.maps[0] ?? null;
   const swipeBack = useSwipeBack({
     onBack: () => {
@@ -188,6 +197,28 @@ export function MobileShell({
   useEffect(() => {
     hydrate(workspace?.root ?? null);
   }, [hydrate, workspace?.root]);
+
+  useEffect(() => {
+    if (tab !== "library") {
+      return;
+    }
+    let cancelled = false;
+    void managedLibraryService
+      .list()
+      .then((libraries) => {
+        if (!cancelled) {
+          setManagedLibraries(Array.isArray(libraries) ? libraries : []);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setManagedLibraries([]);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, workspace?.root]);
 
   useEffect(() => {
     return onAppEvent(APP_EVENTS.openBlockDocument, (documentId) => {
@@ -393,22 +424,46 @@ export function MobileShell({
             onOpenDocument={openDocument}
           />
         ) : tab === "library" ? (
-          documents.length > 0 ? (
-            <div className="mobile-library">
-              {documents.map((document) => (
-                <MobileLibraryRow
-                  key={document.id}
-                  document={document}
-                  onOpen={openDocument}
-                  onMenu={setMenuDocument}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="mobile-shell-empty">
-              <p>当前导图还没有文档。</p>
-            </div>
-          )
+          <div className="mobile-library-view">
+            <section className="mobile-managed-libraries">
+              <h2>本机书库</h2>
+              {managedLibraries.length === 0 ? (
+                <p>还没有导入或新建书库。</p>
+              ) : (
+                <div className="mobile-managed-library-list">
+                  {managedLibraries.map((library) => (
+                    <button
+                      key={library.id}
+                      type="button"
+                      className={
+                        workspace.root === library.path ? "active" : ""
+                      }
+                      onClick={() => void onOpenWorkspacePath?.(library.path)}
+                    >
+                      <strong>{library.title}</strong>
+                      {workspace.root === library.path && <span>当前</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </section>
+            {documents.length > 0 ? (
+              <div className="mobile-library">
+                {documents.map((document) => (
+                  <MobileLibraryRow
+                    key={document.id}
+                    document={document}
+                    onOpen={openDocument}
+                    onMenu={setMenuDocument}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="mobile-shell-empty">
+                <p>当前导图还没有文档。</p>
+              </div>
+            )}
+          </div>
         ) : documentId ? (
           <div className="mobile-document-shell" {...swipeBack}>
             <div className="mobile-document-actions">
