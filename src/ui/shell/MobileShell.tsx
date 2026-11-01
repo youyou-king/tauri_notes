@@ -156,13 +156,11 @@ export function MobileShell({
     editing,
     hydrate,
     setTab: setStoredTab,
-    openDocument: openStoredDocument,
-    back,
     history,
     reset: resetMobile,
     setEditing,
   } = useMobileShellStore();
-  const { dialogs, documentActions } = useRuntimeServices();
+  const { dialogs, documentActions, navigation } = useRuntimeServices();
   const keymap = useKeymapStore((state) => state.document);
   const loadKeymap = useKeymapStore((state) => state.load);
   const [menuDocument, setMenuDocument] =
@@ -170,10 +168,7 @@ export function MobileShell({
   const map = activeMap ?? workspace?.maps[0] ?? null;
   const swipeBack = useSwipeBack({
     onBack: () => {
-      if (editing) {
-        emitAppEvent(APP_EVENTS.saveNow);
-      }
-      back();
+      navigation.back();
     },
     edgeOnly: editing,
   });
@@ -196,10 +191,10 @@ export function MobileShell({
         if (current.editing) {
           emitAppEvent(APP_EVENTS.saveNow);
         }
-        current.openDocument(documentId);
+        navigation.openDocument(documentId);
       }
     });
-  }, []);
+  }, [navigation]);
 
   if (!workspace || !map) {
     return (
@@ -223,8 +218,7 @@ export function MobileShell({
   };
 
   const openDocument = (id: string) => {
-    requestSave();
-    openStoredDocument(id);
+    navigation.openDocument(id);
   };
 
 
@@ -269,7 +263,7 @@ export function MobileShell({
       emitAppEvent(APP_EVENTS.documentChanged);
       if (documentId === document.id) {
         requestSave();
-        if (!back()) {
+        if (!navigation.back()) {
           resetMobile();
         }
       }
@@ -335,8 +329,7 @@ export function MobileShell({
             type="button"
             aria-label="返回"
             onClick={() => {
-              requestSave();
-              back();
+              navigation.back();
             }}
           >
             返回

@@ -5,6 +5,7 @@ import { createDesktopLibrary } from "./services/library";
 import { createDesktopDialogs } from "./services/dialogs";
 import { createDesktopDocumentActions } from "./services/documentActions";
 import { createWorkspacePresenter } from "./services/workspacePresenter";
+import { createDesktopNavigation } from "./services/navigation";
 
 export function createDesktopRuntime(profile: ShellProfile): Runtime {
   return {
@@ -16,6 +17,7 @@ export function createDesktopRuntime(profile: ShellProfile): Runtime {
       dialogs: createDesktopDialogs(),
       documentActions: createDesktopDocumentActions(),
       workspacePresenter: createWorkspacePresenter(),
+      navigation: createDesktopNavigation(),
     },
   };
 }
