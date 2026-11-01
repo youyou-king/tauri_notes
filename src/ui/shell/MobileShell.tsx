@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   managedLibraryService,
   type ManagedLibrarySummary,
@@ -19,17 +19,14 @@ import {
 } from "../../kernel/action";
 import { useKeymapStore } from "../../application/stores/keymapStore";
 import { runCommandById } from "../../kernel/command";
-import {
-  PanelContext,
-  type PanelContextValue,
-} from "../panels/PanelContext";
+import type { PanelContextValue } from "../panels/PanelContext";
 import MindMap from "../../components/MindMap";
 import type { MapView, NodeView, WorkspaceView } from "../../types";
 import { shellActions } from "./shellActions";
 import { APP_EVENTS, emitAppEvent, onAppEvent } from "../../kernel/events";
-import { MobileDocumentView } from "../mobile/MobileDocumentView";
 import { MobileLibraryRow } from "../mobile/MobileLibraryRow";
 import { MobileManagedLibraries } from "../mobile/MobileManagedLibraries";
+import { MobileDocumentPane } from "../mobile/MobileDocumentPane";
 import { MobileHeader } from "../mobile/MobileHeader";
 import { MobileTabBar } from "../mobile/MobileTabBar";
 import type { MobileDocumentLink } from "../mobile/types";
@@ -368,54 +365,20 @@ export function MobileShell({
             )}
           </div>
         ) : documentId ? (
-          <div className="mobile-document-shell" {...swipeBack}>
-            <div className="mobile-document-actions">
-              {editing ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      emitAppEvent(APP_EVENTS.saveNow)
-                    }
-                  >
-                    保存
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      emitAppEvent(APP_EVENTS.saveNow);
-                      setEditing(false);
-                    }}
-                  >
-                    完成
-                  </button>
-                </>
-              ) : (
-                <button type="button" onClick={() => setEditing(true)}>
-                  编辑
-                </button>
-              )}
-            </div>
-            {editing && DocumentView ? (
-              <PanelContext.Provider value={panelContext}>
-                <Suspense
-                  fallback={
-                    <div className="panel-loading">加载编辑器…</div>
-                  }
-                >
-                  <DocumentView
-                    workspaceRoot={workspace.root}
-                    documentId={documentId}
-                  />
-                </Suspense>
-              </PanelContext.Provider>
-            ) : (
-              <MobileDocumentView
-                workspaceRoot={workspace.root}
-                documentId={documentId}
-              />
-            )}
-          </div>
+          <MobileDocumentPane
+            workspaceRoot={workspace.root}
+            documentId={documentId}
+            editing={editing}
+            panelContext={panelContext}
+            DocumentView={DocumentView}
+            swipeHandlers={swipeBack}
+            onSave={() => emitAppEvent(APP_EVENTS.saveNow)}
+            onDone={() => {
+              emitAppEvent(APP_EVENTS.saveNow);
+              setEditing(false);
+            }}
+            onEdit={() => setEditing(true)}
+          />
         ) : (
           <div className="mobile-shell-empty">
             <p>从导图或目录打开一篇文档。</p>
