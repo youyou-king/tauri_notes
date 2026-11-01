@@ -1,29 +1,78 @@
 use std::fs;
-use std::path::PathBuf;
-
-use tauri_notes_platform::{NativePlatform, PlatformAdapter};
+use std::path::{Path, PathBuf};
 
 const THEMES_DIR: &str = "themes";
 
-fn themes_dir() -> Result<PathBuf, String> {
-    let dir = NativePlatform::new().data_dir()?.join(THEMES_DIR);
-    fs::create_dir_all(&dir)
-        .map_err(|error| format!("无法创建主题目录：{error}"))?;
-    migrate_legacy_themes(&dir);
-    Ok(dir)
+/// Theme storage rooted at an injected data directory. The crate no longer
+/// constructs NativePlatform or decides where app data lives.
+pub struct ThemeStore {
+    data_dir: PathBuf,
+    legacy_dir: Option<PathBuf>,
 }
 
-fn migrate_legacy_themes(target: &std::path::Path) {
-    let Some(legacy) = NativePlatform::new().legacy_theme_dir() else {
-        return;
-    };
-    migrate_themes_from(target, &legacy);
+impl ThemeStore {
+    pub fn new(data_dir: PathBuf, legacy_dir: Option<PathBuf>) -> Self {
+        Self {
+            data_dir,
+            legacy_dir,
+        }
+    }
+
+    fn themes_dir(&self) -> Result<PathBuf, String> {
+        let dir = self.data_dir.join(THEMES_DIR);
+        fs::create_dir_all(&dir)
+            .map_err(|error| format!("无法创建主题目录：{error}"))?;
+        if let Some(legacy) = self.legacy_dir.as_deref() {
+            migrate_legacy_themes(&dir, legacy);
+        }
+        Ok(dir)
+    }
+
+    pub fn list(&self) -> Result<Vec<String>, String> {
+        let dir = self.themes_dir()?;
+        let mut themes = Vec::new();
+        for entry in fs::read_dir(&dir).map_err(|error| error.to_string())? {
+            let entry = entry.map_err(|error| error.to_string())?;
+            let path = entry.path();
+            if path.extension().and_then(|value| value.to_str()) != Some("json") {
+                continue;
+            }
+            if let Ok(text) = fs::read_to_string(&path) {
+                themes.push(text);
+            }
+        }
+        themes.sort();
+        Ok(themes)
+    }
+
+    pub fn save(&self, id: &str, json: &str) -> Result<(), String> {
+        if !valid_id(id) {
+            return Err("非法主题 id".to_string());
+        }
+        if json.is_empty() || json.len() > 64 * 1024 {
+            return Err("主题内容为空或过大".to_string());
+        }
+        let path = self.themes_dir()?.join(format!("{id}.theme.json"));
+        fs::write(path, json).map_err(|error| format!("保存主题失败：{error}"))
+    }
+
+    pub fn delete(&self, id: &str) -> Result<(), String> {
+        if !valid_id(id) {
+            return Err("非法主题 id".to_string());
+        }
+        let path = self.themes_dir()?.join(format!("{id}.theme.json"));
+        if path.exists() {
+            fs::remove_file(path).map_err(|error| format!("删除主题失败：{error}"))?;
+        }
+        Ok(())
+    }
 }
 
-fn migrate_themes_from(
-    target: &std::path::Path,
-    legacy: &std::path::Path,
-) {
+fn migrate_legacy_themes(target: &Path, legacy: &Path) {
+    migrate_themes_from(target, legacy);
+}
+
+fn migrate_themes_from(target: &Path, legacy: &Path) {
     let Ok(entries) = fs::read_dir(legacy) else {
         return;
     };
@@ -58,48 +107,9 @@ fn valid_id(id: &str) -> bool {
             .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
 }
 
-pub fn list() -> Result<Vec<String>, String> {
-    let dir = themes_dir()?;
-    let mut themes = Vec::new();
-    for entry in fs::read_dir(&dir).map_err(|error| error.to_string())? {
-        let entry = entry.map_err(|error| error.to_string())?;
-        let path = entry.path();
-        if path.extension().and_then(|value| value.to_str()) != Some("json") {
-            continue;
-        }
-        if let Ok(text) = fs::read_to_string(&path) {
-            themes.push(text);
-        }
-    }
-    themes.sort();
-    Ok(themes)
-}
-
-pub fn save(id: &str, json: &str) -> Result<(), String> {
-    if !valid_id(id) {
-        return Err("非法主题 id".to_string());
-    }
-    if json.is_empty() || json.len() > 64 * 1024 {
-        return Err("主题内容为空或过大".to_string());
-    }
-    let path = themes_dir()?.join(format!("{id}.theme.json"));
-    fs::write(path, json).map_err(|error| format!("保存主题失败：{error}"))
-}
-
-pub fn delete(id: &str) -> Result<(), String> {
-    if !valid_id(id) {
-        return Err("非法主题 id".to_string());
-    }
-    let path = themes_dir()?.join(format!("{id}.theme.json"));
-    if path.exists() {
-        fs::remove_file(path).map_err(|error| format!("删除主题失败：{error}"))?;
-    }
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{migrate_themes_from, valid_id};
+    use super::{migrate_themes_from, valid_id, ThemeStore};
     use std::fs;
     use std::path::PathBuf;
 
@@ -158,6 +168,17 @@ mod tests {
         let target = root.join("target");
         fs::create_dir_all(&target).unwrap();
         migrate_themes_from(&target, &root.join("missing"));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn store_reads_saves_and_deletes_from_injected_directory() {
+        let root = temp_root("store");
+        let store = ThemeStore::new(root.join("data"), None);
+        store.save("ocean", "{\"id\":\"ocean\"}").unwrap();
+        assert_eq!(store.list().unwrap().len(), 1);
+        store.delete("ocean").unwrap();
+        assert!(store.list().unwrap().is_empty());
         fs::remove_dir_all(root).unwrap();
     }
 

@@ -2,7 +2,7 @@
 
 Rust 侧插件与内核 crate。
 
-> 最后核对：2026-11-01 | 当前版本 v0.1.1 | 基线 217 / 48 / 37
+> 最后核对：2026-11-01 | 当前版本 v0.1.1 | 基线 217 / 49 / 37
 
 ## 布局
 
@@ -78,6 +78,7 @@ workspace
 └─ file and database search
 
 theme
+├─ ThemeStore（注入 data/legacy 目录）
 ├─ custom theme list / save / delete
 ├─ theme id validation
 └─ legacy theme migration

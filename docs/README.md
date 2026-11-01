@@ -60,7 +60,7 @@
 7. **设置入口属于 shell**：核心工具栏“设置”、`settings.open` 和 `Ctrl/Cmd + ,`；主题菜单只是另一个入口；插件管理器是核心设置区 `core.plugins`。
 8. **验收基线**：
    - 前端单元测试 217 个；
-   - Rust 单元测试 48 个；
+   - Rust 单元测试 49 个；
    - Playwright E2E / 视觉回归 37 个；
    - 安装包载荷、解包流程已在 Windows CI 验证；
    - 真实中文 IME 仍需在目标输入法环境人工确认。
@@ -70,7 +70,7 @@
 12. **安装器、应用和卸载器使用 `asInvoker`**，不请求管理员权限；默认只写入用户选择的安装目录，系统集成仅在用户勾选时创建。
 13. **发布物不进入 Git**：安装包作为 GitHub Releases 资产发布，源码仓库不保存二进制。
 14. **使用帮助**：`help.note` 已补充回收站、数据校验与备份、设置入口；可从顶部“帮助”打开。
-15. **移动端当前是响应式 compact Shell，不是原生目标**：Android/iOS 工程尚未初始化；Runtime + Shell 的 Phase 1 已落地，Library/Dialog/DocumentActions/WorkspacePresenter/Navigation 端口已落地，document open/rename/delete Action 与 Rust 入口拆分已落地；完整顺序见 [平台抽象与移动端重构方案](平台抽象与移动端重构方案.md)。
+15. **移动端当前是响应式 compact Shell，不是原生目标**：Android/iOS 工程尚未初始化；Runtime + Shell 的 Phase 1 已落地，Library/Dialog/DocumentActions/WorkspacePresenter/Navigation 端口已落地，document open/rename/delete Action、Rust 入口拆分与 ThemeStore 注入已落地；完整顺序见 [平台抽象与移动端重构方案](平台抽象与移动端重构方案.md)。
 16. **远程笔记/多端同步**：列为待讨论，不进入当前平台重构范围；约束和待决策项见方案第 19 节。
 
 ## 文档维护规则
