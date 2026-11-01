@@ -1,11 +1,11 @@
 import { Suspense, useEffect, useState } from "react";
 import { documentService } from "../../application/documentService";
 import { useMobileShellStore } from "../../application/stores/mobileShellStore";
-import { confirmDialog } from "../dialog/confirmDialog";
 import { MobileActionSheet } from "./MobileActionSheet";
 import { useLongPress } from "../interaction/useLongPress";
 import { useSwipeBack } from "../interaction/useSwipeBack";
 import { useSwipeLeft } from "../interaction/useSwipeLeft";
+import { useRuntimeServices } from "../../runtime";
 import type { MobileTab } from "../../application/stores/mobileShellStore";
 import type { StoredBlock } from "../../domain/importedDocument";
 import type { BoardControllerPort } from "../../kernel/panel/boardPort";
@@ -162,6 +162,7 @@ export function MobileShell({
     reset: resetMobile,
     setEditing,
   } = useMobileShellStore();
+  const { dialogs, documentActions } = useRuntimeServices();
   const keymap = useKeymapStore((state) => state.document);
   const loadKeymap = useKeymapStore((state) => state.load);
   const [menuDocument, setMenuDocument] =
@@ -228,24 +229,29 @@ export function MobileShell({
 
 
   const renameDocument = async (document: MobileDocumentLink) => {
-    const next = window.prompt("重命名文档", document.title)?.trim();
+    const next = (
+      await dialogs.prompt({
+        title: "重命名文档",
+        defaultValue: document.title,
+      })
+    )?.trim();
     if (!next || next === document.title) {
       return;
     }
     try {
-      await documentService.rename(workspace.root, document.id, next);
+      await documentActions.rename(workspace.root, document.id, next);
       emitAppEvent(APP_EVENTS.documentRenamed, {
         documentId: document.id,
         title: next,
       });
       emitAppEvent(APP_EVENTS.documentChanged);
     } catch (error) {
-      window.alert(String(error));
+      dialogs.alert(String(error));
     }
   };
 
   const deleteDocument = async (document: MobileDocumentLink) => {
-    const confirmed = await confirmDialog({
+    const confirmed = await dialogs.confirm({
       title: "删除文档？",
       message: `“${document.title}”会移到回收站，可稍后恢复。`,
       confirmLabel: "移到回收站",
@@ -255,7 +261,7 @@ export function MobileShell({
       return;
     }
     try {
-      await documentService.delete(workspace.root, document.id);
+      await documentActions.moveToTrash(workspace.root, document.id);
       emitAppEvent(APP_EVENTS.documentDeleted, {
         documentId: document.id,
         root: workspace.root,
@@ -268,7 +274,7 @@ export function MobileShell({
         }
       }
     } catch (error) {
-      window.alert(String(error));
+      dialogs.alert(String(error));
     }
   };
 

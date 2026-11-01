@@ -3,7 +3,7 @@ import type { DockWorkspaceHandle } from "./components/DockWorkspace";
 import { SettingsHost } from "./ui/settings/SettingsHost";
 import { PluginOverlays } from "./ui/plugins/PluginOverlays";
 import { setSearchHitHandler } from "./app/searchNavigation";
-import { useRuntime } from "./runtime";
+import { RuntimeProvider, useRuntime } from "./runtime";
 import { useBoardController } from "./app/useBoardController";
 import { useWorkspaceSelectionStore } from "./application/stores/workspaceSelectionStore";
 import {
@@ -206,6 +206,7 @@ function App() {
     appendLog,
     confirmDiscard,
     dockRef,
+    library: runtime.services.library,
   });
 
   const openRequestedWorkspace = useCallback(
@@ -273,11 +274,12 @@ function App() {
   useNoteDrop(openRequestedWorkspace);
 
   return (
-    <div
-      className="app"
-      data-shell={runtime.shellKind}
-      data-shell-layout={runtime.layout}
-    >
+    <RuntimeProvider runtime={runtime}>
+      <div
+        className="app"
+        data-shell={runtime.shellKind}
+        data-shell-layout={runtime.layout}
+      >
       <Shell
         pluginReady={pluginReady}
         backend={backend}
@@ -312,8 +314,9 @@ function App() {
 
       <PluginOverlays />
       <SettingsHost />
-      <ConfirmDialogHost />
-    </div>
+        <ConfirmDialogHost />
+      </div>
+    </RuntimeProvider>
   );
 }
 

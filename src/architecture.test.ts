@@ -181,3 +181,20 @@ describe("runtime composition boundary", () => {
     expect(app).not.toContain("shell.kind");
   });
 });
+
+
+describe("platform ports", () => {
+  it("keeps Tauri dialog access out of UI", () => {
+    const violations = Object.entries(allSources)
+      .filter(([file]) => file.startsWith("./ui/"))
+      .filter(([, source]) => source.includes("@tauri-apps/plugin-dialog"))
+      .map(([file]) => file);
+    expect(violations).toEqual([]);
+  });
+
+  it("keeps document mutations out of the mobile shell", () => {
+    const shell = allSources["./ui/shell/MobileShell.tsx"] ?? "";
+    expect(shell).not.toContain("documentService.rename");
+    expect(shell).not.toContain("documentService.delete");
+  });
+});

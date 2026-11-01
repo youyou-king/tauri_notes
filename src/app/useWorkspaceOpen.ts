@@ -1,7 +1,6 @@
 import type { RefObject } from "react";
-import { appDataDir, join } from "@tauri-apps/api/path";
-import { open, save } from "@tauri-apps/plugin-dialog";
 import type { DockWorkspaceHandle } from "../components/DockWorkspace";
+import type { LibraryPort } from "../application/ports/libraryPort";
 import { findNode } from "../domain/tree";
 import { ensureLibrary } from "../infrastructure/libraryBootstrapper";
 import { workspaceService } from "../application/workspaceService";
@@ -46,17 +45,8 @@ type Args = {
   appendLog: (line: string) => void;
   confirmDiscard: () => Promise<boolean>;
   dockRef: RefObject<DockWorkspaceHandle | null>;
+  library: LibraryPort;
 };
-
-async function defaultNotePath(): Promise<string> {
-  const lastDirectory = window.localStorage.getItem(
-    "tauri-notes.last-note-directory",
-  );
-  if (lastDirectory) {
-    return join(lastDirectory, "未命名.note");
-  }
-  return join(await appDataDir(), "knowledge", "未命名.note");
-}
 
 function isDemoRoot(root: string): boolean {
   return /(^|[\\/])sample\.notes[\\/]*$/i.test(root.trim());
@@ -76,6 +66,7 @@ export function useWorkspaceOpen({
   appendLog,
   confirmDiscard,
   dockRef,
+  library,
 }: Args) {
   async function backupLibrary() {
     if (!workspace) {
@@ -154,12 +145,8 @@ export function useWorkspaceOpen({
     setError(null);
     let pickedPath: string | null = null;
     try {
-      const picked = await save({
-        title: "新建知识库",
-        defaultPath: await defaultNotePath(),
-        filters: [{ name: "Notes 知识库", extensions: ["note"] }],
-      });
-      if (!picked || Array.isArray(picked)) {
+      const picked = await library.pickNew();
+      if (!picked) {
         return;
       }
       pickedPath = picked;
@@ -202,13 +189,8 @@ export function useWorkspaceOpen({
     }
     setError(null);
     try {
-      const picked = await open({
-        directory: false,
-        multiple: false,
-        filters: [{ name: "Notes 知识库", extensions: ["note"] }],
-        title: "打开 .note 知识库",
-      });
-      if (!picked || Array.isArray(picked)) {
+      const picked = await library.pickExisting();
+      if (!picked) {
         return;
       }
       await openWorkspacePath(picked, { skipDiscardCheck: true });

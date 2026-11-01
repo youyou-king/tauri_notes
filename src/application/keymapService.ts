@@ -1,4 +1,5 @@
 import type { KeymapDocument, KeymapRecord } from "../kernel/action";
+import { open, save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { command } from "../infrastructure/tauri/client";
 
 const EMPTY_KEYMAP: KeymapDocument = {
@@ -54,7 +55,32 @@ export const keymapService = {
     return command("export_keymap", { path, keymap: document });
   },
 
+  async exportWithDialog(document: KeymapDocument): Promise<boolean> {
+    const path = await saveDialog({
+      title: "导出快捷键",
+      defaultPath: "keymap.toml",
+      filters: [{ name: "TOML", extensions: ["toml"] }],
+    });
+    if (typeof path !== "string") {
+      return false;
+    }
+    await this.export(path, document);
+    return true;
+  },
+
   import(path: string): Promise<KeymapDocument> {
     return command<KeymapDocument>("import_keymap", { path });
+  },
+
+  async importWithDialog(): Promise<KeymapDocument | null> {
+    const path = await open({
+      title: "导入快捷键",
+      multiple: false,
+      filters: [{ name: "TOML", extensions: ["toml"] }],
+    });
+    if (typeof path !== "string") {
+      return null;
+    }
+    return this.import(path);
   },
 };
