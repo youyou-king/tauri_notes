@@ -4,7 +4,6 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -22,6 +21,7 @@ import {
   readThemeSelection,
   writeThemeSelection,
 } from "./themeStorage";
+import { useBaseThemeTokens } from "./useBaseThemeTokens";
 
 export type { ThemeManifest, ThemeMode, ThemeSelection };
 
@@ -66,7 +66,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     () => window.matchMedia(DARK_QUERY).matches,
   );
   const [appearanceActive, setAppearanceActive] = useState(false);
-  const appliedTokens = useRef<string[]>([]);
 
   const activeCustom = mode.startsWith("custom:")
     ? customThemes.find((theme) => `custom:${theme.id}` === mode)
@@ -140,31 +139,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
   }, [activeCustom, mode]);
 
-  useEffect(() => {
-    if (appearanceActive) {
-      // Appearance packs own the color token layer while active. The base
-      // theme is applied again when the pack is rolled back.
-      return;
-    }
-    const root = document.documentElement;
-    for (const token of appliedTokens.current) {
-      root.style.removeProperty(token);
-    }
-    appliedTokens.current = [];
-
-    if (activeCustom) {
-      for (const [token, value] of Object.entries(activeCustom.tokens)) {
-        root.style.setProperty(token, value);
-        appliedTokens.current.push(token);
-      }
-      root.dataset.theme = activeCustom.base;
-      root.dataset.themeMode = mode;
-      return;
-    }
-
-    root.dataset.theme = resolved;
-    root.dataset.themeMode = mode;
-  }, [activeCustom, appearanceActive, mode, resolved]);
+  useBaseThemeTokens(activeCustom, appearanceActive, mode, resolved);
 
   const setMode = useCallback((next: ThemeSelection) => {
     setModeState(next);

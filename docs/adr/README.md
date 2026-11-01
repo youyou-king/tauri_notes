@@ -9,3 +9,4 @@
 | [ADR-003](ADR-003-state-ownership-and-selectors.md) | 状态所有权与字段级 selector |
 | [ADR-004](ADR-004-persistence-and-migrations.md) | 持久化与迁移 |
 | [ADR-005](ADR-005-security-and-install-model.md) | CSP、asset scope 与安装模型 |
+| [ADR-006](ADR-006-theme-runtime-layering.md) | 主题运行时分层，不合并为单运行时 |
