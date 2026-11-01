@@ -991,3 +991,23 @@ test("opens the mobile document action sheet from contextmenu", async ({
     page.getByRole("button", { name: "移到回收站" }),
   ).toBeVisible();
 });
+
+test("keeps mobile and tablet shells usable at narrow widths", async ({
+  page,
+}) => {
+  for (const width of [390, 600]) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto("/e2e/fixtures/e2e.html");
+    await expect(page.locator(".mobile-shell")).toBeVisible();
+    await expect(page.locator(".mobile-tabbar")).toBeVisible();
+    await expect(page.locator(".app")).toHaveAttribute(
+      "data-shell",
+      "mobile",
+    );
+  }
+
+  await page.setViewportSize({ width: 768, height: 900 });
+  await page.goto("/e2e/fixtures/e2e.html");
+  await expect(page.locator(".app")).toHaveAttribute("data-shell", "tablet");
+  await expect(page.locator(".body")).toBeVisible();
+});

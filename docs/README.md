@@ -34,6 +34,7 @@
 | [ADR-007](adr/ADR-007-config-format-boundaries.md) | 配置用 TOML、运行时状态用 JSON、内容用 SQLite |
 | [主题插件](主题插件.md) | 主题运行时、`.tnlook`、签名与测试 |
 | [Rust crates](Rust-crates.md) | Rust workspace 结构、职责和依赖规则 |
+| [移动端真机检查清单](移动端真机检查清单.md) | 390/600/768、手势、键盘、书库、生命周期手工验收 | 待真机执行 |
 
 ## 已清理文档
 
