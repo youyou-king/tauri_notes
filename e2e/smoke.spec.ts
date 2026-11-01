@@ -106,11 +106,14 @@ test("syncs heading toolbar state with the current line", async ({
 
   const h1 = page.getByTitle("一级标题");
   const h2 = page.getByTitle("二级标题");
-
-  await page
-    .locator(".block-prototype-prosemirror")
-    .getByText("测试标题")
-    .click();
+  const editor = page.locator(".block-prototype-prosemirror");
+  await expect(editor).toBeVisible();
+  const heading = editor.getByRole("heading", {
+    name: "测试标题",
+    exact: true,
+  });
+  await expect(heading).toBeVisible();
+  await heading.click();
   await expect(h1).toHaveClass(/active/);
   await expect(h2).not.toHaveClass(/active/);
 
@@ -118,10 +121,11 @@ test("syncs heading toolbar state with the current line", async ({
   await expect(h2).toHaveClass(/active/);
   await expect(h1).not.toHaveClass(/active/);
 
-  await page
-    .locator(".block-prototype-prosemirror")
-    .getByText("用于插入视图的示例内容")
-    .click();
+  const paragraph = editor.getByText("用于插入视图的示例内容", {
+    exact: true,
+  });
+  await expect(paragraph).toBeVisible();
+  await paragraph.click();
   await expect(h1).not.toHaveClass(/active/);
   await expect(h2).not.toHaveClass(/active/);
 });

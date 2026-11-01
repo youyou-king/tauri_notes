@@ -20,6 +20,7 @@
 - 平台抽象 Phase 3（大部分）：新增 `document.open` / `document.rename` / `document.delete` Action；移动端动作面板、桌面文档库按钮、右键菜单和 F2 统一走 Action。
 - 平台抽象 Phase 4（部分）：新增 `src-tauri/src/desktop.rs`、`mobile.rs`、`platform_commands.rs`；桌面窗口/单实例移入 desktop，移动端构造 `PlatformState`，新增 `platform_info`；命令层通过 `PlatformState.adapter` 取平台服务；theme 改用注入 `ThemeStore`。
 - 平台抽象 Phase 5（部分）：移动端空状态新增打开/新建知识库入口；新增 managed library list/import/new-path；移动端打开外部 `.note` 时复制到 App 私有书库，新建时先输入标题；移动端“目录”页新增本机书库列表；支持导出到保存位置；新增 LifecyclePort，监听 Tauri `tauri://paused` 与 visibilitychange/pagehide 保存；系统分享和 Android 工程未落地。
+- E2E 稳定性：标题工具栏用例先等待编辑器与标题可见再点击，避免 CI 冷启动超时。
 - 文档同步：明确移动端当前是响应式 compact Shell，原生 Android/iOS 工程尚未初始化。
 - 记录“远程笔记/多端同步”为待讨论项，不进入当前平台重构范围。
 - 输入层重构：Action Registry / Input Router、移动端 surface action、mobileShellStore、`keymap.toml` 读写；命令不再携带 shortcut。
