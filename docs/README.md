@@ -3,7 +3,7 @@
 > 更新：2026-10-31  
 > 当前版本：Tauri Notes v0.1.1  
 > 当前实现：Tauri 2 + React 19 + Tiptap/ProseMirror 全块编辑器 + SQLite `.note`。  
-> 最新安装包：<https://github.com/youyou-king/tauri_notes/releases>
+> 发布记录：<https://github.com/youyou-king/tauri_notes/releases>
 
 ## 当前文档
 
@@ -13,6 +13,7 @@
 | [插件化实施记录](插件化实施记录.md) | 当前状态摘要与验证基线 | **当前维护记录** |
 | [插件化实施记录（历史）](插件化实施记录-历史.md) | 各阶段实际完成内容与历史基线 | 历史归档 |
 | [ADR 索引](adr/README.md) | 已落地的架构决策与边界 | **已实施** |
+| [重构验收报告](重构验收报告.md) | 重构项完成度、验证基线与发布状态 | **当前验收** |
 | [状态架构契约](状态架构契约.md) | 状态所有权、单一数据源、派生快照、迁移顺序 | **已实施** |
 | [全块编辑器架构](全块编辑器架构.md) | 单 Tiptap 实例、12 列块布局、SQLite 块存储、导入与视口 | **已实施，持续维护** |
 | [布局架构](布局架构.md) | AppShell / 面板 / 编辑区的尺寸与滚动契约 | **面板与编辑器均已更新** |
@@ -48,22 +49,23 @@
 4. **Dockview + React Flow + CSS Token** 是当前面板、导图和主题基础。
 5. **浅色主题采用暖中性色**，Dockview 随主题切换 `themeLight` / `themeAbyss`。
 6. **状态层已收敛**：
-   - 编辑器：单一 `EditorSnapshot` 派生工具栏、选中块、统计；
-   - 主题：`appearanceRuntime` 管理完整 pack 与 dark/light 资源；
+   - 编辑器：`useEditorField` 按 `selectedBlock` / `toolbar` / `stats` 字段订阅；
+   - 主题：`useBaseThemeTokens` 管理 base token，appearance pack 管理 overlay（ADR-006）；
    - 工作区：`activeRoot` + `selectActiveWorkspace` 派生当前工作区；
-   - 面板：活动 map/blockdoc 同步选中状态，文档脏状态上报 `usePanelStore`。
+   - 面板：活动 map/blockdoc 同步选中状态，session 恢复 activity panel，文档脏状态上报 `usePanelStore`。
 7. **设置入口属于 shell**：核心工具栏“设置”、`settings.open` 和 `Ctrl/Cmd + ,`；主题菜单只是另一个入口；插件管理器是核心设置区 `core.plugins`。
 8. **验收基线**：
    - 前端单元测试 191 个；
    - Rust 单元测试 42 个；
    - Playwright E2E / 视觉回归 35 个；
-   - 安装包载荷、解包和安装/卸载流程已验证；
+   - 安装包载荷、解包流程已在 Windows CI 验证；
    - 真实中文 IME 仍需在目标输入法环境人工确认。
 9. **首次启动不自动打开示例**：没有会话时保持空工作区，通过“知识库”菜单新建或打开。
 10. **顶部“帮助”按钮**打开内置 `help.note` 使用帮助知识库。
 11. **“控制台”面板**记录命令、知识库、面板、文档、主题和异常，可复制和清空。
 12. **安装器、应用和卸载器使用 `asInvoker`**，不请求管理员权限；默认只写入用户选择的安装目录，系统集成仅在用户勾选时创建。
 13. **发布物不进入 Git**：安装包作为 GitHub Releases 资产发布，源码仓库不保存二进制。
+14. **使用帮助**：`help.note` 已补充回收站、数据校验与备份、设置入口；可从顶部“帮助”打开。
 
 ## 文档维护规则
 
