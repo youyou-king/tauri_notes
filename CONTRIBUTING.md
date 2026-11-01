@@ -159,6 +159,17 @@ cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 ```
 
+### Android debug APK（可选）
+
+要求：JDK 21、Android SDK 37、NDK 27、Rust `aarch64-linux-android` target。
+
+```powershell
+rustup target add aarch64-linux-android
+npm run tauri -- android build --debug --apk --target aarch64
+```
+
+产物在 `src-tauri/gen/android/app/build/outputs/apk/`。CI 中的 `android` workflow 也可手动触发并上传 APK。
+
 ## 文档更新规则
 
 - 当前实现变化时更新 `README.md`、`CHANGELOG.md` 和相关专题文档；
