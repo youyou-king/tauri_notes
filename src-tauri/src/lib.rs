@@ -170,6 +170,16 @@ async fn list_managed_libraries(
 }
 
 #[tauri::command]
+fn new_managed_library_path(
+    state: tauri::State<'_, platform_state::PlatformState>,
+    title: String,
+) -> Result<String, String> {
+    let data_dir = { state.adapter.data_dir()? };
+    let path = managed_library::new_library_path(&title, &data_dir)?;
+    Ok(path.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
 async fn import_managed_library(
     state: tauri::State<'_, platform_state::PlatformState>,
     source: String,
@@ -210,6 +220,7 @@ pub fn run() {
             platform_commands::platform_info,
             list_managed_libraries,
             import_managed_library,
+            new_managed_library_path,
             keymap_commands::load_keymap,
             keymap_commands::save_keymap,
             keymap_commands::export_keymap,

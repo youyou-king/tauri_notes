@@ -1,13 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { open, importLibrary } = vi.hoisted(() => ({
+const { open, save, importLibrary, newPath } = vi.hoisted(() => ({
   open: vi.fn(),
+  save: vi.fn(),
   importLibrary: vi.fn(),
+  newPath: vi.fn(),
 }));
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({
   open,
-  save: vi.fn(),
+  save,
 }));
 
 vi.mock("@tauri-apps/api/path", () => ({
@@ -19,6 +21,7 @@ vi.mock("../../application/managedLibraryService", () => ({
   managedLibraryService: {
     import: importLibrary,
     list: vi.fn(),
+    newPath,
   },
 }));
 
@@ -27,7 +30,9 @@ import { createDesktopLibrary, createMobileLibrary } from "./library";
 describe("library adapters", () => {
   beforeEach(() => {
     open.mockReset();
+    save.mockReset();
     importLibrary.mockReset();
+    newPath.mockReset();
   });
 
   it("desktop opens external paths directly", async () => {
@@ -49,6 +54,22 @@ describe("library adapters", () => {
       "/app/libraries/demo.note",
     );
     expect(importLibrary).toHaveBeenCalledWith("/tmp/demo.note");
+  });
+
+  it("mobile creates a new library path in managed storage", async () => {
+    newPath.mockResolvedValue("/app/libraries/demo-1.note");
+    const library = createMobileLibrary();
+    await expect(library.pickNew("demo")).resolves.toBe(
+      "/app/libraries/demo-1.note",
+    );
+    expect(newPath).toHaveBeenCalledWith("demo");
+  });
+
+  it("desktop keeps using the save dialog for new libraries", async () => {
+    save.mockResolvedValue("/tmp/new.note");
+    const library = createDesktopLibrary();
+    await expect(library.pickNew("demo")).resolves.toBe("/tmp/new.note");
+    expect(save).toHaveBeenCalledOnce();
   });
 
   it("mobile keeps cancellation as null", async () => {

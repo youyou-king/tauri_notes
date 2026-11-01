@@ -1,5 +1,6 @@
 import type { LibraryPort } from "../application/ports/libraryPort";
 import type { WorkspacePresenter } from "../application/ports/workspacePresenterPort";
+import type { DialogPort } from "../application/ports/dialogPort";
 import { findNode } from "../domain/tree";
 import { ensureLibrary } from "../infrastructure/libraryBootstrapper";
 import { workspaceService } from "../application/workspaceService";
@@ -43,6 +44,7 @@ type Args = {
   setBackend: (message: string) => void;
   appendLog: (line: string) => void;
   confirmDiscard: () => Promise<boolean>;
+  dialogs: DialogPort;
   library: LibraryPort;
   workspacePresenter: WorkspacePresenter;
 };
@@ -64,6 +66,7 @@ export function useWorkspaceOpen({
   setBackend,
   appendLog,
   confirmDiscard,
+  dialogs,
   library,
   workspacePresenter,
 }: Args) {
@@ -135,7 +138,18 @@ export function useWorkspaceOpen({
     setError(null);
     let pickedPath: string | null = null;
     try {
-      const picked = await library.pickNew();
+      let title: string | null = null;
+      if (library.managed) {
+        title = await dialogs.prompt({
+          title: "新建知识库",
+          defaultValue: "未命名",
+        });
+        if (!title?.trim()) {
+          return;
+        }
+        title = title.trim();
+      }
+      const picked = await library.pickNew(title ?? undefined);
       if (!picked) {
         return;
       }
@@ -152,7 +166,9 @@ export function useWorkspaceOpen({
       }
       const view = await workspaceService.createNoteFile(
         picked,
-        picked.split(/[\\/]/).pop()?.replace(/\.note$/i, "") ?? "知识库",
+        title ??
+          picked.split(/[\\/]/).pop()?.replace(/\.note$/i, "") ??
+          "知识库",
       );
       const directory = picked.replace(/[\\/][^\\/]+$/, "");
       window.localStorage.setItem(

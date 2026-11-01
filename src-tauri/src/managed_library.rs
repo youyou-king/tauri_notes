@@ -39,8 +39,7 @@ fn safe_stem(source: &Path) -> String {
     }
 }
 
-fn unique_target(dir: &Path, source: &Path) -> PathBuf {
-    let stem = safe_stem(source);
+fn unique_target(dir: &Path, stem: &str) -> PathBuf {
     let stamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|duration| duration.as_millis())
@@ -52,6 +51,36 @@ fn unique_target(dir: &Path, source: &Path) -> PathBuf {
         suffix += 1;
     }
     candidate
+}
+
+fn safe_title(title: &str) -> String {
+    let cleaned: String = title
+        .trim()
+        .chars()
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() || ch == '-' || ch == '_' {
+                ch
+            } else {
+                '-'
+            }
+        })
+        .collect();
+    let cleaned = cleaned.trim_matches('-').to_string();
+    if cleaned.is_empty() {
+        "未命名".to_string()
+    } else {
+        cleaned
+    }
+}
+
+pub fn new_library_path(
+    title: &str,
+    data_dir: &Path,
+) -> Result<PathBuf, String> {
+    let dir = libraries_dir(data_dir);
+    fs::create_dir_all(&dir)
+        .map_err(|error| format!("创建移动书库失败：{error}"))?;
+    Ok(unique_target(&dir, &safe_title(title)))
 }
 
 fn summary_for(path: &Path) -> ManagedLibrarySummary {
@@ -110,7 +139,7 @@ pub async fn import_library(
     let source_text = source.to_string_lossy().into_owned();
     database::checkpoint_workspace(&source_text).await?;
 
-    let target = unique_target(&dir, source);
+    let target = unique_target(&dir, &safe_stem(source));
     fs::copy(source, &target).map_err(|error| {
         let _ = fs::remove_file(&target);
         format!("复制到移动书库失败：{error}")
@@ -148,9 +177,9 @@ mod tests {
         fs::create_dir_all(&root).unwrap();
         let source = root.join("demo.note");
         fs::write(&source, "x").unwrap();
-        let first = unique_target(&root, &source);
+        let first = unique_target(&root, "demo");
         fs::write(&first, "x").unwrap();
-        let second = unique_target(&root, &source);
+        let second = unique_target(&root, "demo");
         assert_ne!(first, second);
         fs::remove_dir_all(root).unwrap();
     }

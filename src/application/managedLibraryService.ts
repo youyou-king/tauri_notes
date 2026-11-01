@@ -17,4 +17,7 @@ export const managedLibraryService = {
   import(source: string): Promise<ManagedLibrarySummary> {
     return invoke<ManagedLibrarySummary>("import_managed_library", { source });
   },
+  newPath(title: string): Promise<string> {
+    return invoke<string>("new_managed_library_path", { title });
+  },
 };

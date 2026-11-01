@@ -205,6 +205,7 @@ function App() {
     setBackend,
     appendLog,
     confirmDiscard,
+    dialogs: runtime.services.dialogs,
     library: runtime.services.library,
     workspacePresenter: runtime.services.workspacePresenter,
   });

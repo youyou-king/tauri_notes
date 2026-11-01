@@ -19,6 +19,16 @@ describe("managed library service", () => {
     expect(invoke).toHaveBeenCalledWith("list_managed_libraries");
   });
 
+  it("creates a managed path for a new library", async () => {
+    invoke.mockResolvedValue("/app/libraries/demo-1.note");
+    await expect(
+      managedLibraryService.newPath("demo"),
+    ).resolves.toBe("/app/libraries/demo-1.note");
+    expect(invoke).toHaveBeenCalledWith("new_managed_library_path", {
+      title: "demo",
+    });
+  });
+
   it("imports an external note", async () => {
     invoke.mockResolvedValue({ id: "b", title: "b", path: "/tmp/b.note" });
     await managedLibraryService.import("/tmp/source.note");

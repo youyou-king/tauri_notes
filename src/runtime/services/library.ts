@@ -19,6 +19,7 @@ async function defaultNotePath(): Promise<string> {
 
 function createPathLibrary(): LibraryPort {
   return {
+    managed: false,
     async pickExisting() {
       const picked = await open({
         directory: false,
@@ -52,6 +53,7 @@ export function createDesktopLibrary(): LibraryPort {
 export function createMobileLibrary(): LibraryPort {
   const paths = createPathLibrary();
   return {
+    managed: true,
     async pickExisting() {
       const picked = await paths.pickExisting();
       if (!picked) {
@@ -60,6 +62,8 @@ export function createMobileLibrary(): LibraryPort {
       const imported = await managedLibraryService.import(picked);
       return imported.path;
     },
-    pickNew: paths.pickNew,
+    async pickNew(title) {
+      return managedLibraryService.newPath(title ?? "未命名");
+    },
   };
 }
