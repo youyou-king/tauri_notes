@@ -31,6 +31,7 @@
 | [输入与移动端架构审计](输入与移动端架构审计.md) | Action / Input Router / keymap 与移动端体验一致性审计 |
 | [平台抽象与移动端重构方案](平台抽象与移动端重构方案.md) | 运行时组合根、Shell、端口、Action 与 Rust 平台边界的定制方案 |
 | [系统架构审计](系统架构审计.md) | 数据访问、持久化、契约、移动端目标与备份审计 |
+| [ADR-008](adr/ADR-008-android-identifier.md) | Android 合法包名与桌面 identifier 分离 | **已实施** |
 | [ADR-007](adr/ADR-007-config-format-boundaries.md) | 配置用 TOML、运行时状态用 JSON、内容用 SQLite |
 | [主题插件](主题插件.md) | 主题运行时、`.tnlook`、签名与测试 |
 | [Rust crates](Rust-crates.md) | Rust workspace 结构、职责和依赖规则 |
