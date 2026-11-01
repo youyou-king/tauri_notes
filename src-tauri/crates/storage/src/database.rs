@@ -368,7 +368,7 @@ pub async fn open_for_import(
         .map_err(|_| "数据库初始化状态锁已损坏".to_string())?
         .contains(&path);
     if !already_initialized {
-        migrate(&mut *connection, &path).await?;
+        migrate(&mut connection, &path).await?;
         INITIALIZED_DATABASES
             .lock()
             .map_err(|_| "数据库初始化状态锁已损坏".to_string())?
@@ -390,12 +390,12 @@ pub async fn close_workspace_pool(workspace: &str) {
 
 pub async fn initialize_database(workspace: String) -> Result<DatabaseStatus, String> {
     let mut connection = open_for_import(&workspace).await?;
-    read_status(&mut *connection).await
+    read_status(&mut connection).await
 }
 
 pub async fn database_status(workspace: String) -> Result<DatabaseStatus, String> {
     let mut connection = open_for_import(&workspace).await?;
-    read_status(&mut *connection).await
+    read_status(&mut connection).await
 }
 
 pub async fn verify_database(workspace: String) -> Result<(), String> {

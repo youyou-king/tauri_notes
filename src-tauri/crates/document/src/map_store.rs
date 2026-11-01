@@ -442,9 +442,9 @@ fn build_children(
 
 pub async fn load_mind_map(workspace: String, map_id: String) -> Result<MindMapView, String> {
     let mut connection = database::open_for_import(&workspace).await?;
-    let title = ensure_map(&mut *connection, &workspace, &map_id).await?;
-    let root_id = ensure_map_root(&mut *connection, &map_id).await?;
-    seed_document_nodes(&mut *connection, &map_id).await?;
+    let title = ensure_map(&mut connection, &workspace, &map_id).await?;
+    let root_id = ensure_map_root(&mut connection, &map_id).await?;
+    seed_document_nodes(&mut connection, &map_id).await?;
 
     let document_ids = sqlx::query_scalar::<_, String>(
         "SELECT document_id FROM map_nodes WHERE map_id = ?1 AND document_id IS NOT NULL",
@@ -587,7 +587,7 @@ pub async fn load_outline(workspace: String) -> Result<OutlineView, String> {
             })
             .collect::<Vec<_>>();
         for entry in &entries {
-            ensure_map(&mut *connection, &workspace, &entry.id).await?;
+            ensure_map(&mut connection, &workspace, &entry.id).await?;
         }
         let known = sqlx::query_scalar::<_, String>("SELECT id FROM maps")
             .fetch_all(&mut *connection)
@@ -608,7 +608,7 @@ pub async fn load_outline(workspace: String) -> Result<OutlineView, String> {
             .collect()
     };
     for entry in &entries {
-        seed_document_nodes(&mut *connection, &entry.0).await?;
+        seed_document_nodes(&mut connection, &entry.0).await?;
     }
     let document_ids = sqlx::query_scalar::<_, String>(
         "SELECT document_id FROM map_nodes WHERE document_id IS NOT NULL",
@@ -667,8 +667,8 @@ pub async fn create_mind_map(workspace: String, title: String) -> Result<String,
     .execute(&mut *connection)
     .await
     .map_err(|error| format!("创建导图失败: {error}"))?;
-    ensure_map_root(&mut *connection, &map_id).await?;
-    sync_maps_json(&workspace, &mut *connection).await?;
+    ensure_map_root(&mut connection, &map_id).await?;
+    sync_maps_json(&workspace, &mut connection).await?;
     Ok(map_id)
 }
 
@@ -709,7 +709,7 @@ pub async fn rename_mind_map(
         .execute(&mut *connection)
         .await
         .map_err(|error| format!("同步根节点标题失败: {error}"))?;
-    sync_maps_json(&workspace, &mut *connection).await?;
+    sync_maps_json(&workspace, &mut connection).await?;
     Ok(())
 }
 
@@ -781,7 +781,7 @@ pub async fn delete_mind_map(workspace: String, map_id: String) -> Result<(), St
         .execute(&mut *connection)
         .await
         .map_err(|error| format!("删除导图失败: {error}"))?;
-    sync_maps_json(&workspace, &mut *connection).await?;
+    sync_maps_json(&workspace, &mut connection).await?;
     Ok(())
 }
 
@@ -822,8 +822,8 @@ pub async fn create_map_node(
         return Err("节点标题不能为空".into());
     }
     let mut connection = database::open_for_import(&workspace).await?;
-    ensure_map(&mut *connection, &workspace, &map_id).await?;
-    ensure_map_root(&mut *connection, &map_id).await?;
+    ensure_map(&mut connection, &workspace, &map_id).await?;
+    ensure_map_root(&mut connection, &map_id).await?;
     let parent_id = parent_id.unwrap_or_else(|| map_root_id(&map_id));
     let exists: i64 =
         sqlx::query_scalar("SELECT COUNT(*) FROM map_nodes WHERE id = ?1 AND map_id = ?2")
@@ -1141,7 +1141,7 @@ pub async fn create_document_for_map_root(
         .execute(&mut *connection)
         .await
         .map_err(|error| format!("绑定根节点文档失败: {error}"))?;
-    ensure_map_root(&mut *connection, &map_id).await?;
+    ensure_map_root(&mut connection, &map_id).await?;
     sync_document_headings(&workspace, &created.id).await?;
     Ok(created.id)
 }
@@ -1187,7 +1187,7 @@ pub async fn create_document_for_map_node(
             .execute(&mut *connection)
             .await
             .map_err(|error| format!("绑定根节点文档失败: {error}"))?;
-        ensure_map_root(&mut *connection, &row.0).await?;
+        ensure_map_root(&mut connection, &row.0).await?;
         sync_document_headings(&workspace, &document_id).await?;
     }
 
@@ -1261,7 +1261,7 @@ mod tests {
             .execute(&mut *connection)
             .await
             .unwrap();
-            ensure_map_root(&mut *connection, map_id).await.unwrap();
+            ensure_map_root(&mut connection, map_id).await.unwrap();
         });
 
         block_on(sync_document_headings(&workspace, document_id)).unwrap();

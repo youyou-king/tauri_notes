@@ -166,7 +166,7 @@ fn merge_keymap(existing: Option<&str>, keymap: &KeymapFile) -> Result<String, S
     validate_keymap(keymap)?;
     let mut document = existing
         .and_then(|text| text.parse::<Document>().ok())
-        .unwrap_or_else(Document::new);
+        .unwrap_or_default();
     document["version"] = value(i64::from(keymap.version));
     let previous: Vec<Table> = document
         .get("bindings")
