@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
+use toml_edit::{value, ArrayOfTables, Document, Item, Table};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -107,14 +108,92 @@ fn read_keymap(path: &PathBuf) -> Result<KeymapFile, String> {
     Ok(parsed)
 }
 
+fn table_string<'a>(table: &'a Table, key: &str) -> Option<&'a str> {
+    table.get(key).and_then(Item::as_str)
+}
+
+fn binding_matches(table: &Table, binding: &KeymapBinding) -> bool {
+    if table_string(table, "action") != Some(binding.action.as_str())
+        || table_string(table, "platform") != Some(binding.platform.as_str())
+    {
+        return false;
+    }
+    if binding.surface.is_some() || table_string(table, "surface").is_some() {
+        return table_string(table, "surface") == binding.surface.as_deref();
+    }
+    if let Some(code) = binding.code.as_deref() {
+        if let Some(existing) = table_string(table, "code") {
+            return existing == code;
+        }
+    }
+    true
+}
+
+fn set_optional(table: &mut Table, key: &str, text: Option<&str>) {
+    match text {
+        Some(text) if table_string(table, key) == Some(text) => {}
+        Some(text) => {
+            table[key] = value(text);
+        }
+        None => {
+            table.remove(key);
+        }
+    }
+}
+
+fn set_flag(table: &mut Table, key: &str, flag: bool) {
+    if table.get(key).and_then(Item::as_bool) == Some(flag) {
+        return;
+    }
+    if flag {
+        table[key] = value(true);
+    } else {
+        table.remove(key);
+    }
+}
+
+fn merge_keymap(existing: Option<&str>, keymap: &KeymapFile) -> Result<String, String> {
+    validate_keymap(keymap)?;
+    let mut document = existing
+        .and_then(|text| text.parse::<Document>().ok())
+        .unwrap_or_else(Document::new);
+    document["version"] = value(i64::from(keymap.version));
+    let previous: Vec<Table> = document
+        .get("bindings")
+        .and_then(Item::as_array_of_tables)
+        .map(|tables| tables.iter().cloned().collect())
+        .unwrap_or_default();
+    let mut next = ArrayOfTables::new();
+    for binding in &keymap.bindings {
+        let mut table = previous
+            .iter()
+            .find(|table| binding_matches(table, binding))
+            .cloned()
+            .unwrap_or_default();
+        table["action"] = value(binding.action.as_str());
+        table["platform"] = value(binding.platform.as_str());
+        set_optional(&mut table, "key", binding.key.as_deref());
+        set_optional(&mut table, "code", binding.code.as_deref());
+        set_optional(&mut table, "surface", binding.surface.as_deref());
+        set_optional(&mut table, "scope", binding.scope.as_deref());
+        set_flag(&mut table, "ctrl", binding.ctrl);
+        set_flag(&mut table, "meta", binding.meta);
+        set_flag(&mut table, "alt", binding.alt);
+        set_flag(&mut table, "shift", binding.shift);
+        next.push(table);
+    }
+    document["bindings"] = Item::ArrayOfTables(next);
+    Ok(document.to_string())
+}
+
 fn write_keymap(path: &PathBuf, keymap: &KeymapFile) -> Result<(), String> {
     validate_keymap(keymap)?;
     if let Some(directory) = path.parent() {
         fs::create_dir_all(directory)
             .map_err(|error| format!("创建配置目录失败: {error}"))?;
     }
-    let text = toml::to_string_pretty(keymap)
-        .map_err(|error| format!("序列化 keymap 失败: {error}"))?;
+    let existing = fs::read_to_string(path).ok();
+    let text = merge_keymap(existing.as_deref(), keymap)?;
     fs::write(path, text).map_err(|error| format!("写入 keymap 失败: {error}"))
 }
 
@@ -186,5 +265,33 @@ surface = "search.open"
         let text = toml::to_string_pretty(&keymap).expect("serialize");
         assert!(text.contains("[[bindings]]"));
         assert!(text.contains("action = \"settings.open\""));
+    }
+
+    #[test]
+    fn preserves_comments_when_rewriting_an_existing_binding() {
+        let existing = r#"# user keymap
+version = 1
+
+[[bindings]]
+action = "search.open"
+# keep this comment
+platform = "desktop"
+key = "p"
+ctrl = true
+"#;
+        let keymap = KeymapFile {
+            version: 2,
+            bindings: vec![KeymapBinding {
+                action: "search.open".into(),
+                platform: "desktop".into(),
+                key: Some("k".into()),
+                ctrl: true,
+                ..Default::default()
+            }],
+        };
+        let rendered = merge_keymap(Some(existing), &keymap).expect("merge");
+        assert!(rendered.contains("# user keymap"));
+        assert!(rendered.contains("# keep this comment"));
+        assert!(rendered.contains("key = \"k\""));
     }
 }

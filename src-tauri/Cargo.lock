@@ -3732,6 +3732,7 @@ dependencies = [
  "tauri-plugin-dialog",
  "tauri-plugin-single-instance",
  "toml 0.8.2",
+ "toml_edit 0.20.2",
  "windows-sys 0.61.2",
 ]
 
