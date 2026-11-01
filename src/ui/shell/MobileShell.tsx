@@ -30,6 +30,8 @@ import { APP_EVENTS, emitAppEvent, onAppEvent } from "../../kernel/events";
 import { MobileDocumentView } from "../mobile/MobileDocumentView";
 import { MobileLibraryRow } from "../mobile/MobileLibraryRow";
 import { MobileManagedLibraries } from "../mobile/MobileManagedLibraries";
+import { MobileHeader } from "../mobile/MobileHeader";
+import { MobileTabBar } from "../mobile/MobileTabBar";
 import type { MobileDocumentLink } from "../mobile/types";
 
 function collectDocuments(
@@ -319,40 +321,16 @@ export function MobileShell({
 
   return (
     <div className="mobile-shell">
-      <header className="mobile-shell-header">
-        {history.length > 0 && (
-          <button
-            type="button"
-            aria-label="返回"
-            onClick={() => {
-              navigation.back();
-            }}
-          >
-            返回
-          </button>
-        )}
-        <div>
-          <strong>
-            {tab === "map"
-              ? map.title
-              : tab === "library"
-                ? "目录"
-                : "文档"}
-          </strong>
-          <span>{workspace.title}</span>
-        </div>
-        <div className="mobile-shell-actions" style={{ display: "flex", gap: 8 }}>
-          <button type="button" onClick={() => runMobileAction("search.open")}>
-            搜索
-          </button>
-          <button type="button" onClick={() => runMobileAction("help.open")}>
-            帮助
-          </button>
-          <button type="button" onClick={() => runMobileAction("board.open")}>
-            看板
-          </button>
-        </div>
-      </header>
+      <MobileHeader
+        tab={tab}
+        mapTitle={map.title}
+        workspaceTitle={workspace.title}
+        canGoBack={history.length > 0}
+        onBack={() => navigation.back()}
+        onSearch={() => runMobileAction("search.open")}
+        onHelp={() => runMobileAction("help.open")}
+        onBoard={() => runMobileAction("board.open")}
+      />
 
       <div className="mobile-shell-content">
         {tab === "map" ? (
@@ -445,39 +423,12 @@ export function MobileShell({
         )}
       </div>
 
-      <nav className="mobile-tabbar" aria-label="移动导航">
-        <button
-          type="button"
-          className={tab === "map" ? "active" : ""}
-          aria-current={tab === "map" ? "page" : undefined}
-          onClick={() => switchTab("map")}
-        >
-          导图
-        </button>
-        <button
-          type="button"
-          className={tab === "library" ? "active" : ""}
-          aria-current={tab === "library" ? "page" : undefined}
-          onClick={() => switchTab("library")}
-        >
-          目录
-        </button>
-        <button
-          type="button"
-          className={tab === "document" ? "active" : ""}
-          aria-current={tab === "document" ? "page" : undefined}
-          onClick={() => switchTab("document")}
-          disabled={!documentId}
-        >
-          文档
-        </button>
-        <button
-          type="button"
-          onClick={() => runMobileAction("settings.open")}
-        >
-          设置
-        </button>
-      </nav>
+      <MobileTabBar
+        tab={tab}
+        documentId={documentId}
+        onSwitchTab={switchTab}
+        onSettings={() => runMobileAction("settings.open")}
+      />
 
       {menuDocument && (
         <MobileActionSheet

@@ -462,8 +462,10 @@ html[data-appearance-pack] .mind-map-flow {
 }
 
 .mobile-shell-header .mobile-shell-actions {
+  display: flex;
   flex-direction: row;
   flex-wrap: wrap;
+  gap: 8px;
   justify-content: flex-end;
 }
 
