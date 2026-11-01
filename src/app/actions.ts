@@ -1,5 +1,6 @@
 import { DEFAULT_BINDINGS } from "../kernel/action/bindings";
 import { registerAction } from "../kernel/action/registry";
+import { getCommand } from "../kernel/command";
 import type { ActionDefinition } from "../kernel/action/types";
 
 function commandAction(
@@ -16,6 +17,7 @@ function commandAction(
     platforms: ["desktop", "mac", "mobile"],
     defaultBindings: DEFAULT_BINDINGS[id] ?? [],
     allowInEditable: options.allowInEditable ?? true,
+    enabled: () => Boolean(getCommand(id)),
     run: ({ runCommand }) => runCommand(id),
   });
 }
