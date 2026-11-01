@@ -25,7 +25,7 @@
 - 移动端拆分：`MobileShell` 的文档只读视图、文档面板、文档动作面板、书库行、本机书库列表、header 和 tabbar 移入 `src/ui/mobile`。
 - Phase 6（部分）：新增 390/600/768 视口 E2E 与移动端真机检查清单。
 - Storage 测试在 Windows 上重试临时目录清理，避免文件锁偶发失败。
-- Android：新增 `tauri.android.conf.json`，Android identifier 使用 `com.youyou.tauri_notes`（ADR-008）。
+- Android：新增 `tauri.android.conf.json`，Android identifier 使用 `com.youyou.taurinotes`（ADR-008）。
 - Android：初始化 `src-tauri/gen/android`，新增手动 `android` CI workflow；arm64 debug APK 构建成功并上传 artifact。
 - 文档同步：明确移动端当前是响应式 compact Shell，原生 Android/iOS 工程尚未初始化。
 - 记录“远程笔记/多端同步”为待讨论项，不进入当前平台重构范围。

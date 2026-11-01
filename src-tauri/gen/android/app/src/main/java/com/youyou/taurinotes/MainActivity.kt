@@ -1,4 +1,4 @@
-package com.youyou.tauri_notes
+package com.youyou.taurinotes
 
 import android.os.Bundle
 import androidx.activity.enableEdgeToEdge

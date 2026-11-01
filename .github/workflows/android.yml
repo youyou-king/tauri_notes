@@ -50,7 +50,7 @@ jobs:
           APK=$(find src-tauri/gen/android/app/build/outputs/apk -name '*.apk' | head -n 1)
           test -n "$APK"
           AAPT="$ANDROID_HOME/build-tools/37.0.0/aapt"
-          "$AAPT" dump badging "$APK" | grep "package: name='com.youyou.tauri_notes'"
+          "$AAPT" dump badging "$APK" | grep "package: name='com.youyou.taurinotes'"
           "$AAPT" dump badging "$APK" | grep "launchable-activity"
 
       - uses: actions/upload-artifact@v4

@@ -15,7 +15,7 @@
 该标识符中的 `tauri-notes` 含连字符，不能直接作为 Java/Kotlin 包名。Tauri Android 初始化会把项目生成到：
 
 ```text
-com.youyou.tauri_notes
+com.youyou.taurinotes
 ```
 
 如果 Android 运行时仍使用桌面 identifier 推导 App 私有目录，会出现包名与数据键不一致。
@@ -30,13 +30,13 @@ src-tauri/tauri.android.conf.json
 
 ```json
 {
-  "identifier": "com.youyou.tauri_notes"
+  "identifier": "com.youyou.taurinotes"
 }
 ```
 
 - 桌面继续使用原 identifier，避免迁移现有桌面数据；
 - Android 使用合法包名；
-- Android 数据目录以 `com.youyou.tauri_notes` 为准；
+- Android 数据目录以 `com.youyou.taurinotes` 为准；
 - 不改动 `.note` 文件格式。
 
 ## 后果
