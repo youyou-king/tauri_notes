@@ -69,20 +69,26 @@ fn validate_keymap(keymap: &KeymapFile) -> Result<(), String> {
                 "bindings[{index}].platform 必须是 desktop/mac/mobile"
             ));
         }
-        match (&binding.key, &binding.surface) {
-            (Some(key), None) if !key.trim().is_empty() => {}
-            (None, Some(surface)) if !surface.trim().is_empty() => {}
-            _ => {
-                return Err(format!(
-                    "bindings[{index}] 必须且只能提供 key 或 surface"
-                ))
-            }
-        }
-        if binding.platform != "mobile"
-            && binding.key.is_none()
-        {
+        let has_key = binding
+            .key
+            .as_deref()
+            .is_some_and(|key| !key.trim().is_empty())
+            || binding
+                .code
+                .as_deref()
+                .is_some_and(|code| !code.trim().is_empty());
+        let has_surface = binding
+            .surface
+            .as_deref()
+            .is_some_and(|surface| !surface.trim().is_empty());
+        if has_key == has_surface {
             return Err(format!(
-                "bindings[{index}] 的桌面绑定必须提供 key"
+                "bindings[{index}] 必须且只能提供 key/code 或 surface"
+            ));
+        }
+        if binding.platform != "mobile" && !has_key {
+            return Err(format!(
+                "bindings[{index}] 的桌面绑定必须提供 key 或 code"
             ));
         }
     }

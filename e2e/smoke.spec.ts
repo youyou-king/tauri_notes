@@ -946,3 +946,28 @@ test("opens the search palette with the keyboard shortcut", async ({
   await expect(page.locator(".palette")).toHaveCount(0);
 });
 
+
+
+test("customizes a shortcut from settings", async ({ page }) => {
+  await page.goto("/e2e/fixtures/e2e.html");
+  await expect(page.getByText(/演示知识库/).first()).toBeVisible();
+
+  await page.getByRole("button", { name: "设置", exact: true }).click();
+  await page.getByRole("button", { name: "快捷键", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "快捷键" })).toBeVisible();
+
+  const row = page.locator(".shortcut-row").filter({ hasText: "搜索" });
+  await row.getByRole("button", { name: "重设" }).click();
+  await page.keyboard.press("Control+K");
+  await expect(row.getByText("Ctrl + K")).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as unknown as { __E2E_CALLS__: string[] }).__E2E_CALLS__.filter(
+            (name) => name === "save_keymap",
+          ).length,
+      ),
+    )
+    .toBeGreaterThan(0);
+});

@@ -25,7 +25,6 @@ const EXPORTED_SURFACE = [
   "getUiRenderer",
   "hasUiRenderer",
   "onAppEvent",
-  "registerIntentHandler",
   "registerPanel",
   "registerUiRenderer",
   "resolvePackOverrides",

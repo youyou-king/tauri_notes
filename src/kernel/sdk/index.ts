@@ -11,11 +11,6 @@ export {
   type CommandDefinition,
 } from "../command";
 export {
-  registerIntentHandler,
-  type Intent,
-  type InputSource,
-} from "../input";
-export {
   getPanelDefinitions,
   registerPanel,
   unregisterPanel,
