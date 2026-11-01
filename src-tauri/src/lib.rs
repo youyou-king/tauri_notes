@@ -267,6 +267,7 @@ pub fn run() {
             storage_commands::database_status,
             storage_commands::backup_database,
             storage_commands::verify_database,
+            storage_commands::close_workspace_database,
             import_commands::import_markdown_workspace,
             document_commands::list_imported_documents,
             document_commands::load_document_blocks,

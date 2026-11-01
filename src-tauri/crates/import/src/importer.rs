@@ -446,7 +446,7 @@ pub async fn import_markdown_workspace(
     let blocks = documents.iter().map(|document| document.blocks.len()).sum();
     if write {
         let mut connection = database::open_for_import(&workspace).await?;
-        write_documents(&mut connection, &documents).await?;
+        write_documents(&mut *connection, &documents).await?;
     }
     Ok(ImportReport {
         dry_run: !write,

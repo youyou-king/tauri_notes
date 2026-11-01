@@ -386,7 +386,7 @@ pub async fn search_blocks_db(
         )
         .bind(tokens.join(" "))
         .bind(limit)
-        .fetch_all(&mut connection)
+        .fetch_all(&mut *connection)
         .await
         .map_err(|error| format!("搜索失败: {error}"))?;
         hits.extend(rows.into_iter().map(|row| {
@@ -417,7 +417,7 @@ pub async fn search_blocks_db(
         )
         .bind(like)
         .bind(limit)
-        .fetch_all(&mut connection)
+        .fetch_all(&mut *connection)
         .await
         .map_err(|error| format!("搜索失败: {error}"))?;
         hits.extend(rows.into_iter().map(|row| {
@@ -754,7 +754,7 @@ pub async fn create_note_file(path: String, title: String) -> Result<WorkspaceVi
         .bind(&map_id)
         .bind(title)
         .bind(&now)
-        .execute(&mut connection)
+        .execute(&mut *connection)
         .await
         .map_err(|error| format!("创建默认导图失败: {error}"))?;
     drop(connection);
@@ -771,7 +771,7 @@ pub async fn open_note_workspace(path: String) -> Result<WorkspaceView, String> 
         sqlx::query_as::<_, (String, String)>(
             "SELECT id, title FROM maps ORDER BY created_at, id",
         )
-        .fetch_all(&mut connection)
+        .fetch_all(&mut *connection)
         .await
         .map_err(|error| format!("读取导图失败: {error}"))?
     };
@@ -824,7 +824,7 @@ pub async fn save_note_file(path: String) -> Result<String, String> {
     {
         let mut connection = database::open_for_import(&path).await?;
         sqlx::query("PRAGMA wal_checkpoint(TRUNCATE)")
-            .execute(&mut connection)
+            .execute(&mut *connection)
             .await
             .map_err(|error| format!("checkpoint 失败: {error}"))?;
     }

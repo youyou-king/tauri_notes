@@ -31,6 +31,10 @@ export const workspaceService = {
     return command("load_document_tree", { workspace });
   },
 
+  closeDatabase(workspace: string): Promise<void> {
+    return command("close_workspace_database", { workspace });
+  },
+
   verifyDatabase(workspace: string): Promise<void> {
     return command("verify_database", { workspace });
   },

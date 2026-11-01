@@ -17,7 +17,7 @@
 - 输入层重构：Action Registry / Input Router、移动端 surface action、mobileShellStore、`keymap.toml` 读写；命令不再携带 shortcut。
 - 设置新增快捷键面板：查看、录制重设、恢复默认，保存后热更新；`keymap.toml` 写回保留注释。
 - 删除未使用的 Intent 总线，contextmenu 屏蔽保留在 shell。
-- SQLite 迁移改为每个 workspace 进程内只执行一次；连接池仍待下一阶段。
+- SQLite 每个 workspace 使用连接池，迁移进程内只执行一次；卸载 workspace 时关闭连接池。
 - 编辑器快照按 `EditorState` 缓存，避免同一 transaction 多订阅重复全量计算。
 - 移动端增加返回栈和“返回”按钮，保留 tab/document 导航历史。
 - 统一 keymap 状态，桌面工具栏根据有效绑定显示 shortcut hint；支持快捷键 TOML 导入/导出。

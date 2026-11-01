@@ -293,7 +293,7 @@ pub async fn sync_document_headings(workspace: &str, document_id: &str) -> Resul
         "SELECT id, map_id, title, origin FROM map_nodes WHERE document_id = ?1",
     )
     .bind(document_id)
-    .fetch_all(&mut connection)
+    .fetch_all(&mut *connection)
     .await
     .map_err(|error| format!("读取文档对应节点失败: {error}"))?;
     if parents.is_empty() {
@@ -305,7 +305,7 @@ pub async fn sync_document_headings(workspace: &str, document_id: &str) -> Resul
          FROM blocks WHERE document_id = ?1 ORDER BY order_key",
     )
     .bind(document_id)
-    .fetch_all(&mut connection)
+    .fetch_all(&mut *connection)
     .await
     .map_err(|error| format!("读取文档标题失败: {error}"))?;
     let headings = blocks
@@ -331,7 +331,7 @@ pub async fn sync_document_headings(workspace: &str, document_id: &str) -> Resul
              WHERE parent_id = ?1 AND heading_block_id IS NOT NULL",
         )
         .bind(&parent_id)
-        .fetch_all(&mut connection)
+        .fetch_all(&mut *connection)
         .await
         .map_err(|error| format!("读取自动节点失败: {error}"))?;
         let mut by_heading = HashMap::new();
@@ -349,7 +349,7 @@ pub async fn sync_document_headings(workspace: &str, document_id: &str) -> Resul
                         .bind(title)
                         .bind(&updated)
                         .bind(&node_id)
-                        .execute(&mut connection)
+                        .execute(&mut *connection)
                         .await
                         .map_err(|error| format!("更新自动节点失败: {error}"))?;
                     if let Some(document_id) = document_id {
@@ -359,7 +359,7 @@ pub async fn sync_document_headings(workspace: &str, document_id: &str) -> Resul
                         .bind(title)
                         .bind(&updated)
                         .bind(&document_id)
-                        .execute(&mut connection)
+                        .execute(&mut *connection)
                         .await
                         .map_err(|error| format!("同步子文档标题失败: {error}"))?;
                     }
@@ -380,7 +380,7 @@ pub async fn sync_document_headings(workspace: &str, document_id: &str) -> Resul
             .bind(block_id)
             .bind(format!("{index:08}"))
             .bind(now())
-            .execute(&mut connection)
+            .execute(&mut *connection)
             .await
             .map_err(|error| format!("创建自动节点失败: {error}"))?;
         }
@@ -389,7 +389,7 @@ pub async fn sync_document_headings(workspace: &str, document_id: &str) -> Resul
             let has_document: Option<String> =
                 sqlx::query_scalar("SELECT document_id FROM map_nodes WHERE id = ?1")
                     .bind(&node_id)
-                    .fetch_one(&mut connection)
+                    .fetch_one(&mut *connection)
                     .await
                     .map_err(|error| format!("读取自动节点失败: {error}"))?;
             if has_document.is_some() {
@@ -399,13 +399,13 @@ pub async fn sync_document_headings(workspace: &str, document_id: &str) -> Resul
                 )
                 .bind(now())
                 .bind(&node_id)
-                .execute(&mut connection)
+                .execute(&mut *connection)
                 .await
                 .map_err(|error| format!("保留已建文档节点失败: {error}"))?;
             } else {
                 sqlx::query("DELETE FROM map_nodes WHERE id = ?1")
                     .bind(&node_id)
-                    .execute(&mut connection)
+                    .execute(&mut *connection)
                     .await
                     .map_err(|error| format!("删除过期自动节点失败: {error}"))?;
             }
@@ -442,15 +442,15 @@ fn build_children(
 
 pub async fn load_mind_map(workspace: String, map_id: String) -> Result<MindMapView, String> {
     let mut connection = database::open_for_import(&workspace).await?;
-    let title = ensure_map(&mut connection, &workspace, &map_id).await?;
-    let root_id = ensure_map_root(&mut connection, &map_id).await?;
-    seed_document_nodes(&mut connection, &map_id).await?;
+    let title = ensure_map(&mut *connection, &workspace, &map_id).await?;
+    let root_id = ensure_map_root(&mut *connection, &map_id).await?;
+    seed_document_nodes(&mut *connection, &map_id).await?;
 
     let document_ids = sqlx::query_scalar::<_, String>(
         "SELECT document_id FROM map_nodes WHERE map_id = ?1 AND document_id IS NOT NULL",
     )
     .bind(&map_id)
-    .fetch_all(&mut connection)
+    .fetch_all(&mut *connection)
     .await
     .map_err(|error| format!("读取导图文档失败: {error}"))?;
     for document_id in document_ids {
@@ -462,7 +462,7 @@ pub async fn load_mind_map(workspace: String, map_id: String) -> Result<MindMapV
          FROM map_nodes WHERE map_id = ?1 ORDER BY order_key, id",
     )
     .bind(&map_id)
-    .fetch_all(&mut connection)
+    .fetch_all(&mut *connection)
     .await
     .map_err(|error| format!("读取导图节点失败: {error}"))?;
     let root_row = rows.iter().find(|row| row.0 == root_id).cloned();
@@ -551,7 +551,7 @@ pub async fn load_outline(workspace: String) -> Result<OutlineView, String> {
         let mut rows = sqlx::query_as::<_, (String, String)>(
             "SELECT id, title FROM maps ORDER BY created_at, id",
         )
-        .fetch_all(&mut connection)
+        .fetch_all(&mut *connection)
         .await
         .map_err(|error| format!("读取导图失败: {error}"))?;
         if rows.is_empty() {
@@ -563,7 +563,7 @@ pub async fn load_outline(workspace: String) -> Result<OutlineView, String> {
             .bind(&map_id)
             .bind(&title)
             .bind(&now)
-            .execute(&mut connection)
+            .execute(&mut *connection)
             .await
             .map_err(|error| format!("创建默认导图失败: {error}"))?;
             rows.push((map_id, title.clone()));
@@ -587,17 +587,17 @@ pub async fn load_outline(workspace: String) -> Result<OutlineView, String> {
             })
             .collect::<Vec<_>>();
         for entry in &entries {
-            ensure_map(&mut connection, &workspace, &entry.id).await?;
+            ensure_map(&mut *connection, &workspace, &entry.id).await?;
         }
         let known = sqlx::query_scalar::<_, String>("SELECT id FROM maps")
-            .fetch_all(&mut connection)
+            .fetch_all(&mut *connection)
             .await
             .map_err(|error| format!("读取导图列表失败: {error}"))?;
         for id in known {
             if !entries.iter().any(|entry| entry.id == id) {
                 sqlx::query("DELETE FROM maps WHERE id = ?1")
                     .bind(&id)
-                    .execute(&mut connection)
+                    .execute(&mut *connection)
                     .await
                     .map_err(|error| format!("清理失效导图失败: {error}"))?;
             }
@@ -608,12 +608,12 @@ pub async fn load_outline(workspace: String) -> Result<OutlineView, String> {
             .collect()
     };
     for entry in &entries {
-        seed_document_nodes(&mut connection, &entry.0).await?;
+        seed_document_nodes(&mut *connection, &entry.0).await?;
     }
     let document_ids = sqlx::query_scalar::<_, String>(
         "SELECT document_id FROM map_nodes WHERE document_id IS NOT NULL",
     )
-    .fetch_all(&mut connection)
+    .fetch_all(&mut *connection)
     .await
     .map_err(|error| format!("读取导图文档失败: {error}"))?;
     for document_id in document_ids {
@@ -625,13 +625,13 @@ pub async fn load_outline(workspace: String) -> Result<OutlineView, String> {
            SELECT document_id FROM map_nodes WHERE document_id IS NOT NULL
          )",
     )
-    .execute(&mut connection)
+    .execute(&mut *connection)
     .await
     .map_err(|error| format!("整理未归类文档失败: {error}"))?;
     let unfiled = sqlx::query_as::<_, (String, String)>(
         "SELECT id, title FROM documents WHERE map_id IS NULL ORDER BY title",
     )
-    .fetch_all(&mut connection)
+    .fetch_all(&mut *connection)
     .await
     .map_err(|error| format!("读取未归类文档失败: {error}"))?
     .into_iter()
@@ -664,11 +664,11 @@ pub async fn create_mind_map(workspace: String, title: String) -> Result<String,
     .bind(&map_id)
     .bind(title)
     .bind(&now)
-    .execute(&mut connection)
+    .execute(&mut *connection)
     .await
     .map_err(|error| format!("创建导图失败: {error}"))?;
-    ensure_map_root(&mut connection, &map_id).await?;
-    sync_maps_json(&workspace, &mut connection).await?;
+    ensure_map_root(&mut *connection, &map_id).await?;
+    sync_maps_json(&workspace, &mut *connection).await?;
     Ok(map_id)
 }
 
@@ -686,7 +686,7 @@ pub async fn rename_mind_map(
         .bind(title)
         .bind(now())
         .bind(&map_id)
-        .execute(&mut connection)
+        .execute(&mut *connection)
         .await
         .map_err(|error| format!("重命名导图失败: {error}"))?;
     if result.rows_affected() == 0 {
@@ -699,17 +699,17 @@ pub async fn rename_mind_map(
     .bind(title)
     .bind(now())
     .bind(&map_id)
-    .execute(&mut connection)
+    .execute(&mut *connection)
     .await
     .map_err(|error| format!("同步根文档标题失败: {error}"))?;
     sqlx::query("UPDATE map_nodes SET title = ?1, updated_at = ?2 WHERE id = ?3")
         .bind(title)
         .bind(now())
         .bind(map_root_id(&map_id))
-        .execute(&mut connection)
+        .execute(&mut *connection)
         .await
         .map_err(|error| format!("同步根节点标题失败: {error}"))?;
-    sync_maps_json(&workspace, &mut connection).await?;
+    sync_maps_json(&workspace, &mut *connection).await?;
     Ok(())
 }
 
@@ -718,7 +718,7 @@ pub async fn delete_map_node(workspace: String, node_id: String) -> Result<(), S
     let exists: Option<String> =
         sqlx::query_scalar("SELECT map_id FROM map_nodes WHERE id = ?1")
             .bind(&node_id)
-            .fetch_optional(&mut connection)
+            .fetch_optional(&mut *connection)
             .await
             .map_err(|error| format!("读取节点失败: {error}"))?;
     let Some(map_id) = exists else {
@@ -736,7 +736,7 @@ pub async fn delete_map_node(workspace: String, node_id: String) -> Result<(), S
     )
     .bind(&node_id)
     .bind(&map_id)
-    .fetch_all(&mut connection)
+    .fetch_all(&mut *connection)
     .await
     .map_err(|error| format!("读取节点子树失败: {error}"))?;
     if ids.is_empty() {
@@ -754,7 +754,7 @@ pub async fn delete_map_node(workspace: String, node_id: String) -> Result<(), S
         move_documents = move_documents.bind(id);
     }
     move_documents
-        .execute(&mut connection)
+        .execute(&mut *connection)
         .await
         .map_err(|error| format!("移动节点文档到未归类失败: {error}"))?;
     let delete_sql = format!("DELETE FROM map_nodes WHERE id IN ({placeholders})");
@@ -763,7 +763,7 @@ pub async fn delete_map_node(workspace: String, node_id: String) -> Result<(), S
         delete_nodes = delete_nodes.bind(id);
     }
     delete_nodes
-        .execute(&mut connection)
+        .execute(&mut *connection)
         .await
         .map_err(|error| format!("删除节点失败: {error}"))?;
     Ok(())
@@ -773,15 +773,15 @@ pub async fn delete_mind_map(workspace: String, map_id: String) -> Result<(), St
     let mut connection = database::open_for_import(&workspace).await?;
     sqlx::query("UPDATE documents SET map_id = NULL WHERE map_id = ?1")
         .bind(&map_id)
-        .execute(&mut connection)
+        .execute(&mut *connection)
         .await
         .map_err(|error| format!("移动文档到未归类失败: {error}"))?;
     sqlx::query("DELETE FROM maps WHERE id = ?1")
         .bind(&map_id)
-        .execute(&mut connection)
+        .execute(&mut *connection)
         .await
         .map_err(|error| format!("删除导图失败: {error}"))?;
-    sync_maps_json(&workspace, &mut connection).await?;
+    sync_maps_json(&workspace, &mut *connection).await?;
     Ok(())
 }
 
@@ -822,14 +822,14 @@ pub async fn create_map_node(
         return Err("节点标题不能为空".into());
     }
     let mut connection = database::open_for_import(&workspace).await?;
-    ensure_map(&mut connection, &workspace, &map_id).await?;
-    ensure_map_root(&mut connection, &map_id).await?;
+    ensure_map(&mut *connection, &workspace, &map_id).await?;
+    ensure_map_root(&mut *connection, &map_id).await?;
     let parent_id = parent_id.unwrap_or_else(|| map_root_id(&map_id));
     let exists: i64 =
         sqlx::query_scalar("SELECT COUNT(*) FROM map_nodes WHERE id = ?1 AND map_id = ?2")
             .bind(&parent_id)
             .bind(&map_id)
-            .fetch_one(&mut connection)
+            .fetch_one(&mut *connection)
             .await
             .map_err(|error| format!("校验父节点失败: {error}"))?;
     if exists == 0 {
@@ -849,7 +849,7 @@ pub async fn create_map_node(
     .bind(title)
     .bind(format!("{:020}", stamp()))
     .bind(&now)
-    .execute(&mut connection)
+    .execute(&mut *connection)
     .await
     .map_err(|error| format!("创建节点失败: {error}"))?;
     Ok(node_id)
@@ -869,7 +869,7 @@ pub async fn rename_map_node(
         "SELECT document_id, heading_block_id, parent_id FROM map_nodes WHERE id = ?1",
     )
     .bind(&node_id)
-    .fetch_optional(&mut connection)
+    .fetch_optional(&mut *connection)
     .await
     .map_err(|error| format!("读取节点失败: {error}"))?
     .ok_or_else(|| "节点不存在".to_string())?;
@@ -879,7 +879,7 @@ pub async fn rename_map_node(
         .bind(title)
         .bind(&now)
         .bind(&node_id)
-        .execute(&mut connection)
+        .execute(&mut *connection)
         .await
         .map_err(|error| format!("更新节点失败: {error}"))?;
     if let Some(document_id) = document_id {
@@ -887,14 +887,14 @@ pub async fn rename_map_node(
             .bind(title)
             .bind(&now)
             .bind(&document_id)
-            .execute(&mut connection)
+            .execute(&mut *connection)
             .await
             .map_err(|error| format!("同步文档标题失败: {error}"))?;
     }
     let map_id: Option<String> =
         sqlx::query_scalar("SELECT map_id FROM map_nodes WHERE id = ?1")
             .bind(&node_id)
-            .fetch_optional(&mut connection)
+            .fetch_optional(&mut *connection)
             .await
             .map_err(|error| format!("读取节点导图失败: {error}"))?
             .flatten();
@@ -904,7 +904,7 @@ pub async fn rename_map_node(
                 .bind(title)
                 .bind(&now)
                 .bind(&map_id)
-                .execute(&mut connection)
+                .execute(&mut *connection)
                 .await
                 .map_err(|error| format!("同步导图标题失败: {error}"))?;
         }
@@ -913,7 +913,7 @@ pub async fn rename_map_node(
         let parent_document: Option<String> =
             sqlx::query_scalar("SELECT document_id FROM map_nodes WHERE id = ?1")
                 .bind(&parent_id)
-                .fetch_optional(&mut connection)
+                .fetch_optional(&mut *connection)
                 .await
                 .map_err(|error| format!("读取父节点文档失败: {error}"))?
                 .flatten();
@@ -923,7 +923,7 @@ pub async fn rename_map_node(
             )
             .bind(&heading_block_id)
             .bind(&parent_document)
-            .fetch_optional(&mut connection)
+            .fetch_optional(&mut *connection)
             .await
             .map_err(|error| format!("读取标题块失败: {error}"))?;
             if let Some((block_type, content_json)) = block {
@@ -952,13 +952,13 @@ pub async fn rename_map_node(
                 .bind(&markdown)
                 .bind(&now)
                 .bind(&heading_block_id)
-                .execute(&mut connection)
+                .execute(&mut *connection)
                 .await
                 .map_err(|error| format!("同步标题块失败: {error}"))?;
                 sqlx::query("UPDATE block_fts SET content = ?1 WHERE block_id = ?2")
                     .bind(&markdown)
                     .bind(&heading_block_id)
-                    .execute(&mut connection)
+                    .execute(&mut *connection)
                     .await
                     .map_err(|error| format!("同步标题索引失败: {error}"))?;
             }
@@ -979,7 +979,7 @@ pub async fn set_map_node_position(
         .bind(y)
         .bind(now())
         .bind(&node_id)
-        .execute(&mut connection)
+        .execute(&mut *connection)
         .await
         .map_err(|error| format!("保存节点位置失败: {error}"))?;
     Ok(())
@@ -1121,7 +1121,7 @@ pub async fn create_document_for_map_root(
         "SELECT title, document_id FROM maps WHERE id = ?1",
     )
     .bind(&map_id)
-    .fetch_optional(&mut connection)
+    .fetch_optional(&mut *connection)
     .await
     .map_err(|error| format!("读取导图失败: {error}"))?
     .ok_or_else(|| "导图不存在".to_string())?;
@@ -1138,10 +1138,10 @@ pub async fn create_document_for_map_root(
         .bind(&created.id)
         .bind(now())
         .bind(&map_id)
-        .execute(&mut connection)
+        .execute(&mut *connection)
         .await
         .map_err(|error| format!("绑定根节点文档失败: {error}"))?;
-    ensure_map_root(&mut connection, &map_id).await?;
+    ensure_map_root(&mut *connection, &map_id).await?;
     sync_document_headings(&workspace, &created.id).await?;
     Ok(created.id)
 }
@@ -1155,7 +1155,7 @@ pub async fn create_document_for_map_node(
         "SELECT map_id, title, document_id, heading_block_id FROM map_nodes WHERE id = ?1",
     )
     .bind(&node_id)
-    .fetch_optional(&mut connection)
+    .fetch_optional(&mut *connection)
     .await
     .map_err(|error| format!("读取节点失败: {error}"))?
     .ok_or_else(|| "节点不存在".to_string())?;
@@ -1173,7 +1173,7 @@ pub async fn create_document_for_map_node(
         .bind(&created.id)
         .bind(now())
         .bind(&node_id)
-        .execute(&mut connection)
+        .execute(&mut *connection)
         .await
         .map_err(|error| format!("绑定文档失败: {error}"))?;
         created.id
@@ -1184,10 +1184,10 @@ pub async fn create_document_for_map_node(
             .bind(&document_id)
             .bind(now())
             .bind(&row.0)
-            .execute(&mut connection)
+            .execute(&mut *connection)
             .await
             .map_err(|error| format!("绑定根节点文档失败: {error}"))?;
-        ensure_map_root(&mut connection, &row.0).await?;
+        ensure_map_root(&mut *connection, &row.0).await?;
         sync_document_headings(&workspace, &document_id).await?;
     }
 
@@ -1238,7 +1238,7 @@ mod tests {
             )
             .bind(map_id)
             .bind(document_id)
-            .execute(&mut connection)
+            .execute(&mut *connection)
             .await
             .unwrap();
             sqlx::query(
@@ -1247,7 +1247,7 @@ mod tests {
             )
             .bind(document_id)
             .bind(map_id)
-            .execute(&mut connection)
+            .execute(&mut *connection)
             .await
             .unwrap();
             sqlx::query(
@@ -1258,10 +1258,10 @@ mod tests {
             .bind("block_root_h1")
             .bind(document_id)
             .bind(r#"{"type":"heading","attrs":{"level":1},"content":[{"type":"text","text":"子标题"}]}"#)
-            .execute(&mut connection)
+            .execute(&mut *connection)
             .await
             .unwrap();
-            ensure_map_root(&mut connection, map_id).await.unwrap();
+            ensure_map_root(&mut *connection, map_id).await.unwrap();
         });
 
         block_on(sync_document_headings(&workspace, document_id)).unwrap();
@@ -1274,7 +1274,7 @@ mod tests {
             )
             .bind(map_id)
             .bind(map_root_id(map_id))
-            .fetch_optional(&mut connection)
+            .fetch_optional(&mut *connection)
             .await
             .unwrap();
             assert_eq!(child.as_deref(), Some("block_root_h1"));

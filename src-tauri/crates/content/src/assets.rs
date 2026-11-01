@@ -85,7 +85,7 @@ pub async fn save_note_image_asset(
             .unwrap_or_default(),
     )
     .bind(bytes)
-    .execute(&mut connection)
+    .execute(&mut *connection)
     .await
     .map_err(|error| format!("保存图片失败: {error}"))?;
     Ok(relative)

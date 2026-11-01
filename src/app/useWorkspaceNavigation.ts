@@ -3,6 +3,7 @@ import type { DockWorkspaceHandle } from "../components/DockWorkspace";
 import { findNode } from "../domain/tree";
 import type { MapView, NodeView, SearchHit, WorkspaceView } from "../types";
 import { writeWorkspaceTitle } from "../application/sessionService";
+import { workspaceService } from "../application/workspaceService";
 
 type WorkspaceUpdater = (
   next:
@@ -91,6 +92,7 @@ export function useWorkspaceNavigation({
       return;
     }
     const target = workspaces.find((item) => item.root === root) ?? null;
+    await workspaceService.closeDatabase(root).catch(() => {});
     dockRef.current?.closeWorkspacePanels(root, target);
     setWorkspaces((current) =>
       current.filter((item) => item.root !== root),

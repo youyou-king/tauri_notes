@@ -1,7 +1,9 @@
 use crate::sqlite;
 use serde::Serialize;
-use sqlx::{Connection, SqliteConnection};
-use std::collections::HashSet;
+use sqlx::sqlite::SqlitePoolOptions;
+use sqlx::pool::PoolConnection;
+use sqlx::{Connection, Sqlite, SqliteConnection, SqlitePool};
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::sync::{LazyLock, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -11,6 +13,8 @@ pub const SCHEMA_VERSION: i64 = 7;
 static DATABASE_INIT_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 static INITIALIZED_DATABASES: LazyLock<Mutex<HashSet<std::path::PathBuf>>> =
     LazyLock::new(|| Mutex::new(HashSet::new()));
+static DATABASE_POOLS: LazyLock<tokio::sync::Mutex<HashMap<std::path::PathBuf, SqlitePool>>> =
+    LazyLock::new(|| tokio::sync::Mutex::new(HashMap::new()));
 
 const MIGRATION_1: &str = r#"
 CREATE TABLE IF NOT EXISTS documents (
@@ -326,11 +330,29 @@ async fn read_status(connection: &mut SqliteConnection) -> Result<DatabaseStatus
     })
 }
 
+async fn pool_for(path: &Path) -> Result<SqlitePool, String> {
+    let mut pools = DATABASE_POOLS.lock().await;
+    if let Some(pool) = pools.get(path) {
+        return Ok(pool.clone());
+    }
+    let pool = SqlitePoolOptions::new()
+        .max_connections(4)
+        .connect_with(sqlite::connect_options(path))
+        .await
+        .map_err(|error| format!("打开 {} 失败: {error}", path.display()))?;
+    pools.insert(path.to_path_buf(), pool.clone());
+    Ok(pool)
+}
+
 pub async fn open_for_import(
     workspace: &str,
-) -> Result<SqliteConnection, String> {
+) -> Result<PoolConnection<Sqlite>, String> {
     let path = database_path(workspace);
-    let mut connection = sqlite::connect(&path).await?;
+    let pool = pool_for(&path).await?;
+    let mut connection = pool
+        .acquire()
+        .await
+        .map_err(|error| format!("获取数据库连接失败: {error}"))?;
     let already_initialized = INITIALIZED_DATABASES
         .lock()
         .map_err(|_| "数据库初始化状态锁已损坏".to_string())?
@@ -346,7 +368,7 @@ pub async fn open_for_import(
         .map_err(|_| "数据库初始化状态锁已损坏".to_string())?
         .contains(&path);
     if !already_initialized {
-        migrate(&mut connection, &path).await?;
+        migrate(&mut *connection, &path).await?;
         INITIALIZED_DATABASES
             .lock()
             .map_err(|_| "数据库初始化状态锁已损坏".to_string())?
@@ -355,20 +377,31 @@ pub async fn open_for_import(
     Ok(connection)
 }
 
+pub async fn close_workspace_pool(workspace: &str) {
+    let path = database_path(workspace);
+    let pool = DATABASE_POOLS.lock().await.remove(&path);
+    if let Ok(mut initialized) = INITIALIZED_DATABASES.lock() {
+        initialized.remove(&path);
+    }
+    if let Some(pool) = pool {
+        pool.close().await;
+    }
+}
+
 pub async fn initialize_database(workspace: String) -> Result<DatabaseStatus, String> {
     let mut connection = open_for_import(&workspace).await?;
-    read_status(&mut connection).await
+    read_status(&mut *connection).await
 }
 
 pub async fn database_status(workspace: String) -> Result<DatabaseStatus, String> {
     let mut connection = open_for_import(&workspace).await?;
-    read_status(&mut connection).await
+    read_status(&mut *connection).await
 }
 
 pub async fn verify_database(workspace: String) -> Result<(), String> {
     let mut connection = open_for_import(&workspace).await?;
     let integrity: String = sqlx::query_scalar("PRAGMA integrity_check")
-        .fetch_one(&mut connection)
+        .fetch_one(&mut *connection)
         .await
         .map_err(|error| format!("校验数据库失败: {error}"))?;
     connection
@@ -389,7 +422,7 @@ pub async fn backup_database(workspace: String) -> Result<String, String> {
     let target = backup_dir.join(format!("notes-{}.db", timestamp()));
     let target_text = target.to_string_lossy().replace('\'', "''");
     sqlx::query(&format!("VACUUM INTO '{}'", target_text))
-        .execute(&mut connection)
+        .execute(&mut *connection)
         .await
         .map_err(|error| format!("备份数据库失败: {error}"))?;
     connection
@@ -403,8 +436,8 @@ pub async fn backup_database(workspace: String) -> Result<String, String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        backup_database, initialize_database, open_for_import, verify_database,
-        MIGRATION_1, SCHEMA_VERSION,
+        backup_database, close_workspace_pool, initialize_database,
+        open_for_import, verify_database, MIGRATION_1, SCHEMA_VERSION,
     };
     use crate::sqlite;
     use sqlx::Connection;
@@ -443,11 +476,12 @@ mod tests {
             let mut connection = open_for_import(&path).await.unwrap();
             let applied: i64 =
                 sqlx::query_scalar("SELECT COUNT(*) FROM schema_migrations")
-                    .fetch_one(&mut connection)
+                    .fetch_one(&mut *connection)
                     .await
                     .unwrap();
             assert_eq!(applied, SCHEMA_VERSION);
             connection.close().await.unwrap();
+            close_workspace_pool(&path).await;
         });
         fs::remove_dir_all(root).unwrap();
     }
@@ -509,11 +543,13 @@ mod tests {
                 )
                 .bind(table)
                 .bind(column)
-                .fetch_one(&mut connection)
+                .fetch_one(&mut *connection)
                 .await
                 .unwrap();
                 assert_eq!(exists, 1, "missing {table}.{column}");
             }
+            drop(connection);
+            close_workspace_pool(&workspace_text).await;
         });
         fs::remove_dir_all(root).unwrap();
     }
@@ -555,7 +591,7 @@ mod tests {
                 .unwrap();
             drop(connection);
 
-            let error = initialize_database(workspace_text)
+            let error = initialize_database(workspace_text.clone())
                 .await
                 .expect_err("migration must fail");
             assert!(error.contains("schema v2"), "{error}");
@@ -567,6 +603,7 @@ mod tests {
                     .await
                     .unwrap();
             assert_eq!(applied, Some(1));
+            close_workspace_pool(&workspace_text).await;
         });
         fs::remove_dir_all(root).unwrap();
     }
@@ -578,9 +615,11 @@ mod tests {
         let path = root.to_string_lossy().into_owned();
         let backup = block_on(async {
             initialize_database(path).await.unwrap();
-            backup_database(root.to_string_lossy().into_owned())
+            let backup = backup_database(root.to_string_lossy().into_owned())
                 .await
-                .unwrap()
+                .unwrap();
+            close_workspace_pool(&root.to_string_lossy()).await;
+            backup
         });
         let backup_path = PathBuf::from(backup);
         assert!(backup_path.is_file());
@@ -603,7 +642,8 @@ mod tests {
         let path = root.to_string_lossy().into_owned();
         block_on(async {
             initialize_database(path.clone()).await.unwrap();
-            verify_database(path).await.unwrap();
+            verify_database(path.clone()).await.unwrap();
+            close_workspace_pool(&path).await;
         });
         fs::remove_dir_all(root).unwrap();
     }

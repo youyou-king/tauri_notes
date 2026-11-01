@@ -32,3 +32,9 @@ pub async fn verify_database(workspace: String) -> Result<(), CommandError> {
         .await
         .map_err(CommandError::from)
 }
+
+#[tauri::command]
+pub async fn close_workspace_database(workspace: String) -> Result<(), CommandError> {
+    database::close_workspace_pool(&workspace).await;
+    Ok(())
+}

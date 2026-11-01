@@ -23,7 +23,7 @@ pub async fn list_reference_targets(
          ORDER BY d.title, b.order_key
          LIMIT 200",
     )
-    .fetch_all(&mut connection)
+    .fetch_all(&mut *connection)
     .await
     .map_err(|error| format!("读取目标块失败: {error}"))?;
     Ok(rows
@@ -50,7 +50,7 @@ pub async fn relink_reference(
     )
     .bind(&target_block_id)
     .bind(&target_document_id)
-    .fetch_one(&mut connection)
+    .fetch_one(&mut *connection)
     .await
     .map_err(|error| format!("校验目标块失败: {error}"))?;
     if exists == 0 {
@@ -64,7 +64,7 @@ pub async fn relink_reference(
     .bind(target_document_id)
     .bind(target_block_id)
     .bind(reference_id)
-    .execute(&mut connection)
+    .execute(&mut *connection)
     .await
     .map_err(|error| format!("重新关联失败: {error}"))?;
     Ok(())
@@ -96,7 +96,7 @@ pub async fn load_reference_preview(
          WHERE r.id = ?1",
     )
     .bind(reference_id)
-    .fetch_optional(&mut connection)
+    .fetch_optional(&mut *connection)
     .await
     .map_err(|error| format!("读取引用失败: {error}"))?
     .ok_or_else(|| "引用已失效或目标块不存在".to_string())?;

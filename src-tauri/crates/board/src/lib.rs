@@ -78,7 +78,7 @@ pub async fn list_boards_db(workspace: String) -> Result<Vec<BoardSummary>, Stri
          GROUP BY b.id
          ORDER BY b.updated_at DESC",
     )
-    .fetch_all(&mut connection)
+    .fetch_all(&mut *connection)
     .await
     .map_err(|error| format!("读取对照板失败: {error}"))?;
     Ok(rows
@@ -98,7 +98,7 @@ pub async fn read_board_db(workspace: String, board_id: String) -> Result<Board,
         "SELECT id, title FROM boards WHERE id = ?1",
     )
     .bind(&board_id)
-    .fetch_optional(&mut connection)
+    .fetch_optional(&mut *connection)
     .await
     .map_err(|error| format!("读取对照板失败: {error}"))?
     .ok_or_else(|| "对照板不存在".to_string())?;
@@ -118,7 +118,7 @@ pub async fn read_board_db(workspace: String, board_id: String) -> Result<Board,
          ORDER BY i.order_key",
     )
     .bind(&board_id)
-    .fetch_all(&mut connection)
+    .fetch_all(&mut *connection)
     .await
     .map_err(|error| format!("读取对照板条目失败: {error}"))?;
 

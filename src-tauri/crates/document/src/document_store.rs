@@ -77,7 +77,7 @@ pub async fn list_imported_documents(    workspace: String,
          GROUP BY d.id, d.title
          ORDER BY d.title",
     )
-    .fetch_all(&mut connection)
+    .fetch_all(&mut *connection)
     .await
     .map_err(|error| format!("读取导入文档失败: {error}"))?;
     Ok(rows
@@ -115,21 +115,21 @@ pub async fn load_document_blocks(
          ORDER BY order_key",
     )
     .bind(&document_id)
-    .fetch_all(&mut connection)
+    .fetch_all(&mut *connection)
     .await
     .map_err(|error| format!("读取文档块失败: {error}"))?;
 
     let linked: i64 =
         sqlx::query_scalar("SELECT COUNT(*) FROM map_nodes WHERE document_id = ?1")
             .bind(&document_id)
-            .fetch_one(&mut connection)
+            .fetch_one(&mut *connection)
             .await
             .map_err(|error| format!("读取文档节点失败: {error}"))?;
     if linked > 0 {
         let title: Option<String> =
             sqlx::query_scalar("SELECT title FROM documents WHERE id = ?1")
                 .bind(&document_id)
-                .fetch_optional(&mut connection)
+                .fetch_optional(&mut *connection)
                 .await
                 .map_err(|error| format!("读取文档标题失败: {error}"))?;
         if let Some(title) = title {
@@ -145,12 +145,12 @@ pub async fn load_document_blocks(
             for block_id in &self_heading_ids {
                 sqlx::query("DELETE FROM block_fts WHERE block_id = ?1")
                     .bind(block_id)
-                    .execute(&mut connection)
+                    .execute(&mut *connection)
                     .await
                     .map_err(|error| format!("删除重复标题索引失败: {error}"))?;
                 sqlx::query("DELETE FROM blocks WHERE id = ?1")
                     .bind(block_id)
-                    .execute(&mut connection)
+                    .execute(&mut *connection)
                     .await
                     .map_err(|error| format!("删除重复标题失败: {error}"))?;
             }
@@ -163,7 +163,7 @@ pub async fn load_document_blocks(
                             .unwrap_or_default(),
                     )
                     .bind(&document_id)
-                    .execute(&mut connection)
+                    .execute(&mut *connection)
                     .await
                     .map_err(|error| format!("更新文档时间失败: {error}"))?;
             }
@@ -272,7 +272,7 @@ pub async fn index_blocks_db(
          WHERE b.type <> 'viewport' AND d.deleted_at IS NULL
          ORDER BY d.title, b.order_key",
     )
-    .fetch_all(&mut connection)
+    .fetch_all(&mut *connection)
     .await
     .map_err(|error| format!("读取块索引失败: {error}"))?;
 
@@ -402,7 +402,7 @@ pub async fn get_imported_document_title(
     let mut connection = database::open_for_import(&workspace).await?;
     sqlx::query_scalar::<_, String>("SELECT title FROM documents WHERE id = ?1")
         .bind(&document_id)
-        .fetch_optional(&mut connection)
+        .fetch_optional(&mut *connection)
         .await
         .map_err(|error| format!("读取文档标题失败: {error}"))?
         .ok_or_else(|| "文档不存在".to_string())
@@ -539,7 +539,7 @@ pub async fn delete_imported_document(
          WHERE id = ?1 AND deleted_at IS NULL",
     )
     .bind(&document_id)
-    .execute(&mut connection)
+    .execute(&mut *connection)
     .await
     .map_err(|error| format!("删除文档失败: {error}"))?;
     Ok(())
@@ -557,7 +557,7 @@ pub async fn list_deleted_documents(
          GROUP BY d.id, d.title
          ORDER BY d.deleted_at DESC",
     )
-    .fetch_all(&mut connection)
+    .fetch_all(&mut *connection)
     .await
     .map_err(|error| format!("读取回收站失败: {error}"))?;
     Ok(rows
@@ -579,7 +579,7 @@ pub async fn restore_imported_document(
         "UPDATE documents SET deleted_at = NULL WHERE id = ?1",
     )
     .bind(&document_id)
-    .execute(&mut connection)
+    .execute(&mut *connection)
     .await
     .map_err(|error| format!("恢复文档失败: {error}"))?;
     Ok(())
@@ -605,7 +605,7 @@ pub async fn load_document_tree(
          WHERE map_id IS NOT NULL AND deleted_at IS NULL
          ORDER BY map_id, order_key, title",
     )
-    .fetch_all(&mut connection)
+    .fetch_all(&mut *connection)
     .await
     .map_err(|error| format!("读取文档树失败: {error}"))?;
     Ok(rows
@@ -644,7 +644,7 @@ pub async fn load_blocks_preview(
              WHERE b.id = ?1 AND d.deleted_at IS NULL",
         )
         .bind(&block_id)
-        .fetch_optional(&mut connection)
+        .fetch_optional(&mut *connection)
         .await
         .map_err(|error| format!("读取引用块失败: {error}"))?;
         if let Some(row) = row {
@@ -820,6 +820,7 @@ mod tests {
                 list_imported_documents(path.clone()).await.unwrap().len(),
                 1
             );
+            database::close_workspace_pool(&path).await;
         });
         fs::remove_dir_all(root).unwrap();
     }

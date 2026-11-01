@@ -15,12 +15,17 @@ pub fn database_path(workspace: &str, name: &str) -> PathBuf {
     path.join(name)
 }
 
-pub async fn connect(path: &Path) -> Result<SqliteConnection, String> {
-    let options = SqliteConnectOptions::new()
+pub fn connect_options(path: &Path) -> SqliteConnectOptions {
+    SqliteConnectOptions::new()
         .filename(path)
         .create_if_missing(true)
         .journal_mode(SqliteJournalMode::Wal)
-        .busy_timeout(Duration::from_secs(5));
+        .foreign_keys(true)
+        .busy_timeout(Duration::from_secs(5))
+}
+
+pub async fn connect(path: &Path) -> Result<SqliteConnection, String> {
+    let options = connect_options(path);
     let mut connection = SqliteConnection::connect_with(&options)
         .await
         .map_err(|error| format!("打开 {} 失败: {error}", path.display()))?;
