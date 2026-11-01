@@ -14,6 +14,7 @@
 - `assetProtocol` 静态 scope 为空，打开工作区时仅授权对应目录；
 - capability 拆分为 core / window / dialog，全部显式绑定 `main`；
 - NSIS 安装模型使用 `currentUser`，应用 manifest 使用 `asInvoker`；
+- bundle identifier 使用 `com.youyou.tauri-notes`；
 - 不启用签名、公证和 updater；用户明确决定跳过发布签名。
 
 ## 结果

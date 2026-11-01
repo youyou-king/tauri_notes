@@ -41,6 +41,14 @@ describe("release readiness", () => {
     expect(config.app.security.csp).toBeTruthy();
     expect(config.app.security.assetProtocol.scope).toEqual([]);
   });
+  it("uses a formal reverse-dns bundle identifier", () => {
+    const config = JSON.parse(
+      Object.values(configFiles)[0] ?? "{}",
+    ) as { identifier?: string };
+    expect(config.identifier).toMatch(/^[a-z0-9]+(\.[a-z0-9-]+)+$/);
+    expect(config.identifier).not.toMatch(/^com\.example\./);
+  });
+
   it("scopes capabilities to explicit windows", () => {
     const capabilities = Object.values(capabilityFiles).map(
       (raw) =>
