@@ -222,6 +222,23 @@ export function MobileShell({
     navigation.openDocument(id);
   };
 
+  const openDocumentFromAction = async (document: MobileDocumentLink) => {
+    try {
+      await runDocumentAction("document.open", {
+        platform: "mobile",
+        document: {
+          id: document.id,
+          title: document.title,
+          workspaceRoot: workspace.root,
+        },
+        dialogs,
+        documentActions,
+      });
+    } catch (error) {
+      dialogs.alert(String(error));
+    }
+  };
+
 
   const renameDocument = async (document: MobileDocumentLink) => {
     try {
@@ -476,8 +493,9 @@ export function MobileShell({
               id: "open",
               label: "打开",
               onSelect: () => {
-                openDocument(menuDocument.id);
+                const document = menuDocument;
                 setMenuDocument(null);
+                void openDocumentFromAction(document);
               },
             },
             {
