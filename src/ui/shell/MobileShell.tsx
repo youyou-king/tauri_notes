@@ -4,7 +4,6 @@ import {
   type ManagedLibrarySummary,
 } from "../../application/managedLibraryService";
 import { useMobileShellStore } from "../../application/stores/mobileShellStore";
-import { MobileActionSheet } from "./MobileActionSheet";
 import { useSwipeBack } from "../interaction/useSwipeBack";
 import { useRuntimeServices } from "../../runtime";
 import { runDocumentAction } from "../../app/documentActions";
@@ -27,6 +26,7 @@ import { APP_EVENTS, emitAppEvent, onAppEvent } from "../../kernel/events";
 import { MobileLibraryRow } from "../mobile/MobileLibraryRow";
 import { MobileManagedLibraries } from "../mobile/MobileManagedLibraries";
 import { MobileDocumentPane } from "../mobile/MobileDocumentPane";
+import { MobileDocumentActionSheet } from "../mobile/MobileDocumentActionSheet";
 import { MobileHeader } from "../mobile/MobileHeader";
 import { MobileTabBar } from "../mobile/MobileTabBar";
 import type { MobileDocumentLink } from "../mobile/types";
@@ -264,6 +264,20 @@ export function MobileShell({
     }
   };
 
+  const handleDocumentMenuAction = (
+    actionId: string,
+    document: MobileDocumentLink,
+  ) => {
+    setMenuDocument(null);
+    if (actionId === "document.open") {
+      void openDocumentFromAction(document);
+    } else if (actionId === "document.rename") {
+      void renameDocument(document);
+    } else if (actionId === "document.delete") {
+      void deleteDocument(document);
+    }
+  };
+
   const runMobileCommand = (id: string) => {
     void runCommandById(id, {
       hasWorkspace: true,
@@ -394,25 +408,11 @@ export function MobileShell({
       />
 
       {menuDocument && (
-        <MobileActionSheet
-          title={menuDocument.title}
+        <MobileDocumentActionSheet
+          document={menuDocument}
+          actions={documentMenuActions}
           onClose={() => setMenuDocument(null)}
-          items={documentMenuActions.map((action) => ({
-            id: action.id,
-            label: action.title,
-            tone: action.id === "document.delete" ? "danger" : "default",
-            onSelect: () => {
-              const document = menuDocument;
-              setMenuDocument(null);
-              if (action.id === "document.open") {
-                void openDocumentFromAction(document);
-              } else if (action.id === "document.rename") {
-                void renameDocument(document);
-              } else if (action.id === "document.delete") {
-                void deleteDocument(document);
-              }
-            },
-          }))}
+          onAction={handleDocumentMenuAction}
         />
       )}
     </div>
