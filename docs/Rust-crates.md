@@ -2,7 +2,7 @@
 
 Rust 侧插件与内核 crate。
 
-> 最后核对：2026-11-01 | 当前版本 v0.1.1 | 基线 217 / 49 / 37
+> 最后核对：2026-11-01 | 当前版本 v0.1.1 | 基线 222 / 51 / 37
 
 ## 布局
 
@@ -76,6 +76,11 @@ workspace
 ├─ document read / index
 ├─ block edit operations
 └─ file and database search
+
+managed_library（app 层）
+├─ App 私有 libraries/ 列表
+├─ 导入前 WAL checkpoint
+└─ 复制外部 .note
 
 theme
 ├─ ThemeStore（注入 data/legacy 目录）

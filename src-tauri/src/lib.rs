@@ -5,6 +5,7 @@ mod desktop;
 mod document_commands;
 mod import_commands;
 mod keymap_commands;
+mod managed_library;
 mod content_commands;
 mod command_error;
 #[cfg(mobile)]
@@ -161,6 +162,24 @@ fn plugin_sdk_version() -> u32 {
 }
 
 #[tauri::command]
+async fn list_managed_libraries(
+    state: tauri::State<'_, platform_state::PlatformState>,
+) -> Result<Vec<managed_library::ManagedLibrarySummary>, String> {
+    let data_dir = { state.adapter.data_dir()? };
+    managed_library::list_libraries(&data_dir)
+}
+
+#[tauri::command]
+async fn import_managed_library(
+    state: tauri::State<'_, platform_state::PlatformState>,
+    source: String,
+) -> Result<managed_library::ManagedLibrarySummary, String> {
+    let data_dir = { state.adapter.data_dir()? };
+    managed_library::import_library(std::path::Path::new(&source), &data_dir)
+        .await
+}
+
+#[tauri::command]
 fn plan_plugin_activation(
     manifests: Vec<PluginManifest>,
 ) -> Result<Vec<String>, Vec<String>> {
@@ -189,6 +208,8 @@ pub fn run() {
             validate_plugin_manifest,
             plugin_sdk_version,
             platform_commands::platform_info,
+            list_managed_libraries,
+            import_managed_library,
             keymap_commands::load_keymap,
             keymap_commands::save_keymap,
             keymap_commands::export_keymap,

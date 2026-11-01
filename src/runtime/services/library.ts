@@ -1,6 +1,7 @@
 import { appDataDir, join } from "@tauri-apps/api/path";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import type { LibraryPort } from "../../application/ports/libraryPort";
+import { managedLibraryService } from "../../application/managedLibraryService";
 
 async function defaultNotePath(): Promise<string> {
   try {
@@ -44,10 +45,21 @@ export function createDesktopLibrary(): LibraryPort {
 }
 
 /**
- * Phase 2 keeps the same path picker on mobile because the Android/iOS target
- * is not initialized yet. The managed-library adapter will replace this
- * implementation without changing LibraryPort.
+ * Mobile imports external `.note` files into the App-private library before
+ * opening them. New-library creation still uses the path picker until the
+ * managed create flow lands.
  */
 export function createMobileLibrary(): LibraryPort {
-  return createPathLibrary();
+  const paths = createPathLibrary();
+  return {
+    async pickExisting() {
+      const picked = await paths.pickExisting();
+      if (!picked) {
+        return null;
+      }
+      const imported = await managedLibraryService.import(picked);
+      return imported.path;
+    },
+    pickNew: paths.pickNew,
+  };
 }

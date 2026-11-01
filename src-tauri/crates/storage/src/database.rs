@@ -377,6 +377,20 @@ pub async fn open_for_import(
     Ok(connection)
 }
 
+/// Flushes WAL contents before copying a workspace file. Callers should not
+/// open the database again until the copy has finished.
+pub async fn checkpoint_workspace(workspace: &str) -> Result<(), String> {
+    {
+        let mut connection = open_for_import(workspace).await?;
+        sqlx::query("PRAGMA wal_checkpoint(TRUNCATE)")
+            .execute(&mut *connection)
+            .await
+            .map_err(|error| format!("checkpoint 失败: {error}"))?;
+    }
+    close_workspace_pool(workspace).await;
+    Ok(())
+}
+
 pub async fn close_workspace_pool(workspace: &str) {
     let path = database_path(workspace);
     let pool = DATABASE_POOLS.lock().await.remove(&path);
