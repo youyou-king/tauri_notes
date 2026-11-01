@@ -1,12 +1,16 @@
 use crate::sqlite;
 use serde::Serialize;
 use sqlx::{Connection, SqliteConnection};
+use std::collections::HashSet;
 use std::path::Path;
+use std::sync::{LazyLock, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub const SCHEMA_VERSION: i64 = 7;
 
 static DATABASE_INIT_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+static INITIALIZED_DATABASES: LazyLock<Mutex<HashSet<std::path::PathBuf>>> =
+    LazyLock::new(|| Mutex::new(HashSet::new()));
 
 const MIGRATION_1: &str = r#"
 CREATE TABLE IF NOT EXISTS documents (
@@ -325,10 +329,29 @@ async fn read_status(connection: &mut SqliteConnection) -> Result<DatabaseStatus
 pub async fn open_for_import(
     workspace: &str,
 ) -> Result<SqliteConnection, String> {
-    let _guard = DATABASE_INIT_LOCK.lock().await;
     let path = database_path(workspace);
     let mut connection = sqlite::connect(&path).await?;
-    migrate(&mut connection, &path).await?;
+    let already_initialized = INITIALIZED_DATABASES
+        .lock()
+        .map_err(|_| "数据库初始化状态锁已损坏".to_string())?
+        .contains(&path);
+    if already_initialized {
+        return Ok(connection);
+    }
+    // Migration is a one-time process operation. The lock is only needed for
+    // the first open of a workspace, not for every read/write command.
+    let _guard = DATABASE_INIT_LOCK.lock().await;
+    let already_initialized = INITIALIZED_DATABASES
+        .lock()
+        .map_err(|_| "数据库初始化状态锁已损坏".to_string())?
+        .contains(&path);
+    if !already_initialized {
+        migrate(&mut connection, &path).await?;
+        INITIALIZED_DATABASES
+            .lock()
+            .map_err(|_| "数据库初始化状态锁已损坏".to_string())?
+            .insert(path);
+    }
     Ok(connection)
 }
 
