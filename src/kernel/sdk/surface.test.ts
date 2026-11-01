@@ -18,6 +18,7 @@ const EXPORTED_SURFACE = [
   "contrastRatio",
   "contrastWarnings",
   "createPluginHost",
+  "createPluginStorage",
   "dispatchCommandEvent",
   "emitAppEvent",
   "getPanelDefinitions",

@@ -1,7 +1,8 @@
+import { createPluginStorage } from "../../kernel/sdk";
 import type { AppearancePackManifest } from "./appearancePack";
 
-export const TRUSTED_PUBLISHERS_KEY =
-  "tauri-notes.trusted-appearance-publishers.v1";
+const storage = createPluginStorage("theme");
+export const TRUSTED_PUBLISHERS_KEY = "trusted-appearance-publishers.v1";
 
 export type AppearancePublisher = {
   name?: string;
@@ -57,7 +58,7 @@ export function bytesToBase64Url(bytes: Uint8Array): string {
 
 function readTrustedFingerprints(): Set<string> {
   try {
-    const raw = window.localStorage.getItem(TRUSTED_PUBLISHERS_KEY);
+    const raw = storage.get(TRUSTED_PUBLISHERS_KEY);
     if (!raw) {
       return new Set();
     }
@@ -75,10 +76,7 @@ function readTrustedFingerprints(): Set<string> {
 export function trustPublisher(fingerprint: string): void {
   const trusted = readTrustedFingerprints();
   trusted.add(fingerprint);
-  window.localStorage.setItem(
-    TRUSTED_PUBLISHERS_KEY,
-    JSON.stringify([...trusted].sort()),
-  );
+  storage.setJSON(TRUSTED_PUBLISHERS_KEY, [...trusted].sort());
 }
 
 export function isTrustedPublisher(fingerprint: string): boolean {

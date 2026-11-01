@@ -137,6 +137,22 @@ describe("plugin UI boundaries", () => {
     }
     expect(violations).toEqual([]);
   });
+  it("plugins use the plugin storage port", () => {
+    const violations: string[] = [];
+    for (const [file, source] of Object.entries(sources)) {
+      if (
+        /\.test\.(ts|tsx)$/.test(file) ||
+        file.endsWith("plugins/theme/appearanceAssets.ts")
+      ) {
+        continue;
+      }
+      if (/window\.(localStorage|sessionStorage)/.test(source)) {
+        violations.push(file);
+      }
+    }
+    expect(violations).toEqual([]);
+  });
+
   it("app event names live in the typed registry", () => {
     const violations: string[] = [];
     for (const [file, source] of Object.entries(allSources)) {

@@ -40,3 +40,8 @@ export {
   SURFACE_TOKEN_GROUPS,
   THEME_COLOR_TOKENS,
 } from "../appearance";
+
+export {
+  createPluginStorage,
+  type PluginStoragePort,
+} from "../storage/pluginStorage";

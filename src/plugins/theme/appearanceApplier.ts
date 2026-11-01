@@ -1,4 +1,5 @@
 import {
+  createPluginStorage,
   resolvePackOverrides,
   resolveSurfaceOverrides,
 } from "../../kernel/sdk";
@@ -16,7 +17,8 @@ export type DecorationAppearance = {
   hideBelow?: number;
 };
 
-const STORAGE_KEY = "tauri-notes.appearance-pack.v1";
+const storage = createPluginStorage("theme");
+const STORAGE_KEY = "appearance-pack.v1";
 
 type AppliedState = {
   packId: string;
@@ -69,7 +71,7 @@ export function applyAppearanceColors(
   root.setAttribute("data-appearance-pack", packId);
   window.dispatchEvent(new CustomEvent("appearance:applied"));
   try {
-    window.localStorage.setItem(
+    storage.set(
       STORAGE_KEY,
       JSON.stringify({
         packId,
@@ -96,7 +98,7 @@ export function rollbackAppearance(): void {
   const state = applied;
   if (!state) {
     try {
-      window.localStorage.removeItem(STORAGE_KEY);
+      storage.remove(STORAGE_KEY);
     } catch {
       // Ignore storage errors.
     }
@@ -116,7 +118,7 @@ export function rollbackAppearance(): void {
   void clearWallpaperAsset();
   window.dispatchEvent(new CustomEvent("appearance:applied"));
   try {
-    window.localStorage.removeItem(STORAGE_KEY);
+    storage.remove(STORAGE_KEY);
   } catch {
     // Ignore storage errors.
   }
@@ -138,7 +140,7 @@ export async function restoreAppliedAppearance(): Promise<boolean> {
     decorations?: DecorationAppearance[];
   };
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = storage.get(STORAGE_KEY);
     if (!raw) {
       return false;
     }
