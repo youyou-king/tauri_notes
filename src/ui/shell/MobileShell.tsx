@@ -5,6 +5,7 @@ import { confirmDialog } from "../dialog/confirmDialog";
 import { MobileActionSheet } from "./MobileActionSheet";
 import { useLongPress } from "../interaction/useLongPress";
 import { useSwipeBack } from "../interaction/useSwipeBack";
+import { useSwipeLeft } from "../interaction/useSwipeLeft";
 import type { MobileTab } from "../../application/stores/mobileShellStore";
 import type { StoredBlock } from "../../domain/importedDocument";
 import type { BoardControllerPort } from "../../kernel/panel/boardPort";
@@ -108,11 +109,28 @@ function MobileLibraryRow({
   const press = useLongPress({
     onLongPress: () => onMenu(document),
   });
+  const swipe = useSwipeLeft({ onSwipe: () => onMenu(document) });
   return (
     <button
       type="button"
       className="mobile-pressable"
       {...press}
+      onPointerDown={(event) => {
+        press.onPointerDown(event);
+        swipe.onPointerDown(event);
+      }}
+      onPointerUp={(event) => {
+        press.onPointerUp();
+        swipe.onPointerUp(event);
+      }}
+      onPointerCancel={() => {
+        press.onPointerCancel();
+        swipe.onPointerCancel();
+      }}
+      onPointerLeave={() => {
+        press.onPointerLeave();
+        swipe.onPointerLeave();
+      }}
       onClick={() => onOpen(document.id)}
     >
       <strong>{document.title}</strong>

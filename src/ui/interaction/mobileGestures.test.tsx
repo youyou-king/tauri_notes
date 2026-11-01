@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { useLongPress } from "./useLongPress";
 import { useSwipeBack } from "./useSwipeBack";
+import { useSwipeLeft } from "./useSwipeLeft";
 
 function pointer(
   x: number,
@@ -63,6 +64,16 @@ describe("mobile gestures", () => {
     });
     expect(onLongPress).toHaveBeenCalledWith({ x: 20, y: 30 });
     expect(event.preventDefault).toHaveBeenCalled();
+  });
+
+  it("opens row actions on a left swipe", () => {
+    const onSwipe = vi.fn();
+    const { result } = renderHook(() => useSwipeLeft({ onSwipe }));
+    act(() => {
+      result.current.onPointerDown(pointer(160, 100));
+      result.current.onPointerUp(pointer(80, 104));
+    });
+    expect(onSwipe).toHaveBeenCalledTimes(1);
   });
 
   it("triggers swipe back only past the threshold", () => {
