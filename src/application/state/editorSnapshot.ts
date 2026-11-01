@@ -102,13 +102,22 @@ export function editorToolbarSnapshot(
   };
 }
 
+const SNAPSHOT_CACHE = new WeakMap<object, EditorSnapshot>();
+
 export function editorSnapshot(editor: Editor): EditorSnapshot {
-  return {
+  const state = editor.state;
+  const cached = SNAPSHOT_CACHE.get(state);
+  if (cached) {
+    return cached;
+  }
+  const snapshot: EditorSnapshot = {
     selectedBlock: selectedBlockAtSelection(editor),
     stats: {
-      blocks: editor.state.doc.childCount,
-      characters: editor.state.doc.textContent.length,
+      blocks: state.doc.childCount,
+      characters: state.doc.textContent.length,
     },
     toolbar: editorToolbarSnapshot(editor),
   };
+  SNAPSHOT_CACHE.set(state, snapshot);
+  return snapshot;
 }

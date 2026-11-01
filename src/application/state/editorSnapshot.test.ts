@@ -79,6 +79,11 @@ describe("editorSnapshot", () => {
     expect(snapshot.toolbar.canRedo).toBe(false);
   });
 
+  it("reuses one snapshot for the same editor state", () => {
+    const editor = fakeEditor();
+    expect(editorSnapshot(editor)).toBe(editorSnapshot(editor));
+  });
+
   it("returns null when the selection is outside top-level blocks", () => {
     const editor = fakeEditor({ from: 100 });
     expect(selectedBlockAtSelection(editor)).toBeNull();
