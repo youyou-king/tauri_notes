@@ -779,6 +779,16 @@ mod tests {
         ))
     }
 
+    fn remove_workspace(root: &PathBuf) {
+        for _ in 0..20 {
+            if fs::remove_dir_all(root).is_ok() {
+                return;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(25));
+        }
+        let _ = fs::remove_dir_all(root);
+    }
+
     #[test]
     fn soft_deletes_and_restores_documents() {
         let root = workspace("trash");
@@ -822,6 +832,6 @@ mod tests {
             );
             database::close_workspace_pool(&path).await;
         });
-        fs::remove_dir_all(root).unwrap();
+        remove_workspace(&root);
     }
 }
