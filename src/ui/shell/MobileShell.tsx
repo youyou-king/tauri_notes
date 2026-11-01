@@ -348,16 +348,13 @@ export function MobileShell({
         </div>
         <div className="mobile-shell-actions" style={{ display: "flex", gap: 8 }}>
           <button type="button" onClick={() => runMobileAction("search.open")}>
-            鎼滅储
+            搜索
           </button>
           <button type="button" onClick={() => runMobileAction("help.open")}>
-            甯姪
+            帮助
           </button>
           <button type="button" onClick={() => runMobileAction("board.open")}>
-            鐪嬫澘
-          </button>
-          <button type="button" onClick={() => runMobileAction("theme.open")}>
-            涓婚
+            看板
           </button>
         </div>
       </header>

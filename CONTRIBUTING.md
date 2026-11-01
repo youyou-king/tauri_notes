@@ -45,7 +45,8 @@ npm run dev
 ```text
 src/kernel/       稳定内核、契约、命令、事件、面板、SDK
 src/plugins/      功能插件
-src/app/          应用组合根、工具栏、工作区用例
+src/runtime/      Runtime 组合根、Shell 选择（Phase 1 已落地）
+src/app/          应用编排、用例 hook、工具栏组件
 src/application/  服务、端口、Zustand store、状态层
 src/infrastructure/ Tauri IPC / 仓储
 src/components/   Dockview、导图等共享组件
@@ -53,7 +54,8 @@ src/ui/           面板、主题、设计系统、导入预览
 src-tauri/        Rust 组合根、命令包装与 crates
 ```
 
-> 平台抽象落地后新增 `src/runtime/` 作为组合根；当前仍由 `src/app/` 承担。方案见
+> `src/runtime/` 已负责桌面/移动 Shell 的选择；`App` 不再直接 import 具体 Shell。
+> 端口迁移（Library/Dialog/Navigation）仍按方案后续阶段推进：  
 > [`docs/平台抽象与移动端重构方案.md`](docs/平台抽象与移动端重构方案.md)。
 
 规则：
@@ -144,7 +146,7 @@ npm run verify:all   # 全量门禁 + 安装包
 当前基线：
 
 ```text
-前端单元测试    203 个通过
+前端单元测试    206 个通过
 Rust 测试        47 个通过
 E2E / 视觉回归   37 个通过
 ```

@@ -171,3 +171,13 @@ describe("plugin UI boundaries", () => {
   });
 
 });
+
+
+describe("runtime composition boundary", () => {
+  it("keeps concrete shells out of App", () => {
+    const app = allSources["./App.tsx"] ?? "";
+    expect(app).not.toContain("MobileShell");
+    expect(app).not.toContain("AppToolbar");
+    expect(app).not.toContain("shell.kind");
+  });
+});

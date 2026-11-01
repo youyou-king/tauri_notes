@@ -1,12 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import DockWorkspace, {
-  type DockWorkspaceHandle,
-} from "./components/DockWorkspace";
+import type { DockWorkspaceHandle } from "./components/DockWorkspace";
 import { SettingsHost } from "./ui/settings/SettingsHost";
 import { PluginOverlays } from "./ui/plugins/PluginOverlays";
 import { setSearchHitHandler } from "./app/searchNavigation";
-import { useShellProfile } from "./ui/shell/useShellProfile";
-import { MobileShell } from "./ui/shell/MobileShell";
+import { useRuntime } from "./runtime";
 import { useBoardController } from "./app/useBoardController";
 import { useWorkspaceSelectionStore } from "./application/stores/workspaceSelectionStore";
 import {
@@ -34,7 +31,6 @@ import {
   useAppCommandRunner,
   useAppHotkeys,
 } from "./app/useAppCommands";
-import { AppToolbar } from "./app/AppToolbar";
 import type { BlockId, DocId } from "./domain/ids";
 import type { MapView, WorkspaceView } from "./types";
 import { APP_EVENTS, onAppEvent } from "./kernel/events";
@@ -48,7 +44,8 @@ import {
 
 function App() {
   const pluginReady = usePluginReady();
-  const shell = useShellProfile();
+  const runtime = useRuntime();
+  const Shell = runtime.Shell;
   const activeMapId = useWorkspaceSelectionStore(
     (state) => state.activeMapId,
   );
@@ -278,66 +275,40 @@ function App() {
   return (
     <div
       className="app"
-      data-shell={shell.kind}
-      data-shell-layout={shell.layout}
+      data-shell={runtime.shellKind}
+      data-shell-layout={runtime.layout}
     >
-      <AppToolbar
+      <Shell
+        pluginReady={pluginReady}
         backend={backend}
         busy={busy}
-        hasWorkspace={Boolean(workspace)}
+        error={error}
         runCommand={runNavCommand}
+        dockRef={dockRef}
+        workspace={workspace}
+        workspaces={workspaces}
+        activeMap={activeMap}
+        selected={selected}
+        onActiveNode={(node) => setSelected(node)}
+        onActiveMap={handleActiveMapPanel}
+        onPanelDirty={handlePanelDirty}
+        onPanelActive={setActivePanelId}
+        onSelectNode={selectNode}
+        onSwitchMap={switchMap}
+        onActivateWorkspace={activateWorkspace}
+        onUnloadWorkspace={unloadWorkspace}
+        onRenameWorkspace={renameWorkspaceDisplay}
+        onPinBlock={async (input) => {
+          await board.pinBlock({
+            blockId: input.blockId as BlockId,
+            docId: input.docId as DocId,
+            docTitle: input.docTitle,
+            text: input.text,
+          });
+          dockRef.current?.openBoard();
+        }}
+        board={board}
       />
-
-      <div className="body">
-        <main className="workspace">
-          <div className="workspace-header">
-            {error && (
-              <div className="error-banner" role="alert">
-                {error}
-              </div>
-            )}
-          </div>
-          <div className="dock-fill">
-            {pluginReady && shell.kind === "mobile" ? (
-              <MobileShell
-                workspace={workspace}
-                activeMap={activeMap}
-                selected={selected}
-                board={board}
-              />
-            ) : pluginReady ? (
-            <DockWorkspace
-              ref={dockRef}
-              workspace={workspace}
-              workspaces={workspaces}
-              activeMap={activeMap}
-              selected={selected}
-              onActiveNode={(node) => setSelected(node)}
-              onActiveMap={handleActiveMapPanel}
-              onPanelDirty={handlePanelDirty}
-              onPanelActive={setActivePanelId}
-              onSelectNode={selectNode}
-              onSwitchMap={switchMap}
-              onActivateWorkspace={activateWorkspace}
-              onUnloadWorkspace={unloadWorkspace}
-              onRenameWorkspace={renameWorkspaceDisplay}
-              onPinBlock={async (input) => {
-                await board.pinBlock({
-                  blockId: input.blockId as BlockId,
-                  docId: input.docId as DocId,
-                  docTitle: input.docTitle,
-                  text: input.text,
-                });
-                dockRef.current?.openBoard();
-              }}
-              board={board}
-            />
-            ) : (
-              <div className="dock-workspace-loading">正在加载插件…</div>
-            )}
-          </div>
-        </main>
-      </div>
 
       <PluginOverlays />
       <SettingsHost />

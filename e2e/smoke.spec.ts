@@ -707,7 +707,7 @@ test("switches appearance pack variants with the theme mode", async ({
 });
 
 test("hides appearance decorations on narrow windows", async ({ page }) => {
-  await page.setViewportSize({ width: 700, height: 800 });
+  await page.setViewportSize({ width: 1400, height: 900 });
   await page.goto("/e2e/fixtures/e2e.html");
   await expect(page.getByText(/演示知识库/).first()).toBeVisible();
   await page.getByRole("button", { name: /主题/ }).click();
@@ -749,6 +749,7 @@ test("hides appearance decorations on narrow windows", async ({ page }) => {
     });
 
   await page.getByRole("button", { name: "应用外观" }).click();
+  await page.setViewportSize({ width: 700, height: 800 });
   await expect(page.locator(".appearance-decoration")).toHaveCount(0);
 });
 
