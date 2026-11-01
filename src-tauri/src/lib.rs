@@ -4,6 +4,7 @@ mod commands;
 mod desktop;
 mod document_commands;
 mod import_commands;
+mod help;
 mod keymap_commands;
 mod managed_library;
 mod content_commands;
@@ -21,6 +22,7 @@ pub use tauri_notes_document::{document_store, map_store};
 pub use tauri_notes_storage::{database, sqlite};
 
 use std::collections::HashSet;
+use tauri::Manager;
 use std::sync::Mutex;
 use tauri_notes_plugin_api::{validate_manifest, PluginManifest};
 use tauri_notes_plugin_runtime::plan_activation;
@@ -122,23 +124,19 @@ fn unregister_note_association(
 
 
 #[tauri::command]
-fn help_note_path() -> Result<String, String> {
-    let mut candidates = Vec::new();
+fn help_note_path(app: tauri::AppHandle) -> Result<String, String> {
     if let Ok(exe) = std::env::current_exe() {
         if let Some(dir) = exe.parent() {
-            candidates.push(dir.join("help.note"));
+            let candidate = dir.join("help.note");
+            if candidate.is_file() {
+                return Ok(candidate.to_string_lossy().into_owned());
+            }
         }
     }
-    candidates.push(
-        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("..")
-            .join("resources")
-            .join("help.note"),
-    );
-    for candidate in candidates {
-        if candidate.is_file() {
-            return Ok(candidate.to_string_lossy().into_owned());
-        }
+    let dev_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
+    let resource_dir = app.path().resource_dir().ok();
+    if let Some(path) = help::resolve_help_note(resource_dir.as_deref(), &dev_root) {
+        return Ok(path.to_string_lossy().into_owned());
     }
     Err("未找到帮助知识库 help.note".into())
 }
