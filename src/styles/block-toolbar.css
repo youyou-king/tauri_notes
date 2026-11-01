@@ -323,6 +323,36 @@
   cursor: pointer;
 }
 
+.document-library-menu {
+  position: fixed;
+  z-index: 40;
+  display: flex;
+  min-width: 150px;
+  flex-direction: column;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+}
+
+.document-library-menu button {
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.document-library-menu button:hover,
+.document-library-menu button:focus-visible {
+  background: var(--hover, var(--border));
+  outline: none;
+}
+
 .block-status-bar {
   flex: 0 0 auto;
   padding: 4px 12px;

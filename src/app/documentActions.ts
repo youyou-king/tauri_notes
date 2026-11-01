@@ -46,6 +46,23 @@ function contextOf(
  */
 export function registerDocumentActions(): void {
   registerAction({
+    id: "document.open",
+    title: "打开文档",
+    category: "document",
+    scope: "global",
+    platforms: ["desktop", "mac", "mobile"],
+    defaultBindings: [],
+    enabled: (runtime) => readContext(runtime) !== null,
+    run: (runtime) => {
+      const context = readContext(runtime);
+      if (!context) {
+        return;
+      }
+      emitAppEvent(APP_EVENTS.openBlockDocument, context.document.id);
+    },
+  });
+
+  registerAction({
     id: "document.rename",
     title: "重命名文档",
     category: "document",
@@ -117,7 +134,7 @@ export function registerDocumentActions(): void {
 }
 
 export async function runDocumentAction(
-  id: "document.rename" | "document.delete",
+  id: "document.open" | "document.rename" | "document.delete",
   context: DocumentActionContext,
 ): Promise<boolean> {
   const action = getAction(id);

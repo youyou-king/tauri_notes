@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { APP_EVENTS, emitAppEvent } from "../../kernel/events";
 import { TauriImportedDocumentRepository } from "../../infrastructure/tauriImportedDocumentRepository";
 import { documentService } from "../../application/documentService";
-import { resolveInputPlatform } from "../../kernel/action";
+import { listActions, resolveInputPlatform } from "../../kernel/action";
 import { runDocumentAction } from "../../app/documentActions";
 import { useRuntimeServices } from "../../runtime";
 import { PanelShell } from "../panels/PanelShell";
@@ -22,8 +22,25 @@ export default function DocumentLibraryPane({
     id: string;
     title: string;
   } | null>(null);
+  const [menu, setMenu] = useState<{
+    x: number;
+    y: number;
+    document: ImportedDocumentSummary;
+  } | null>(null);
   const { dialogs, documentActions } = useRuntimeServices();
   const platform = resolveInputPlatform();
+  const menuActions = listActions().filter(
+    (action) => action.category === "document",
+  );
+
+  useEffect(() => {
+    if (!menu) {
+      return;
+    }
+    const close = () => setMenu(null);
+    window.addEventListener("click", close);
+    return () => window.removeEventListener("click", close);
+  }, [menu]);
 
   useEffect(() => {
     let cancelled = false;
@@ -80,7 +97,30 @@ export default function DocumentLibraryPane({
     }
   }
 
+  function actionContext(document: ImportedDocumentSummary) {
+    return {
+      platform,
+      document: {
+        id: document.id,
+        title: document.title,
+        workspaceRoot,
+      },
+      dialogs,
+      documentActions,
+    };
+  }
+
+  async function openDocument(document: ImportedDocumentSummary) {
+    setMenu(null);
+    try {
+      await runDocumentAction("document.open", actionContext(document));
+    } catch (error) {
+      setStatus(`打开失败：${String(error)}`);
+    }
+  }
+
   async function renameDocument(document: ImportedDocumentSummary) {
+    setMenu(null);
     try {
       await runDocumentAction("document.rename", {
         platform,
@@ -99,6 +139,7 @@ export default function DocumentLibraryPane({
   }
 
   async function deleteDocument(document: ImportedDocumentSummary) {
+    setMenu(null);
     try {
       await runDocumentAction("document.delete", {
         platform,
@@ -147,13 +188,28 @@ export default function DocumentLibraryPane({
     >
       <div className="document-library-list">
         {documents.map((document) => (
-          <div key={document.id} className="document-library-row">
+          <div
+            key={document.id}
+            className="document-library-row"
+            onContextMenu={(event) => {
+              event.preventDefault();
+              setMenu({
+                x: Math.min(event.clientX, window.innerWidth - 180),
+                y: Math.min(event.clientY, window.innerHeight - 120),
+                document,
+              });
+            }}
+          >
             <button
               type="button"
               className="document-library-open"
-              onClick={() =>
-                emitAppEvent(APP_EVENTS.openBlockDocument, document.id)
-              }
+              onClick={() => void openDocument(document)}
+              onKeyDown={(event) => {
+                if (event.key === "F2") {
+                  event.preventDefault();
+                  void renameDocument(document);
+                }
+              }}
             >
               <span>{document.title}</span>
               <small>
@@ -177,6 +233,32 @@ export default function DocumentLibraryPane({
           </div>
         ))}
       </div>
+      {menu && menuActions.length > 0 && (
+        <div
+          className="document-library-menu"
+          role="menu"
+          style={{ left: menu.x, top: menu.y }}
+        >
+          {menuActions.map((action) => (
+            <button
+              key={action.id}
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                if (action.id === "document.open") {
+                  void openDocument(menu.document);
+                } else if (action.id === "document.rename") {
+                  void renameDocument(menu.document);
+                } else if (action.id === "document.delete") {
+                  void deleteDocument(menu.document);
+                }
+              }}
+            >
+              {action.title}
+            </button>
+          ))}
+        </div>
+      )}
     </PanelShell>
   );
 }

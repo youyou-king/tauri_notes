@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { clearActionsForTests } from "../kernel/action";
+import { APP_EVENTS, onAppEvent } from "../kernel/events";
 import {
   registerDocumentActions,
   runDocumentAction,
@@ -35,6 +36,19 @@ beforeAll(() => {
 });
 
 describe("document actions", () => {
+  it("opens the document through the shared action", async () => {
+    const received: string[] = [];
+    const unsubscribe = onAppEvent(APP_EVENTS.openBlockDocument, (id) => {
+      received.push(id);
+    });
+    try {
+      await runDocumentAction("document.open", context());
+    } finally {
+      unsubscribe();
+    }
+    expect(received).toEqual(["doc-1"]);
+  });
+
   it("renames through the same action used by mobile and desktop triggers", async () => {
     const ctx = context();
     const done = await runDocumentAction("document.rename", ctx);
