@@ -1,19 +1,15 @@
 import { Suspense, useEffect, useState } from "react";
-import { documentService } from "../../application/documentService";
 import {
   managedLibraryService,
   type ManagedLibrarySummary,
 } from "../../application/managedLibraryService";
 import { useMobileShellStore } from "../../application/stores/mobileShellStore";
 import { MobileActionSheet } from "./MobileActionSheet";
-import { useLongPress } from "../interaction/useLongPress";
 import { useSwipeBack } from "../interaction/useSwipeBack";
-import { useSwipeLeft } from "../interaction/useSwipeLeft";
 import { useRuntimeServices } from "../../runtime";
 import { runDocumentAction } from "../../app/documentActions";
 import { runLibraryAction } from "../../app/libraryActions";
 import type { MobileTab } from "../../application/stores/mobileShellStore";
-import type { StoredBlock } from "../../domain/importedDocument";
 import type { BoardControllerPort } from "../../kernel/panel/boardPort";
 import { getUiRenderer } from "../../kernel/sdk";
 import {
@@ -23,7 +19,6 @@ import {
 } from "../../kernel/action";
 import { useKeymapStore } from "../../application/stores/keymapStore";
 import { runCommandById } from "../../kernel/command";
-import { renderMarkdownHtml } from "../sdk";
 import {
   PanelContext,
   type PanelContextValue,
@@ -32,11 +27,10 @@ import MindMap from "../../components/MindMap";
 import type { MapView, NodeView, WorkspaceView } from "../../types";
 import { shellActions } from "./shellActions";
 import { APP_EVENTS, emitAppEvent, onAppEvent } from "../../kernel/events";
-
-type MobileDocumentLink = {
-  id: string;
-  title: string;
-};
+import { MobileDocumentView } from "../mobile/MobileDocumentView";
+import { MobileLibraryRow } from "../mobile/MobileLibraryRow";
+import { MobileManagedLibraries } from "../mobile/MobileManagedLibraries";
+import type { MobileDocumentLink } from "../mobile/types";
 
 function collectDocuments(
   node: NodeView,
@@ -49,100 +43,6 @@ function collectDocuments(
   for (const child of node.children) {
     collectDocuments(child, mapId, output);
   }
-}
-
-function MobileDocumentView({
-  workspaceRoot,
-  documentId,
-}: {
-  workspaceRoot: string;
-  documentId: string;
-}) {
-  const [title, setTitle] = useState("");
-  const [blocks, setBlocks] = useState<StoredBlock[]>([]);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    void Promise.all([
-      documentService.getTitle(workspaceRoot, documentId),
-      documentService.loadBlocks(workspaceRoot, documentId),
-    ])
-      .then(([nextTitle, nextBlocks]) => {
-        if (cancelled) {
-          return;
-        }
-        setTitle(nextTitle);
-        setBlocks(nextBlocks);
-        setError(null);
-      })
-      .catch((reason) => {
-        if (!cancelled) {
-          setError(String(reason));
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [documentId, workspaceRoot]);
-
-  return (
-    <article className="mobile-document">
-      <h1>{title || "文档"}</h1>
-      {error && <p className="theme-error">{error}</p>}
-      {blocks.map((block) => (
-        <div
-          key={block.id}
-          className="mobile-document-block"
-          dangerouslySetInnerHTML={{
-            __html: renderMarkdownHtml(block.plainText),
-          }}
-        />
-      ))}
-    </article>
-  );
-}
-
-function MobileLibraryRow({
-  document,
-  onOpen,
-  onMenu,
-}: {
-  document: MobileDocumentLink;
-  onOpen: (id: string) => void;
-  onMenu: (document: MobileDocumentLink) => void;
-}) {
-  const press = useLongPress({
-    onLongPress: () => onMenu(document),
-  });
-  const swipe = useSwipeLeft({ onSwipe: () => onMenu(document) });
-  return (
-    <button
-      type="button"
-      className="mobile-pressable"
-      {...press}
-      onPointerDown={(event) => {
-        press.onPointerDown(event);
-        swipe.onPointerDown(event);
-      }}
-      onPointerUp={(event) => {
-        press.onPointerUp();
-        swipe.onPointerUp(event);
-      }}
-      onPointerCancel={() => {
-        press.onPointerCancel();
-        swipe.onPointerCancel();
-      }}
-      onPointerLeave={() => {
-        press.onPointerLeave();
-        swipe.onPointerLeave();
-      }}
-      onClick={() => onOpen(document.id)}
-    >
-      <strong>{document.title}</strong>
-      <span>{document.id}</span>
-    </button>
-  );
 }
 
 export function MobileShell({
@@ -465,45 +365,13 @@ export function MobileShell({
           />
         ) : tab === "library" ? (
           <div className="mobile-library-view">
-            <section className="mobile-managed-libraries">
-              <div className="mobile-managed-header">
-                <h2>本机书库</h2>
-                <button type="button" onClick={() => void importManagedLibrary()}>
-                  导入
-                </button>
-              </div>
-              {managedLibraries.length === 0 ? (
-                <p>还没有导入或新建书库。</p>
-              ) : (
-                <div className="mobile-managed-library-list">
-                  {managedLibraries.map((item) => (
-                    <div
-                      key={item.id}
-                      className={`mobile-managed-library-row${
-                        workspace.root === item.path ? " active" : ""
-                      }`}
-                    >
-                      <button
-                        type="button"
-                        className="mobile-managed-library-open"
-                        onClick={() => void onOpenWorkspacePath?.(item.path)}
-                      >
-                        <strong>{item.title}</strong>
-                        {workspace.root === item.path && <span>当前</span>}
-                      </button>
-                      <button
-                        type="button"
-                        className="mobile-managed-library-export"
-                        aria-label={`导出 ${item.title}`}
-                        onClick={() => void exportManagedLibrary(item)}
-                      >
-                        导出
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
+            <MobileManagedLibraries
+              libraries={managedLibraries}
+              workspaceRoot={workspace.root}
+              onOpen={(path) => void onOpenWorkspacePath?.(path)}
+              onImport={() => void importManagedLibrary()}
+              onExport={(item) => void exportManagedLibrary(item)}
+            />
             {documents.length > 0 ? (
               <div className="mobile-library">
                 {documents.map((document) => (
