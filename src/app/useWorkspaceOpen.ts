@@ -1,6 +1,5 @@
-import type { RefObject } from "react";
-import type { DockWorkspaceHandle } from "../components/DockWorkspace";
 import type { LibraryPort } from "../application/ports/libraryPort";
+import type { WorkspacePresenter } from "../application/ports/workspacePresenterPort";
 import { findNode } from "../domain/tree";
 import { ensureLibrary } from "../infrastructure/libraryBootstrapper";
 import { workspaceService } from "../application/workspaceService";
@@ -44,8 +43,8 @@ type Args = {
   setBackend: (message: string) => void;
   appendLog: (line: string) => void;
   confirmDiscard: () => Promise<boolean>;
-  dockRef: RefObject<DockWorkspaceHandle | null>;
   library: LibraryPort;
+  workspacePresenter: WorkspacePresenter;
 };
 
 function isDemoRoot(root: string): boolean {
@@ -65,8 +64,8 @@ export function useWorkspaceOpen({
   setBackend,
   appendLog,
   confirmDiscard,
-  dockRef,
   library,
+  workspacePresenter,
 }: Args) {
   async function backupLibrary() {
     if (!workspace) {
@@ -121,16 +120,7 @@ export function useWorkspaceOpen({
       select(map?.id ?? null, root);
       setBackend(`已打开：${view.title}（${view.maps.length} 张导图）`);
       appendLog(`打开知识库：${view.title}`);
-      if (map && isNote) {
-        dockRef.current?.openMap(map.id, view.root);
-      } else if (map && root) {
-        dockRef.current?.openDocument(
-          map.id,
-          root.id,
-          root.title,
-          view.root,
-        );
-      }
+      workspacePresenter.present(view, isNote);
     } catch (err) {
       setError(String(err));
     } finally {
@@ -156,9 +146,9 @@ export function useWorkspaceOpen({
         current.filter((item) => item.root !== picked),
       );
       if (replacing) {
-        dockRef.current?.resetLayout();
+        workspacePresenter.resetLayout();
       } else {
-        dockRef.current?.closeWorkspacePanels(picked);
+        workspacePresenter.closeWorkspace(picked);
       }
       const view = await workspaceService.createNoteFile(
         picked,
@@ -238,10 +228,10 @@ export function useWorkspaceOpen({
     setWorkspace(active);
     select(restoredMap?.id ?? null, restoredNode);
     if (session.activePanelId) {
-      dockRef.current?.activatePanel(session.activePanelId);
+      workspacePresenter.activatePanel(session.activePanelId);
     }
     if (views.length === 0) {
-      dockRef.current?.resetLayout();
+      workspacePresenter.resetLayout();
       return false;
     }
     appendLog("恢复上次知识库会话");
@@ -268,7 +258,7 @@ export function useWorkspaceOpen({
     setWorkspaces([]);
     setWorkspace(null);
     select(null, null);
-    dockRef.current?.resetLayout();
+    workspacePresenter.resetLayout();
     await openWorkspacePath(path, { skipDiscardCheck: true });
   }
 

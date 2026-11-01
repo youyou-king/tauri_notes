@@ -205,8 +205,8 @@ function App() {
     setBackend,
     appendLog,
     confirmDiscard,
-    dockRef,
     library: runtime.services.library,
+    workspacePresenter: runtime.services.workspacePresenter,
   });
 
   const openRequestedWorkspace = useCallback(

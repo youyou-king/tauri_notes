@@ -1,5 +1,7 @@
+import { useEffect } from "react";
 import { AppToolbar } from "../../app/AppToolbar";
 import DockWorkspace from "../../components/DockWorkspace";
+import { useRuntimeServices } from "../../runtime";
 import type { ShellProps } from "../../runtime/contracts";
 
 /**
@@ -29,6 +31,37 @@ export function DesktopShell({
   onPinBlock,
   board,
 }: ShellProps) {
+  const { workspacePresenter } = useRuntimeServices();
+
+  useEffect(() => {
+    workspacePresenter.bind({
+      present(view, isNote) {
+        const map = view.maps[0] ?? null;
+        const root = map?.root ?? null;
+        if (map && isNote) {
+          dockRef.current?.openMap(map.id, view.root);
+        } else if (map && root) {
+          dockRef.current?.openDocument(
+            map.id,
+            root.id,
+            root.title,
+            view.root,
+          );
+        }
+      },
+      resetLayout() {
+        dockRef.current?.resetLayout();
+      },
+      closeWorkspace(root, view) {
+        dockRef.current?.closeWorkspacePanels(root, view);
+      },
+      activatePanel(panelId) {
+        dockRef.current?.activatePanel(panelId);
+      },
+    });
+    return () => workspacePresenter.bind(null);
+  }, [dockRef, workspacePresenter]);
+
   return (
     <>
       <AppToolbar

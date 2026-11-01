@@ -4,6 +4,7 @@ import type { DockWorkspaceHandle } from "../components/DockWorkspace";
 import type { DialogPort } from "../application/ports/dialogPort";
 import type { DocumentActionsPort } from "../application/ports/documentActionsPort";
 import type { LibraryPort } from "../application/ports/libraryPort";
+import type { WorkspacePresenter } from "../application/ports/workspacePresenterPort";
 
 /**
  * Props shared by every shell. The desktop implementation consumes the full
@@ -26,6 +27,7 @@ export type RuntimeServices = {
   library: LibraryPort;
   dialogs: DialogPort;
   documentActions: DocumentActionsPort;
+  workspacePresenter: WorkspacePresenter;
 };
 
 export type Runtime = {
