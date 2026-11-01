@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">"Tauri Notes"</string>
+    <string name="main_activity_title">"Tauri Notes"</string>
+</resources>
