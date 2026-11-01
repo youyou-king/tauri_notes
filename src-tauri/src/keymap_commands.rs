@@ -207,6 +207,16 @@ pub fn save_keymap(app: AppHandle, keymap: KeymapFile) -> Result<(), String> {
     write_keymap(&keymap_path(&app)?, &keymap)
 }
 
+#[tauri::command]
+pub fn export_keymap(path: String, keymap: KeymapFile) -> Result<(), String> {
+    write_keymap(&PathBuf::from(path), &keymap)
+}
+
+#[tauri::command]
+pub fn import_keymap(path: String) -> Result<KeymapFile, String> {
+    read_keymap(&PathBuf::from(path))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

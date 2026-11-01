@@ -244,6 +244,8 @@ pub fn run() {
             plugin_sdk_version,
             keymap_commands::load_keymap,
             keymap_commands::save_keymap,
+            keymap_commands::export_keymap,
+            keymap_commands::import_keymap,
             plan_plugin_activation,
             workspace_commands::open_workspace,
             workspace_commands::create_note_file,

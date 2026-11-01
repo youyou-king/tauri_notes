@@ -10,6 +10,8 @@ import {
   type KeymapRecord,
 } from "../../kernel/action";
 import { useKeymapStore } from "../../application/stores/keymapStore";
+import { keymapService } from "../../application/keymapService";
+import { open, save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { APP_EVENTS, emitAppEvent } from "../../kernel/events";
 
 const PLATFORM = resolveInputPlatform();
@@ -148,6 +150,48 @@ export function ShortcutSection() {
           onClick={() => void save({ version: 2, bindings: [] })}
         >
           恢复默认快捷键
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => {
+            void (async () => {
+              const path = await saveDialog({
+                title: "导出快捷键",
+                defaultPath: "keymap.toml",
+                filters: [{ name: "TOML", extensions: ["toml"] }],
+              });
+              if (!path || Array.isArray(path)) {
+                return;
+              }
+              await keymapService.export(path, keymap);
+              setStatus("已导出。");
+            })().catch((error) => setStatus(String(error)));
+          }}
+        >
+          导出
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => {
+            void (async () => {
+              const path = await open({
+                title: "导入快捷键",
+                multiple: false,
+                filters: [{ name: "TOML", extensions: ["toml"] }],
+              });
+              if (!path || Array.isArray(path)) {
+                return;
+              }
+              const imported = await keymapService.import(path);
+              await saveKeymap(imported);
+              emitAppEvent(APP_EVENTS.keymapChanged);
+              setStatus("已导入并保存。");
+            })().catch((error) => setStatus(String(error)));
+          }}
+        >
+          导入
         </button>
       </div>
       <ul className="shortcut-list">

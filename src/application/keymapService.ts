@@ -43,4 +43,12 @@ export const keymapService = {
   save(document: KeymapDocument): Promise<void> {
     return command("save_keymap", { keymap: document });
   },
+
+  export(path: string, document: KeymapDocument): Promise<void> {
+    return command("export_keymap", { path, keymap: document });
+  },
+
+  import(path: string): Promise<KeymapDocument> {
+    return command<KeymapDocument>("import_keymap", { path });
+  },
 };
