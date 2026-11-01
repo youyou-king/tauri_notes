@@ -466,6 +466,17 @@ mod tests {
             .block_on(future)
     }
 
+    fn remove_dir_with_retry(root: &std::path::Path) {
+        for _ in 0..20 {
+            match std::fs::remove_dir_all(root) {
+                Ok(()) => return,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => return,
+                Err(_) => std::thread::sleep(std::time::Duration::from_millis(50)),
+            }
+        }
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
     fn workspace(name: &str) -> PathBuf {
         std::env::temp_dir().join(format!(
             "tauri-notes-storage-{name}-{}",
@@ -497,7 +508,7 @@ mod tests {
             connection.close().await.unwrap();
             close_workspace_pool(&path).await;
         });
-        fs::remove_dir_all(root).unwrap();
+        remove_dir_with_retry(root.as_path());
     }
 
     #[test]
@@ -565,7 +576,7 @@ mod tests {
             drop(connection);
             close_workspace_pool(&workspace_text).await;
         });
-        fs::remove_dir_all(root).unwrap();
+        remove_dir_with_retry(root.as_path());
     }
     #[test]
     fn failed_migration_rolls_back_version() {
@@ -619,7 +630,7 @@ mod tests {
             assert_eq!(applied, Some(1));
             close_workspace_pool(&workspace_text).await;
         });
-        fs::remove_dir_all(root).unwrap();
+        remove_dir_with_retry(root.as_path());
     }
 
     #[test]
@@ -646,7 +657,7 @@ mod tests {
             assert_eq!(integrity, "ok");
             connection.close().await.unwrap();
         });
-        fs::remove_dir_all(root).unwrap();
+        remove_dir_with_retry(root.as_path());
     }
 
     #[test]
@@ -659,7 +670,7 @@ mod tests {
             verify_database(path.clone()).await.unwrap();
             close_workspace_pool(&path).await;
         });
-        fs::remove_dir_all(root).unwrap();
+        remove_dir_with_retry(root.as_path());
     }
 
 }
