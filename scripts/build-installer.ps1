@@ -25,17 +25,32 @@ $help = Join-Path $root "help.note"
 
 if (-not (Test-Path $help)) { throw "Missing help knowledge base: $help" }
 
-& $csc /nologo /target:winexe /win32icon:$icon /win32manifest:$manifest `
-    /r:System.Drawing.dll /out:$uninstaller (Join-Path $custom "Uninstall.cs")
+$uninstallerArgs = @(
+    "/nologo"
+    "/target:winexe"
+    "/win32icon:$icon"
+    "/win32manifest:$manifest"
+    "/r:System.Drawing.dll"
+    "/out:$uninstaller"
+    (Join-Path $custom "Uninstall.cs")
+)
+& $csc @uninstallerArgs
 if ($LASTEXITCODE -ne 0) { throw "Uninstaller build failed" }
 
-& $csc /nologo /target:winexe /win32icon:$icon /win32manifest:$manifest `
-    /r:System.Drawing.dll /out:$setup `
-    /resource:$app,AppExe `
-    /resource:$uninstaller,Uninstaller `
-    /resource:$help,HelpNote `
-    /resource:$png,AppIcon `
+$setupArgs = @(
+    "/nologo"
+    "/target:winexe"
+    "/win32icon:$icon"
+    "/win32manifest:$manifest"
+    "/r:System.Drawing.dll"
+    "/out:$setup"
+    "/resource:$app,AppExe"
+    "/resource:$uninstaller,Uninstaller"
+    "/resource:$help,HelpNote"
+    "/resource:$png,AppIcon"
     (Join-Path $custom "Setup.cs")
+)
+& $csc @setupArgs
 if ($LASTEXITCODE -ne 0) { throw "Installer build failed" }
 
 if (-not $Output) {
