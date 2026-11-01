@@ -144,15 +144,18 @@ export function ToolbarButton({
   label,
   onClick,
   disabled = false,
+  shortcut,
 }: {
   label: string;
   onClick: () => void;
   disabled?: boolean;
+  shortcut?: string;
 }) {
   return (
     <button
       type="button"
       className="toolbar-trigger"
+      title={shortcut ? `${label} (${shortcut})` : undefined}
       disabled={disabled}
       onClick={onClick}
     >

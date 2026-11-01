@@ -4,12 +4,12 @@ import {
   findBindingConflicts,
   listActions,
   resolveInputPlatform,
-  type ActionBinding,
+  formatBinding,
   type ActionDefinition,
   type KeymapDocument,
   type KeymapRecord,
 } from "../../kernel/action";
-import { keymapService } from "../../application/keymapService";
+import { useKeymapStore } from "../../application/stores/keymapStore";
 import { APP_EVENTS, emitAppEvent } from "../../kernel/events";
 
 const PLATFORM = resolveInputPlatform();
@@ -37,47 +37,19 @@ function recordFor(
   };
 }
 
-function formatBinding(binding: ActionBinding): string {
-  if (binding.kind === "surface") {
-    return `移动端：${binding.surface}`;
-  }
-  const parts: string[] = [];
-  if (binding.ctrl) {
-    parts.push("Ctrl");
-  }
-  if (binding.meta) {
-    parts.push("Cmd");
-  }
-  if (binding.alt) {
-    parts.push("Alt");
-  }
-  if (binding.shift) {
-    parts.push("Shift");
-  }
-  parts.push(binding.key || binding.code || "?");
-  return parts.join(" + ");
-}
-
 function platformLabel(): string {
   return PLATFORM === "mac" ? "macOS" : "Windows / Linux";
 }
 
 export function ShortcutSection() {
-  const [keymap, setKeymap] = useState<KeymapDocument | null>(null);
+  const keymap = useKeymapStore((state) => state.document);
+  const saveKeymap = useKeymapStore((state) => state.save);
   const [recording, setRecording] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    let disposed = false;
-    void keymapService.load().then((document) => {
-      if (!disposed) {
-        setKeymap(document);
-      }
-    });
-    return () => {
-      disposed = true;
-    };
+    void useKeymapStore.getState().load();
   }, []);
 
   const actions = listActions().filter((action) =>
@@ -97,8 +69,7 @@ export function ShortcutSection() {
       setBusy(true);
       setStatus(null);
       try {
-        await keymapService.save(next);
-        setKeymap(next);
+        await saveKeymap(next);
         emitAppEvent(APP_EVENTS.keymapChanged);
         setStatus("已保存。");
       } catch (error) {
@@ -107,7 +78,7 @@ export function ShortcutSection() {
         setBusy(false);
       }
     },
-    [],
+    [saveKeymap],
   );
 
   const saveBinding = useCallback(

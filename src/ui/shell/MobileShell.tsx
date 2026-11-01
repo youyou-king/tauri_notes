@@ -9,9 +9,8 @@ import {
   applyKeymap,
   createInputRouter,
   listActions,
-  type KeymapDocument,
 } from "../../kernel/action";
-import { keymapService } from "../../application/keymapService";
+import { useKeymapStore } from "../../application/stores/keymapStore";
 import { runCommandById } from "../../kernel/command";
 import { renderMarkdownHtml } from "../sdk";
 import {
@@ -115,25 +114,16 @@ export function MobileShell({
     history,
     setEditing,
   } = useMobileShellStore();
-  const [keymap, setKeymap] = useState<KeymapDocument | null>(null);
+  const keymap = useKeymapStore((state) => state.document);
+  const loadKeymap = useKeymapStore((state) => state.load);
   const map = activeMap ?? workspace?.maps[0] ?? null;
 
   useEffect(() => {
-    let disposed = false;
-    const load = () => {
-      void keymapService.load().then((next) => {
-        if (!disposed) {
-          setKeymap(next);
-        }
-      });
-    };
-    load();
-    const unsubscribe = onAppEvent(APP_EVENTS.keymapChanged, load);
-    return () => {
-      disposed = true;
-      unsubscribe();
-    };
-  }, []);
+    void loadKeymap();
+    return onAppEvent(APP_EVENTS.keymapChanged, () => {
+      void loadKeymap();
+    });
+  }, [loadKeymap]);
 
   useEffect(() => {
     hydrate(workspace?.root ?? null);

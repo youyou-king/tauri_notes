@@ -1,13 +1,12 @@
-import { useCallback, useEffect, useState, type RefObject } from "react";
+import { useCallback, useEffect, type RefObject } from "react";
 import type { BoardControllerPort } from "../kernel/panel/boardPort";
 import {
   applyKeymap,
   createInputRouter,
   listActions,
   resolveInputPlatform,
-  type KeymapDocument,
 } from "../kernel/action";
-import { keymapService } from "../application/keymapService";
+import { useKeymapStore } from "../application/stores/keymapStore";
 import { APP_EVENTS, onAppEvent } from "../kernel/events";
 import { getCommand, runCommand } from "../kernel/command";
 import { recordConsoleEvent } from "../application/consoleLogStore";
@@ -116,24 +115,15 @@ export function useAppHotkeys({
   dockRef,
   setError,
 }: HotkeyDeps): void {
-  const [keymap, setKeymap] = useState<KeymapDocument | null>(null);
+  const keymap = useKeymapStore((state) => state.document);
+  const loadKeymap = useKeymapStore((state) => state.load);
 
   useEffect(() => {
-    let disposed = false;
-    const load = () => {
-      void keymapService.load().then((next) => {
-        if (!disposed) {
-          setKeymap(next);
-        }
-      });
-    };
-    load();
-    const unsubscribe = onAppEvent(APP_EVENTS.keymapChanged, load);
-    return () => {
-      disposed = true;
-      unsubscribe();
-    };
-  }, []);
+    void loadKeymap();
+    return onAppEvent(APP_EVENTS.keymapChanged, () => {
+      void loadKeymap();
+    });
+  }, [loadKeymap]);
 
   useEffect(() => {
     if (!keymap) {

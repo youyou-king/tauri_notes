@@ -5,6 +5,13 @@ import {
   ToolbarMenu,
 } from "../ui/toolbar/ToolbarMenu";
 import { CORE_TOOLBAR_ITEMS } from "./coreToolbar";
+import {
+  applyKeymap,
+  listActions,
+  resolveInputPlatform,
+  shortcutForAction,
+} from "../kernel/action";
+import { useKeymapStore } from "../application/stores/keymapStore";
 
 type Props = {
   backend: string;
@@ -32,6 +39,14 @@ export function AppToolbar({
   const items = [...CORE_TOOLBAR_ITEMS, ...pluginItems].sort(
     (left, right) => (left.order ?? 0) - (right.order ?? 0),
   );
+  const keymap = useKeymapStore((state) => state.document);
+  const platform = resolveInputPlatform();
+  const actions = applyKeymap(listActions(), keymap);
+  const shortcut = (commandId: string | undefined) =>
+    shortcutForAction(
+      actions.find((action) => action.id === commandId),
+      platform,
+    );
 
   const groups = new Map<string, MenuGroup>();
   const directItems: ToolbarItemContribution[] = [];
@@ -75,6 +90,11 @@ export function AppToolbar({
                   (busy && item.requiresIdle) ||
                   (!hasWorkspace && item.requiresWorkspace)
                 }
+                title={
+                  shortcut(item.commandId)
+                    ? `${item.label} (${shortcut(item.commandId)})`
+                    : undefined
+                }
                 onClick={() => {
                   if (item.commandId) {
                     runCommand(item.commandId);
@@ -99,6 +119,7 @@ export function AppToolbar({
             <ToolbarButton
               key={item.id}
               label={item.label}
+              shortcut={shortcut(item.commandId)}
               disabled={busy && item.requiresIdle}
               onClick={() => {
                 if (item.commandId) {

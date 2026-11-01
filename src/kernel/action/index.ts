@@ -5,6 +5,10 @@ export {
   type KeymapRecord,
 } from "./keymap";
 export {
+  formatBinding,
+  shortcutForAction,
+} from "./labels";
+export {
   bindingsForPlatform,
   clearActionsForTests,
   findBindingConflicts,
