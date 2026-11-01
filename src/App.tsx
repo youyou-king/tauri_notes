@@ -287,6 +287,8 @@ function App() {
         error={error}
         runCommand={runNavCommand}
         dockRef={dockRef}
+        onOpenWorkspace={openWorkspace}
+        onCreateKnowledgeBase={createKnowledgeBase}
         workspace={workspace}
         workspaces={workspaces}
         activeMap={activeMap}

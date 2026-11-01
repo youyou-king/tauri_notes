@@ -20,6 +20,8 @@ export type ShellProps = ComponentProps<typeof DockWorkspace> & {
   error: string | null;
   runCommand: (id: string) => void;
   dockRef: RefObject<DockWorkspaceHandle | null>;
+  onOpenWorkspace: () => Promise<void> | void;
+  onCreateKnowledgeBase: () => Promise<void> | void;
 };
 
 export type ShellKind = "desktop" | "tablet" | "mobile";

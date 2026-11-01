@@ -145,11 +145,15 @@ export function MobileShell({
   activeMap,
   selected,
   board,
+  onOpenWorkspace,
+  onCreateKnowledgeBase,
 }: {
   workspace: WorkspaceView | null;
   activeMap: MapView | null;
   selected: NodeView | null;
   board: BoardControllerPort;
+  onOpenWorkspace?: () => Promise<void> | void;
+  onCreateKnowledgeBase?: () => Promise<void> | void;
 }) {
   const {
     tab,
@@ -201,6 +205,17 @@ export function MobileShell({
     return (
       <div className="mobile-shell mobile-shell-empty">
         <p>请先打开一个知识库。</p>
+        <div className="mobile-shell-actions">
+          <button type="button" onClick={() => void onOpenWorkspace?.()}>
+            打开知识库
+          </button>
+          <button
+            type="button"
+            onClick={() => void onCreateKnowledgeBase?.()}
+          >
+            新建知识库
+          </button>
+        </div>
       </div>
     );
   }
