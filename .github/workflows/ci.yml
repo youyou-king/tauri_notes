@@ -114,3 +114,17 @@ jobs:
           name: tauri-notes-${{ matrix.os }}
           path: src-tauri/target/release/tauri-notes*
           if-no-files-found: error
+      - name: Build custom Windows installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path .tmp -Force | Out-Null
+          ./scripts/build-installer.ps1 -Output "$PWD/.tmp/Tauri Notes Setup.exe"
+      - name: Verify installer payload
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/verify-installer.ps1 -Setup "$PWD/.tmp/Tauri Notes Setup.exe"
+      - name: Verify installer extraction
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/verify-installer-install.ps1 -Setup "$PWD/.tmp/Tauri Notes Setup.exe"
