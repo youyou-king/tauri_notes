@@ -1,10 +1,15 @@
 mod board_commands;
 mod commands;
+#[cfg(desktop)]
+mod desktop;
 mod document_commands;
 mod import_commands;
 mod keymap_commands;
 mod content_commands;
 mod command_error;
+#[cfg(mobile)]
+mod mobile;
+mod platform_commands;
 mod storage_commands;
 mod workspace_commands;
 
@@ -13,16 +18,16 @@ pub use tauri_notes_document::document;
 pub use tauri_notes_document::{document_store, map_store};
 pub use tauri_notes_storage::{database, sqlite};
 
-use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 use std::collections::HashSet;
 use std::sync::Mutex;
 use tauri_notes_plugin_api::{validate_manifest, PluginManifest};
 use tauri_notes_plugin_runtime::plan_activation;
+#[cfg(desktop)]
 use tauri_notes_platform::{NativePlatform, PlatformAdapter};
 
 static PENDING_NOTE: Mutex<Option<String>> = Mutex::new(None);
 
-fn queue_note_path(path: String) {
+pub(crate) fn queue_note_path(path: String) {
     if let Ok(mut pending) = PENDING_NOTE.lock() {
         *pending = Some(path);
     }
@@ -89,8 +94,7 @@ fn relaunch_as_normal() -> bool {
     (result as usize as isize) > 32
 }
 
-#[tauri::command]
-fn startup_note_file() -> Option<String> {
+pub(crate) fn startup_note_arg() -> Option<String> {
     let args = std::env::args().collect::<Vec<_>>();
     note_arg(&args)
 }
@@ -102,14 +106,28 @@ fn take_pending_note_file() -> Option<String> {
 
 #[tauri::command]
 fn register_note_association() -> Result<(), String> {
-    let exe = std::env::current_exe()
-        .map_err(|error| format!("获取程序路径失败: {error}"))?;
-    NativePlatform::new().register_file_association(&exe)
+    #[cfg(desktop)]
+    {
+        let exe = std::env::current_exe()
+            .map_err(|error| format!("获取程序路径失败: {error}"))?;
+        NativePlatform::new().register_file_association(&exe)
+    }
+    #[cfg(mobile)]
+    {
+        Err("移动端不支持 .note 文件关联".to_string())
+    }
 }
 
 #[tauri::command]
 fn unregister_note_association() -> Result<(), String> {
-    NativePlatform::new().unregister_file_association()
+    #[cfg(desktop)]
+    {
+        NativePlatform::new().unregister_file_association()
+    }
+    #[cfg(mobile)]
+    {
+        Err("移动端不支持 .note 文件关联".to_string())
+    }
 }
 
 
@@ -171,70 +189,9 @@ pub fn run() {
             std::process::exit(0);
         }
     }
-    tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
-            if let Some(path) = argv
-                .iter()
-                .skip(1)
-                .find(|arg| arg.to_lowercase().ends_with(".note"))
-            {
-                queue_note_path(path.clone());
-                let _ = app.emit("open-note-file", path.clone());
-                if let Some(window) = app.get_webview_window("main") {
-                    let _ = window.unminimize();
-                    let _ = window.set_focus();
-                }
-            }
-        }))
+
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
-        .setup(|app| {
-            if let Some(path) = startup_note_file() {
-                queue_note_path(path);
-            }
-            let profile = if cfg!(debug_assertions) { "dev" } else { "release" };
-            let data_dir = std::env::current_exe()
-                .ok()
-                .and_then(|exe| exe.parent().map(|dir| dir.to_path_buf()))
-                .map(|dir| dir.join("cache").join("webview2").join(profile))
-                .filter(|dir| std::fs::create_dir_all(dir).is_ok())
-                .unwrap_or_else(|| {
-                    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                        .join("..")
-                        .join(".webview2")
-                        .join(profile)
-                });
-            std::fs::create_dir_all(&data_dir).map_err(|error| {
-                std::io::Error::other(format!(
-                    "创建 WebView2 数据目录 {}: {error}",
-                    data_dir.display()
-                ))
-            })?;
-
-            let mut builder = WebviewWindowBuilder::new(
-                app,
-                "main",
-                WebviewUrl::App("index.html".into()),
-            )
-            .title("Tauri Notes")
-            .inner_size(1100.0, 760.0)
-            .min_inner_size(900.0, 600.0)
-            .data_directory(data_dir);
-
-            // Keep the WebView sandbox by default. The escape hatch exists
-            // for environments where WebView2 cannot start with its sandbox.
-            if std::env::var_os("TAURI_NOTES_DISABLE_SANDBOX").is_some() {
-                builder = builder.additional_browser_args("--no-sandbox");
-            }
-
-            let window = builder
-                // 关闭 Tauri 原生拖放处理器，否则 WebView2 内 Dockview 标签拖拽失效。
-                .disable_drag_drop_handler()
-                .build()
-                .map_err(|error| std::io::Error::other(format!("创建窗口失败: {error}")))?;
-
-            window.set_focus()?;
-            Ok(())
-        })
         .invoke_handler(tauri::generate_handler![
             take_pending_note_file,
             register_note_association,
@@ -242,6 +199,7 @@ pub fn run() {
             help_note_path,
             validate_plugin_manifest,
             plugin_sdk_version,
+            platform_commands::platform_info,
             keymap_commands::load_keymap,
             keymap_commands::save_keymap,
             keymap_commands::export_keymap,
@@ -307,7 +265,14 @@ pub fn run() {
             commands::theme::list_custom_themes,
             commands::theme::save_custom_theme,
             commands::theme::delete_custom_theme
-        ])
+        ]);
+
+    #[cfg(desktop)]
+    let builder = desktop::configure(builder);
+    #[cfg(mobile)]
+    let builder = mobile::configure(builder);
+
+    builder
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

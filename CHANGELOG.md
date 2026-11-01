@@ -18,6 +18,7 @@
 - 平台抽象 Phase 1：新增 `src/runtime`、`DesktopShell`、`MobileRuntimeShell`；`App` 不再直接选择壳层，移动端不再渲染桌面工具栏。
 - 平台抽象 Phase 2：新增 `LibraryPort`、`DialogPort`、`DocumentActionsPort`、`WorkspacePresenter`、`NavigationPort`；`useWorkspaceOpen` 不再直接使用文件对话框或 dockRef；快捷键导入/导出对话框移入 application 服务；移动端重命名/删除不再直接调用 documentService。
 - 平台抽象 Phase 3（部分）：新增 `document.rename` / `document.delete` Action；移动端动作面板统一走 Action。
+- 平台抽象 Phase 4（部分）：新增 `src-tauri/src/desktop.rs`、`mobile.rs`、`platform_commands.rs`；桌面窗口/单实例移入 desktop，移动端构造 `MobilePlatformState`，新增 `platform_info`。
 - 文档同步：明确移动端当前是响应式 compact Shell，原生 Android/iOS 工程尚未初始化。
 - 记录“远程笔记/多端同步”为待讨论项，不进入当前平台重构范围。
 - 输入层重构：Action Registry / Input Router、移动端 surface action、mobileShellStore、`keymap.toml` 读写；命令不再携带 shortcut。
