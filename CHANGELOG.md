@@ -12,6 +12,8 @@
 - 新增 capability policy 测试，manifest 不能自行越权。
 - 仓库根目录整理：`help.note` → `resources/help.note`，`e2e.html` → `e2e/fixtures/e2e.html`；`.gitignore` 补齐构建与缓存产物。
 - 新增输入与移动端架构审计：Action / Input Router / keymap 与移动端导航建议。
+- 新增系统架构审计：数据访问、持久化、契约、移动端目标与备份。
+- 新增 ADR-007：人类手写配置用 TOML，运行时状态用 JSON，内容用 SQLite。
 - 新增 E2E：禁用主题插件后仍可打开设置和插件管理器；
 - 配置显式 Tauri CSP；默认启用 WebView 沙箱，保留 `TAURI_NOTES_DISABLE_SANDBOX` 回退；
 - assetProtocol 静态 scope 改为空，打开工作区时动态授权对应目录；

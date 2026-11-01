@@ -33,6 +33,7 @@ https://github.com/youyou-king/tauri_notes/releases
 - [`docs/README.md`](docs/README.md) — 完整文档索引
 - [`docs/架构审视与改进计划.md`](docs/架构审视与改进计划.md) — 风险、优先级与分阶段计划
 - [`docs/输入与移动端架构审计.md`](docs/输入与移动端架构审计.md) — Action / Input Router / keymap 与移动端一致性
+- [`docs/系统架构审计.md`](docs/系统架构审计.md) — 数据访问、持久化、契约与移动端目标审计
 - [`docs/技术架构与插件化方案.md`](docs/技术架构与插件化方案.md)
 - [`docs/状态架构契约.md`](docs/状态架构契约.md)
 - [`docs/重构验收报告.md`](docs/重构验收报告.md)

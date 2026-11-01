@@ -29,6 +29,8 @@
 | [贡献指南](../CONTRIBUTING.md) | 开发环境、架构边界、插件规则、状态规则、验证与发布 |
 | [架构审视与改进计划](架构审视与改进计划.md) | 发现登记、P0/P1/P2 优先级、分阶段任务和 fitness functions |
 | [输入与移动端架构审计](输入与移动端架构审计.md) | Action / Input Router / keymap 与移动端体验一致性审计 |
+| [系统架构审计](系统架构审计.md) | 数据访问、持久化、契约、移动端目标与备份审计 |
+| [ADR-007](adr/ADR-007-config-format-boundaries.md) | 配置用 TOML、运行时状态用 JSON、内容用 SQLite |
 | [主题插件](主题插件.md) | 主题运行时、`.tnlook`、签名与测试 |
 | [Rust crates](Rust-crates.md) | Rust workspace 结构、职责和依赖规则 |
 
