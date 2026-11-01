@@ -2,7 +2,7 @@ import { useEffect, type RefObject } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { workspaceService } from "../application/workspaceService";
-import { confirmDialog } from "../ui/dialog/confirmDialog";
+import { requestClose } from "./requestClose";
 
 export function useWindowTitle(dirtyCount: number): void {
   useEffect(() => {
@@ -25,12 +25,10 @@ export function useWindowCloseGuard(
           return;
         }
         event.preventDefault();
-        void confirmDialog({
-          title: "关闭 Tauri Notes？",
-          message: "关闭会丢失未保存的修改，仍要关闭吗？",
-          confirmLabel: "关闭",
-          tone: "danger",
-        }).then((confirmed) => {
+        void requestClose({
+          kind: "window",
+          dirtyCount: dirtyRef.current,
+        }).then((confirmed: boolean) => {
           if (confirmed) {
             void getCurrentWindow().destroy();
           }

@@ -15,10 +15,7 @@ import {
 } from "./application/stores/workspaceStore";
 import { usePanelStore } from "./application/stores/panelStore";
 import { recordConsoleEvent } from "./application/consoleLogStore";
-import {
-  ConfirmDialogHost,
-  confirmDialog,
-} from "./ui/dialog/confirmDialog";
+import { ConfirmDialogHost } from "./ui/dialog/confirmDialog";
 import "./app/navCommands";
 import { useAppShell } from "./app/useAppShell";
 import { useWorkspaceNavigation } from "./app/useWorkspaceNavigation";
@@ -40,6 +37,7 @@ import { AppToolbar } from "./app/AppToolbar";
 import type { BlockId, DocId } from "./domain/ids";
 import type { MapView, WorkspaceView } from "./types";
 import { APP_EVENTS, onAppEvent } from "./kernel/events";
+import { requestClose } from "./app/requestClose";
 import {
   useLibraryBootstrap,
   useMapsChangedRefresh,
@@ -156,15 +154,7 @@ function App() {
   );
 
   async function confirmDiscard(): Promise<boolean> {
-    if (dirtyCount === 0) {
-      return true;
-    }
-    return confirmDialog({
-      title: "放弃未保存的修改？",
-      message: `有 ${dirtyCount} 个面板还有未保存的修改，确定离开吗？`,
-      confirmLabel: "放弃修改",
-      tone: "danger",
-    });
+    return requestClose({ kind: "workspace", dirtyCount });
   }
 
   const {
