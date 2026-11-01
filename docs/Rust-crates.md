@@ -2,7 +2,7 @@
 
 Rust 侧插件与内核 crate。
 
-> 最后核对：2026-10-31 | 当前版本 v0.1.1 | 基线 203 / 47 / 37
+> 最后核对：2026-11-01 | 当前版本 v0.1.1 | 基线 203 / 47 / 37
 
 ## 布局
 
@@ -37,8 +37,13 @@ plugin-runtime
 platform
 ├─ PlatformAdapter
 ├─ NativePlatform
+├─ MobilePlatform（已有，尚未接入运行路径）
+├─ PlatformCapabilities
 ├─ SystemTheme
 └─ directory / file association implementations
+
+> 目标边界：桌面/移动入口注入不同 adapter；业务 crate 不出现平台 cfg。
+> 当前差距与拆分顺序见 [平台抽象与移动端重构方案](平台抽象与移动端重构方案.md)。
 
 storage
 ├─ sqlite connection / path helpers

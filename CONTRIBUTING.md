@@ -53,15 +53,23 @@ src/ui/           面板、主题、设计系统、导入预览
 src-tauri/        Rust 组合根、命令包装与 crates
 ```
 
+> 平台抽象落地后新增 `src/runtime/` 作为组合根；当前仍由 `src/app/` 承担。方案见
+> [`docs/平台抽象与移动端重构方案.md`](docs/平台抽象与移动端重构方案.md)。
+
 规则：
 
-- `src-tauri` 只是桌面组合根，业务逻辑在 crates；
+- `src-tauri` 当前是桌面组合根，业务逻辑在 crates；移动端入口拆分见
+  [`docs/平台抽象与移动端重构方案.md`](docs/平台抽象与移动端重构方案.md)；
 - kernel crate 不依赖 plugin crate；
 - plugin crate 依赖 `tauri-notes-plugin-api` 和内核契约；
 - 插件不依赖其他插件的实现；
 - 前端插件只从 `src/kernel/sdk` 和 `src/ui/sdk` 获取公共能力；
 - `src/architecture.test.ts` 会检查前端边界；
-- Rust workspace 结构见 [`docs/Rust-crates.md`](docs/Rust-crates.md)。
+- Rust workspace 结构见 [`docs/Rust-crates.md`](docs/Rust-crates.md)；
+- 平台身份只能在 runtime 组合根出现，页面和 use case 不写平台分支；
+- Shell 只负责布局，操作差异进入 Action/Binding，行为共享在 use case；
+- 文件、对话框、导航、分享、生命周期通过端口注入，不让 UI 直接碰 Tauri；
+- 当前平台抽象方案见 [`docs/平台抽象与移动端重构方案.md`](docs/平台抽象与移动端重构方案.md)。
 
 ## 状态规则
 
@@ -136,9 +144,9 @@ npm run verify:all   # 全量门禁 + 安装包
 当前基线：
 
 ```text
-前端单元测试    191 个通过
-Rust 测试        42 个通过
-E2E / 视觉回归   35 个通过
+前端单元测试    203 个通过
+Rust 测试        47 个通过
+E2E / 视觉回归   37 个通过
 ```
 
 Rust：
@@ -152,7 +160,7 @@ cargo clippy --workspace --all-targets -- -D warnings
 ## 文档更新规则
 
 - 当前实现变化时更新 `README.md`、`CHANGELOG.md` 和相关专题文档；
-- 架构变化同步更新 `docs/状态架构契约.md` 和 `docs/插件化实施记录.md`；
+- 架构变化同步更新 `docs/状态架构契约.md`、`docs/插件化实施记录.md` 和对应平台方案；
 - 发布新版本时更新版本号、`CHANGELOG.md`、`docs/重构验收报告.md`；
 - 不把安装包提交进 Git，发布使用 GitHub Releases。
 
