@@ -1,12 +1,14 @@
-import { useCallback, useEffect, type RefObject } from "react";
+import { useCallback, useEffect, useState, type RefObject } from "react";
 import type { BoardControllerPort } from "../kernel/panel/boardPort";
 import {
   applyKeymap,
   createInputRouter,
   listActions,
   resolveInputPlatform,
+  type KeymapDocument,
 } from "../kernel/action";
 import { keymapService } from "../application/keymapService";
+import { APP_EVENTS, onAppEvent } from "../kernel/events";
 import { getCommand, runCommand } from "../kernel/command";
 import { recordConsoleEvent } from "../application/consoleLogStore";
 import { workspaceService } from "../application/workspaceService";
@@ -114,9 +116,29 @@ export function useAppHotkeys({
   dockRef,
   setError,
 }: HotkeyDeps): void {
+  const [keymap, setKeymap] = useState<KeymapDocument | null>(null);
+
   useEffect(() => {
     let disposed = false;
-    let removeListener: (() => void) | undefined;
+    const load = () => {
+      void keymapService.load().then((next) => {
+        if (!disposed) {
+          setKeymap(next);
+        }
+      });
+    };
+    load();
+    const unsubscribe = onAppEvent(APP_EVENTS.keymapChanged, load);
+    return () => {
+      disposed = true;
+      unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!keymap) {
+      return;
+    }
     const context = {
       hasWorkspace: Boolean(workspaceRoot),
       openBoard: () => {
@@ -127,44 +149,33 @@ export function useAppHotkeys({
       openSettings,
       openHelp: () => shellActions.openHelp(),
     };
-
-    void keymapService.load().then((keymap) => {
-      if (disposed) {
-        return;
-      }
-      const router = createInputRouter({
-        platform: resolveInputPlatform(),
-        actions: applyKeymap(listActions(), keymap),
-      });
-      function onKeyDown(event: KeyboardEvent) {
-        router.handleKeyDown(event, {
-          hasWorkspace: Boolean(workspaceRoot),
-          runCommand: (id) => {
-            const command = getCommand(id);
-            if (!command) {
-              return;
-            }
-            recordConsoleEvent("command", command.label, `快捷键 ${id}`);
-            void runCommand(command, context).then((result) => {
-              if (!result.ok) {
-                setError(result.error.message);
-                recordConsoleEvent(
-                  "command",
-                  `失败：${result.error.message}`,
-                  command.id,
-                );
-              }
-            });
-          },
-        });
-      }
-      window.addEventListener("keydown", onKeyDown);
-      removeListener = () => window.removeEventListener("keydown", onKeyDown);
+    const router = createInputRouter({
+      platform: resolveInputPlatform(),
+      actions: applyKeymap(listActions(), keymap),
     });
-
-    return () => {
-      disposed = true;
-      removeListener?.();
-    };
-  }, [board.openBoard, dockRef, setError, workspaceRoot]);
+    function onKeyDown(event: KeyboardEvent) {
+      router.handleKeyDown(event, {
+        hasWorkspace: Boolean(workspaceRoot),
+        runCommand: (id) => {
+          const command = getCommand(id);
+          if (!command) {
+            return;
+          }
+          recordConsoleEvent("command", command.label, `快捷键 ${id}`);
+          void runCommand(command, context).then((result) => {
+            if (!result.ok) {
+              setError(result.error.message);
+              recordConsoleEvent(
+                "command",
+                `失败：${result.error.message}`,
+                command.id,
+              );
+            }
+          });
+        },
+      });
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [board.openBoard, dockRef, keymap, setError, workspaceRoot]);
 }

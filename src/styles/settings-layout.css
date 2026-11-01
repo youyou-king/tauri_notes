@@ -501,3 +501,63 @@ html[data-appearance-pack] .mind-map-flow {
   min-width: 0;
   flex-direction: column;
 }
+
+
+.shortcut-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.shortcut-settings h3 {
+  margin: 0;
+}
+
+.shortcut-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.shortcut-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.shortcut-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-panel-bg);
+}
+
+.shortcut-title {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.shortcut-title small {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.shortcut-keys {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.shortcut-row button.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}

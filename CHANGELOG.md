@@ -15,6 +15,7 @@
 - 新增系统架构审计：数据访问、持久化、契约、移动端目标与备份。
 - 新增 ADR-007：人类手写配置用 TOML，运行时状态用 JSON，内容用 SQLite。
 - 输入层重构：Action Registry / Input Router、移动端 surface action、mobileShellStore、`keymap.toml` 读写；命令不再携带 shortcut。
+- 设置新增快捷键面板：查看、录制重设、恢复默认，保存后热更新。
 - 新增 E2E：禁用主题插件后仍可打开设置和插件管理器；
 - 配置显式 Tauri CSP；默认启用 WebView 沙箱，保留 `TAURI_NOTES_DISABLE_SANDBOX` 回退；
 - assetProtocol 静态 scope 改为空，打开工作区时动态授权对应目录；

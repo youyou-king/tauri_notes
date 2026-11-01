@@ -4,6 +4,7 @@ import { Dialog } from "../dialog/Dialog";
 import { ErrorBoundary } from "../ErrorBoundary";
 import { usePluginContributions } from "../plugins/PluginProvider";
 import { PluginManagerSection } from "./PluginManagerSection";
+import { ShortcutSection } from "./ShortcutSection";
 import { StorageSection } from "./StorageSection";
 
 export const CORE_SETTINGS_SECTIONS: SettingsSectionContribution[] = [
@@ -13,6 +14,13 @@ export const CORE_SETTINGS_SECTIONS: SettingsSectionContribution[] = [
     description: "备份、校验和恢复",
     order: 80,
     component: StorageSection,
+  },
+  {
+    id: "core.shortcuts",
+    title: "快捷键",
+    description: "查看和重设快捷键",
+    order: 85,
+    component: ShortcutSection,
   },
   {
     id: "core.plugins",

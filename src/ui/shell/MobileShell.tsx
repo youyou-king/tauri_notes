@@ -117,7 +117,20 @@ export function MobileShell({
   const map = activeMap ?? workspace?.maps[0] ?? null;
 
   useEffect(() => {
-    void keymapService.load().then(setKeymap);
+    let disposed = false;
+    const load = () => {
+      void keymapService.load().then((next) => {
+        if (!disposed) {
+          setKeymap(next);
+        }
+      });
+    };
+    load();
+    const unsubscribe = onAppEvent(APP_EVENTS.keymapChanged, load);
+    return () => {
+      disposed = true;
+      unsubscribe();
+    };
   }, []);
 
   useEffect(() => {

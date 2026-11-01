@@ -14,6 +14,7 @@ export const APP_EVENTS = {
   openSource: "tauri-notes:open-source",
   saveNow: "tauri-notes:save-now",
   insertEmbed: "tauri-notes:insert-embed",
+  keymapChanged: "tauri-notes:keymap-changed",
 } as const;
 
 export type AppEventName =
@@ -53,6 +54,7 @@ type AppEventPayloads = {
     docId?: string;
     marker: string;
   };
+  "tauri-notes:keymap-changed": void;
 };
 
 export function emitAppEvent<K extends AppEventName>(
