@@ -6,6 +6,7 @@ import { useLongPress } from "../interaction/useLongPress";
 import { useSwipeBack } from "../interaction/useSwipeBack";
 import { useSwipeLeft } from "../interaction/useSwipeLeft";
 import { useRuntimeServices } from "../../runtime";
+import { runDocumentAction } from "../../app/documentActions";
 import type { MobileTab } from "../../application/stores/mobileShellStore";
 import type { StoredBlock } from "../../domain/importedDocument";
 import type { BoardControllerPort } from "../../kernel/panel/boardPort";
@@ -223,50 +224,42 @@ export function MobileShell({
 
 
   const renameDocument = async (document: MobileDocumentLink) => {
-    const next = (
-      await dialogs.prompt({
-        title: "重命名文档",
-        defaultValue: document.title,
-      })
-    )?.trim();
-    if (!next || next === document.title) {
-      return;
-    }
     try {
-      await documentActions.rename(workspace.root, document.id, next);
-      emitAppEvent(APP_EVENTS.documentRenamed, {
-        documentId: document.id,
-        title: next,
+      await runDocumentAction("document.rename", {
+        platform: "mobile",
+        document: {
+          id: document.id,
+          title: document.title,
+          workspaceRoot: workspace.root,
+        },
+        dialogs,
+        documentActions,
       });
-      emitAppEvent(APP_EVENTS.documentChanged);
     } catch (error) {
       dialogs.alert(String(error));
     }
   };
 
   const deleteDocument = async (document: MobileDocumentLink) => {
-    const confirmed = await dialogs.confirm({
-      title: "删除文档？",
-      message: `“${document.title}”会移到回收站，可稍后恢复。`,
-      confirmLabel: "移到回收站",
-      tone: "danger",
-    });
-    if (!confirmed) {
-      return;
-    }
     try {
-      await documentActions.moveToTrash(workspace.root, document.id);
-      emitAppEvent(APP_EVENTS.documentDeleted, {
-        documentId: document.id,
-        root: workspace.root,
+      await runDocumentAction("document.delete", {
+        platform: "mobile",
+        document: {
+          id: document.id,
+          title: document.title,
+          workspaceRoot: workspace.root,
+        },
+        dialogs,
+        documentActions,
+        onDeleted: () => {
+          if (documentId === document.id) {
+            requestSave();
+            if (!navigation.back()) {
+              resetMobile();
+            }
+          }
+        },
       });
-      emitAppEvent(APP_EVENTS.documentChanged);
-      if (documentId === document.id) {
-        requestSave();
-        if (!navigation.back()) {
-          resetMobile();
-        }
-      }
     } catch (error) {
       dialogs.alert(String(error));
     }

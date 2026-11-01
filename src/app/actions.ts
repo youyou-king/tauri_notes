@@ -2,6 +2,7 @@ import { DEFAULT_BINDINGS } from "../kernel/action/bindings";
 import { registerAction } from "../kernel/action/registry";
 import { getCommand } from "../kernel/command";
 import type { ActionDefinition } from "../kernel/action/types";
+import { registerDocumentActions } from "./documentActions";
 
 function commandAction(
   id: string,
@@ -39,3 +40,5 @@ commandAction("association.clear", "清除 .note 文件关联", "knowledge");
 commandAction("view.outline", "大纲", "navigation");
 commandAction("view.console", "控制台", "navigation");
 commandAction("view.reset-layout", "重置布局", "navigation");
+
+registerDocumentActions();

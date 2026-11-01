@@ -32,6 +32,7 @@ export type InputRouterOptions = {
 export type InputRouterRuntime = {
   hasWorkspace: boolean;
   runCommand: (id: string) => void;
+  context?: Record<string, unknown>;
 };
 
 export function isEditableTarget(target: EventTarget | null): boolean {
@@ -65,7 +66,12 @@ function matchesKey(event: KeyboardLike, binding: KeyBinding): boolean {
 }
 
 function runtimeFor(
-  options: { platform: InputPlatform; hasWorkspace: boolean; runCommand: (id: string) => void },
+  options: {
+    platform: InputPlatform;
+    hasWorkspace: boolean;
+    runCommand: (id: string) => void;
+    context?: Record<string, unknown>;
+  },
   source: ActionRuntime["source"],
 ): ActionRuntime {
   return {
@@ -73,6 +79,7 @@ function runtimeFor(
     platform: options.platform,
     hasWorkspace: options.hasWorkspace,
     runCommand: options.runCommand,
+    context: options.context,
   };
 }
 
@@ -124,6 +131,7 @@ export function createInputRouter(options: InputRouterOptions) {
         platform: options.platform,
         hasWorkspace: runtime.hasWorkspace,
         runCommand: runtime.runCommand,
+        context: runtime.context,
       },
       source,
     );
@@ -160,6 +168,17 @@ export function createInputRouter(options: InputRouterOptions) {
       }
       event.preventDefault?.();
       return true;
+    },
+
+    runById(
+      id: string,
+      runtime: InputRouterRuntime,
+    ): boolean {
+      const action = options.actions.find((candidate) => candidate.id === id);
+      if (!action) {
+        return false;
+      }
+      return runAction(action, "programmatic", runtime);
     },
 
     triggerSurface(

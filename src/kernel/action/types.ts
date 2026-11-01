@@ -35,6 +35,12 @@ export type ActionRuntime = {
   platform: InputPlatform;
   hasWorkspace: boolean;
   runCommand: (id: string) => void;
+  /**
+   * Optional, action-specific data supplied by the dispatcher (for example a
+   * document target). Keeping it generic prevents the kernel from importing
+   * application ports or document models.
+   */
+  context?: Record<string, unknown>;
 };
 
 export type ActionDefinition = {
