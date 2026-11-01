@@ -21,6 +21,7 @@ describe("sessionService", () => {
     writeSession(["/a.note", "/b.note"], "/b.note", {
       activeMapId: "map-1",
       selectedNodeId: "node-2",
+      activePanelId: "blockdoc_1",
     });
     expect(readSession()).toEqual({
       version: 2,
@@ -28,6 +29,7 @@ describe("sessionService", () => {
       activeRoot: "/b.note",
       activeMapId: "map-1",
       selectedNodeId: "node-2",
+      activePanelId: "blockdoc_1",
     });
   });
 

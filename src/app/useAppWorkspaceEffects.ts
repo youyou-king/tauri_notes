@@ -77,6 +77,7 @@ export function useSessionPersistence(input: {
   workspaceRoot: string | null;
   activeMapId: string | null;
   selectedNodeId: string | null;
+  activePanelId: string | null;
 }): void {
   const {
     sessionReady,
@@ -84,6 +85,7 @@ export function useSessionPersistence(input: {
     workspaceRoot,
     activeMapId,
     selectedNodeId,
+    activePanelId,
   } = input;
   useEffect(() => {
     if (!sessionReady.current) {
@@ -92,10 +94,11 @@ export function useSessionPersistence(input: {
     writeSession(
       workspaces.map((item) => item.root),
       workspaceRoot,
-      { activeMapId, selectedNodeId },
+      { activeMapId, selectedNodeId, activePanelId },
     );
   }, [
     activeMapId,
+    activePanelId,
     selectedNodeId,
     sessionReady,
     workspaces,

@@ -14,6 +14,7 @@ type StoredSession = {
   activeRoot?: unknown;
   activeMapId?: unknown;
   selectedNodeId?: unknown;
+  activePanelId?: unknown;
 };
 
 const SESSION_MIGRATIONS: MigrationStep<StoredSession>[] = [
@@ -54,12 +55,14 @@ function migrateSession(record: StoredSession): StoredSession {
 export type SessionSelection = {
   activeMapId: string | null;
   selectedNodeId: string | null;
+  activePanelId?: string | null;
 };
 
 export type SessionSnapshot = SessionSelection & {
   version: typeof SESSION_VERSION;
   roots: string[];
   activeRoot: string | null;
+  activePanelId: string | null;
 };
 
 export function readSession(): SessionSnapshot | null {
@@ -95,6 +98,10 @@ export function readSession(): SessionSnapshot | null {
         typeof migrated.selectedNodeId === "string"
           ? migrated.selectedNodeId
           : null,
+      activePanelId:
+        typeof migrated.activePanelId === "string"
+          ? migrated.activePanelId
+          : null,
     };
   } catch {
     return null;
@@ -117,6 +124,7 @@ export function writeSession(
       activeRoot,
       activeMapId: selection.activeMapId,
       selectedNodeId: selection.selectedNodeId,
+      activePanelId: selection.activePanelId ?? null,
     }),
   );
 }

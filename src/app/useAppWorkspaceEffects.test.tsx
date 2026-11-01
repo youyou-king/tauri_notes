@@ -20,6 +20,7 @@ describe("useSessionPersistence", () => {
         workspaceRoot: workspace.root,
         activeMapId: "map-1",
         selectedNodeId: "node-1",
+        activePanelId: "blockdoc_1",
       }),
     );
     expect(window.localStorage.getItem(SESSION_KEY)).not.toBeNull();
@@ -28,6 +29,7 @@ describe("useSessionPersistence", () => {
       activeRoot: workspace.root,
       activeMapId: "map-1",
       selectedNodeId: "node-1",
+      activePanelId: "blockdoc_1",
     });
   });
 
@@ -40,6 +42,7 @@ describe("useSessionPersistence", () => {
         workspaceRoot: workspace.root,
         activeMapId: null,
         selectedNodeId: null,
+        activePanelId: null,
       }),
     );
     expect(window.localStorage.getItem(SESSION_KEY)).toBeNull();

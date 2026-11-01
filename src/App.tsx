@@ -85,6 +85,7 @@ function App() {
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activePanelId, setActivePanelId] = useState<string | null>(null);
   const dirtyPanels = usePanelStore((state) => state.dirtyPanels);
   const setPanelDirty = usePanelStore((state) => state.setPanelDirty);
   const board = useBoardController(workspace?.root ?? null);
@@ -118,6 +119,7 @@ function App() {
     workspaceRoot: workspace?.root ?? null,
     activeMapId,
     selectedNodeId: selected?.id ?? null,
+    activePanelId,
   });
 
   const activeMap: MapView | null =
@@ -312,6 +314,7 @@ function App() {
               onActiveNode={(node) => setSelected(node)}
               onActiveMap={handleActiveMapPanel}
               onPanelDirty={handlePanelDirty}
+              onPanelActive={setActivePanelId}
               onSelectNode={selectNode}
               onSwitchMap={switchMap}
               onActivateWorkspace={activateWorkspace}

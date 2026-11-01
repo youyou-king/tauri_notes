@@ -64,6 +64,8 @@ export type DockWorkspaceHandle = {
     workspace?: WorkspaceView | null,
   ) => void;
   resetLayout: () => void;
+  getActivePanelId: () => string | null;
+  activatePanel: (panelId: string) => void;
 };
 
 
@@ -112,6 +114,7 @@ export default forwardRef<
     onActiveNode: (node: NodeView) => void;
     onActiveMap: (mapId: string, workspaceRoot?: string) => void;
     onPanelDirty: (panelId: string, dirty: boolean) => void;
+    onPanelActive?: (panelId: string | null) => void;
     onSelectNode: (node: NodeView, newPanel: boolean) => void;
     onSwitchMap: (map: MapView, workspaceRoot?: string) => void;
     onActivateWorkspace: (root: string) => void;
@@ -129,6 +132,7 @@ export default forwardRef<
     onActiveNode,
     onActiveMap,
     onPanelDirty,
+    onPanelActive,
     onSelectNode,
     onSwitchMap,
     onActivateWorkspace,
@@ -456,6 +460,14 @@ export default forwardRef<
     }
   }
 
+  function getActivePanelId(): string | null {
+    return apiRef.current?.activePanel?.id ?? null;
+  }
+
+  function activatePanel(panelId: string) {
+    apiRef.current?.getPanel(panelId)?.api.setActive();
+  }
+
   function resetLayout() {
     const api = apiRef.current;
     if (!api) {
@@ -477,6 +489,8 @@ export default forwardRef<
     togglePanel,
     closeWorkspacePanels,
     resetLayout,
+    getActivePanelId,
+    activatePanel,
   }));
 
   function buildDefaultLayout(api: DockviewApi) {
@@ -580,6 +594,7 @@ export default forwardRef<
     event.api.onDidActivePanelChange((event) => {
       const panel = event.panel;
       setActivePanelId(panel?.id ?? null);
+      onPanelActive?.(panel?.id ?? null);
       if (panel?.api.component === "map") {
         const params = panel.api.getParameters<{
           mapId?: string;

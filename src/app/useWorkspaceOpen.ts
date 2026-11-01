@@ -255,6 +255,9 @@ export function useWorkspaceOpen({
     setWorkspaces(views);
     setWorkspace(active);
     select(restoredMap?.id ?? null, restoredNode);
+    if (session.activePanelId) {
+      dockRef.current?.activatePanel(session.activePanelId);
+    }
     if (views.length === 0) {
       dockRef.current?.resetLayout();
       return false;
