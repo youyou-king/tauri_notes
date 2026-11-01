@@ -252,6 +252,21 @@
   color: var(--muted);
 }
 
+.mobile-managed-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mobile-managed-header button {
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+
 .mobile-managed-libraries p {
   margin: 0;
   color: var(--muted);

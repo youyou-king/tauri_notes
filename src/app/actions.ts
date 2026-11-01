@@ -3,6 +3,7 @@ import { registerAction } from "../kernel/action/registry";
 import { getCommand } from "../kernel/command";
 import type { ActionDefinition } from "../kernel/action/types";
 import { registerDocumentActions } from "./documentActions";
+import { registerLibraryActions } from "./libraryActions";
 
 function commandAction(
   id: string,
@@ -42,3 +43,5 @@ commandAction("view.console", "控制台", "navigation");
 commandAction("view.reset-layout", "重置布局", "navigation");
 
 registerDocumentActions();
+
+registerLibraryActions();

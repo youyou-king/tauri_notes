@@ -11,6 +11,7 @@ import { useSwipeBack } from "../interaction/useSwipeBack";
 import { useSwipeLeft } from "../interaction/useSwipeLeft";
 import { useRuntimeServices } from "../../runtime";
 import { runDocumentAction } from "../../app/documentActions";
+import { runLibraryAction } from "../../app/libraryActions";
 import type { MobileTab } from "../../application/stores/mobileShellStore";
 import type { StoredBlock } from "../../domain/importedDocument";
 import type { BoardControllerPort } from "../../kernel/panel/boardPort";
@@ -279,10 +280,26 @@ export function MobileShell({
 
   const exportManagedLibrary = async (item: ManagedLibrarySummary) => {
     try {
-      const path = await library.exportLibrary?.(item.path);
-      if (path) {
-        dialogs.alert(`已导出到 ${path}`);
-      }
+      await runLibraryAction("library.export", {
+        platform: "mobile",
+        library,
+        source: item.path,
+        onExported: (path) => dialogs.alert(`已导出到 ${path}`),
+      });
+    } catch (error) {
+      dialogs.alert(String(error));
+    }
+  };
+
+  const importManagedLibrary = async () => {
+    try {
+      await runLibraryAction("library.import", {
+        platform: "mobile",
+        library,
+        onImported: (path) => {
+          void onOpenWorkspacePath?.(path);
+        },
+      });
     } catch (error) {
       dialogs.alert(String(error));
     }
@@ -376,6 +393,9 @@ export function MobileShell({
 
   const documents: MobileDocumentLink[] = [];
   collectDocuments(map.root, map.id, documents);
+  const documentMenuActions = listActions().filter(
+    (action) => action.category === "document",
+  );
 
   const DocumentView = getUiRenderer("document.importedView");
   const panelContext: PanelContextValue = {
@@ -446,7 +466,12 @@ export function MobileShell({
         ) : tab === "library" ? (
           <div className="mobile-library-view">
             <section className="mobile-managed-libraries">
-              <h2>本机书库</h2>
+              <div className="mobile-managed-header">
+                <h2>本机书库</h2>
+                <button type="button" onClick={() => void importManagedLibrary()}>
+                  导入
+                </button>
+              </div>
               {managedLibraries.length === 0 ? (
                 <p>还没有导入或新建书库。</p>
               ) : (
@@ -590,35 +615,22 @@ export function MobileShell({
         <MobileActionSheet
           title={menuDocument.title}
           onClose={() => setMenuDocument(null)}
-          items={[
-            {
-              id: "open",
-              label: "打开",
-              onSelect: () => {
-                const document = menuDocument;
-                setMenuDocument(null);
+          items={documentMenuActions.map((action) => ({
+            id: action.id,
+            label: action.title,
+            tone: action.id === "document.delete" ? "danger" : "default",
+            onSelect: () => {
+              const document = menuDocument;
+              setMenuDocument(null);
+              if (action.id === "document.open") {
                 void openDocumentFromAction(document);
-              },
+              } else if (action.id === "document.rename") {
+                void renameDocument(document);
+              } else if (action.id === "document.delete") {
+                void deleteDocument(document);
+              }
             },
-            {
-              id: "rename",
-              label: "重命名",
-              onSelect: () => {
-                void renameDocument(menuDocument).finally(() =>
-                  setMenuDocument(null),
-                );
-              },
-            },
-            {
-              id: "delete",
-              label: "移到回收站",
-              tone: "danger",
-              onSelect: () => {
-                void deleteDocument(menuDocument);
-                setMenuDocument(null);
-              },
-            },
-          ]}
+          }))}
         />
       )}
     </div>
