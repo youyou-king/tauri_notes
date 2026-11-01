@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { APP_EVENTS, emitAppEvent } from "../../kernel/events";
 import { TauriImportedDocumentRepository } from "../../infrastructure/tauriImportedDocumentRepository";
 import { documentService } from "../../application/documentService";
-import { confirmDialog } from "../dialog/confirmDialog";
+import { resolveInputPlatform } from "../../kernel/action";
+import { runDocumentAction } from "../../app/documentActions";
+import { useRuntimeServices } from "../../runtime";
 import { PanelShell } from "../panels/PanelShell";
 import type { ImportedDocumentSummary } from "../../domain/importedDocument";
 
@@ -20,6 +22,8 @@ export default function DocumentLibraryPane({
     id: string;
     title: string;
   } | null>(null);
+  const { dialogs, documentActions } = useRuntimeServices();
+  const platform = resolveInputPlatform();
 
   useEffect(() => {
     let cancelled = false;
@@ -58,7 +62,7 @@ export default function DocumentLibraryPane({
   }
 
   async function createDocument() {
-    const title = window.prompt("新文档标题");
+    const title = await dialogs.prompt({ title: "新文档标题" });
     if (!title?.trim()) {
       return;
     }
@@ -77,39 +81,39 @@ export default function DocumentLibraryPane({
   }
 
   async function renameDocument(document: ImportedDocumentSummary) {
-    const title = window.prompt("重命名文档", document.title);
-    if (!title?.trim() || title.trim() === document.title) {
-      return;
-    }
     try {
-      await documentService.rename(
-        workspaceRoot,
-        document.id,
-        title.trim(),
-      );
+      await runDocumentAction("document.rename", {
+        platform,
+        document: {
+          id: document.id,
+          title: document.title,
+          workspaceRoot,
+        },
+        dialogs,
+        documentActions,
+      });
       setReload((current) => current + 1);
-      emitAppEvent(APP_EVENTS.documentChanged);
     } catch (error) {
       setStatus(`重命名失败：${String(error)}`);
     }
   }
 
   async function deleteDocument(document: ImportedDocumentSummary) {
-    if (
-      !(await confirmDialog({
-        title: "删除文档？",
-        message: `删除“${document.title}”？`,
-        confirmLabel: "删除",
-        tone: "danger",
-      }))
-    ) {
-      return;
-    }
     try {
-      await documentService.delete(workspaceRoot, document.id);
-      setLastDeleted({ id: document.id, title: document.title });
-      setReload((current) => current + 1);
-      emitAppEvent(APP_EVENTS.documentChanged);
+      await runDocumentAction("document.delete", {
+        platform,
+        document: {
+          id: document.id,
+          title: document.title,
+          workspaceRoot,
+        },
+        dialogs,
+        documentActions,
+        onDeleted: () => {
+          setLastDeleted({ id: document.id, title: document.title });
+          setReload((current) => current + 1);
+        },
+      });
     } catch (error) {
       setStatus(`删除失败：${String(error)}`);
     }
