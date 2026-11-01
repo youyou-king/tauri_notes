@@ -9,6 +9,7 @@ describe("mobile shell store", () => {
       tab: "map",
       documentId: null,
       editing: false,
+      history: [],
     });
   });
 
@@ -21,6 +22,7 @@ describe("mobile shell store", () => {
       workspaceRoot: null,
       tab: "map",
       documentId: null,
+      history: [],
     });
     useMobileShellStore.getState().hydrate("/notes/demo.note");
     expect(useMobileShellStore.getState()).toMatchObject({
@@ -38,5 +40,19 @@ describe("mobile shell store", () => {
       tab: "map",
       documentId: null,
     });
+  });
+
+  it("returns to the previous tab or document", () => {
+    useMobileShellStore.getState().hydrate("/notes/demo.note");
+    useMobileShellStore.getState().setTab("library");
+    useMobileShellStore.getState().openDocument("map_1/doc_1");
+    expect(useMobileShellStore.getState().back()).toBe(true);
+    expect(useMobileShellStore.getState()).toMatchObject({
+      tab: "library",
+      documentId: null,
+    });
+    expect(useMobileShellStore.getState().back()).toBe(true);
+    expect(useMobileShellStore.getState().tab).toBe("map");
+    expect(useMobileShellStore.getState().back()).toBe(false);
   });
 });

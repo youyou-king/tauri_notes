@@ -111,6 +111,8 @@ export function MobileShell({
     hydrate,
     setTab: setStoredTab,
     openDocument: openStoredDocument,
+    back,
+    history,
     setEditing,
   } = useMobileShellStore();
   const [keymap, setKeymap] = useState<KeymapDocument | null>(null);
@@ -227,6 +229,18 @@ export function MobileShell({
   return (
     <div className="mobile-shell">
       <header className="mobile-shell-header">
+        {history.length > 0 && (
+          <button
+            type="button"
+            aria-label="返回"
+            onClick={() => {
+              requestSave();
+              back();
+            }}
+          >
+            返回
+          </button>
+        )}
         <div>
           <strong>
             {tab === "map"

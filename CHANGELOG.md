@@ -19,6 +19,7 @@
 - 删除未使用的 Intent 总线，contextmenu 屏蔽保留在 shell。
 - SQLite 迁移改为每个 workspace 进程内只执行一次；连接池仍待下一阶段。
 - 编辑器快照按 `EditorState` 缓存，避免同一 transaction 多订阅重复全量计算。
+- 移动端增加返回栈和“返回”按钮，保留 tab/document 导航历史。
 - 新增 E2E：禁用主题插件后仍可打开设置和插件管理器；
 - 配置显式 Tauri CSP；默认启用 WebView 沙箱，保留 `TAURI_NOTES_DISABLE_SANDBOX` 回退；
 - assetProtocol 静态 scope 改为空，打开工作区时动态授权对应目录；
