@@ -2,6 +2,7 @@ import { useEffect, type RefObject } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { workspaceService } from "../application/workspaceService";
+import { noteOpenRequest, type OpenRequest } from "./openRequest";
 import { requestClose } from "./requestClose";
 
 export function useWindowTitle(dirtyCount: number): void {
@@ -58,7 +59,7 @@ export function usePendingNoteFile({
   setError,
 }: {
   sessionReady: RefObject<boolean>;
-  openOnlyWorkspace: (path: string) => Promise<unknown>;
+  openOnlyWorkspace: (request: OpenRequest) => Promise<unknown>;
   restoreSession: () => Promise<boolean>;
   resetLayout: () => void;
   setError: (message: string) => void;
@@ -90,7 +91,9 @@ export function usePendingNoteFile({
           initialized = true;
           stopPolling();
           sessionReady.current = true;
-          await openOnlyWorkspace(path);
+          await openOnlyWorkspace(
+            noteOpenRequest(path, "single-instance"),
+          );
           return;
         }
         if (!initialized) {
@@ -127,7 +130,7 @@ export function usePendingNoteFile({
 }
 
 export function useNoteDrop(
-  openOnlyWorkspace: (path: string) => Promise<unknown>,
+  openOnlyWorkspace: (request: OpenRequest) => Promise<unknown>,
 ): void {
   useEffect(() => {
     const onDragOver = (event: DragEvent) => {
@@ -145,7 +148,7 @@ export function useNoteDrop(
       event.preventDefault();
       const path = (file as File & { path?: string }).path;
       if (path) {
-        void openOnlyWorkspace(path);
+        void openOnlyWorkspace(noteOpenRequest(path, "drop"));
       }
     };
     window.addEventListener("dragover", onDragOver);

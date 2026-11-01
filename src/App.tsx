@@ -38,6 +38,7 @@ import type { BlockId, DocId } from "./domain/ids";
 import type { MapView, WorkspaceView } from "./types";
 import { APP_EVENTS, onAppEvent } from "./kernel/events";
 import { requestClose } from "./app/requestClose";
+import type { OpenRequest } from "./app/openRequest";
 import {
   useLibraryBootstrap,
   useMapsChangedRefresh,
@@ -207,6 +208,11 @@ function App() {
     dockRef,
   });
 
+  const openRequestedWorkspace = useCallback(
+    (request: OpenRequest) => openOnlyWorkspace(request.path),
+    [openOnlyWorkspace],
+  );
+
   useEffect(() => {
     const handler = () => {
       void openHelp();
@@ -258,13 +264,13 @@ function App() {
 
   usePendingNoteFile({
     sessionReady,
-    openOnlyWorkspace,
+    openOnlyWorkspace: openRequestedWorkspace,
     restoreSession,
     resetLayout: () => dockRef.current?.resetLayout(),
     setError,
   });
 
-  useNoteDrop(openOnlyWorkspace);
+  useNoteDrop(openRequestedWorkspace);
 
   return (
     <div
