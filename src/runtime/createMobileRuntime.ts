@@ -5,6 +5,7 @@ import { createMobileLibrary } from "./services/library";
 import { createMobileDialogs } from "./services/dialogs";
 import { createMobileDocumentActions } from "./services/documentActions";
 import { createWorkspacePresenter } from "./services/workspacePresenter";
+import { createWebLifecycle } from "./services/lifecycle";
 import { createMobileNavigation } from "./services/navigation";
 
 export function createMobileRuntime(profile: ShellProfile): Runtime {
@@ -18,6 +19,7 @@ export function createMobileRuntime(profile: ShellProfile): Runtime {
       documentActions: createMobileDocumentActions(),
       workspacePresenter: createWorkspacePresenter(),
       navigation: createMobileNavigation(),
+      lifecycle: createWebLifecycle(),
     },
   };
 }

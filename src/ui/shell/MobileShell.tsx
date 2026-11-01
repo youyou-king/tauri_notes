@@ -171,7 +171,8 @@ export function MobileShell({
     reset: resetMobile,
     setEditing,
   } = useMobileShellStore();
-  const { dialogs, documentActions, navigation, library } = useRuntimeServices();
+  const { dialogs, documentActions, navigation, library, lifecycle } =
+    useRuntimeServices();
   const keymap = useKeymapStore((state) => state.document);
   const loadKeymap = useKeymapStore((state) => state.load);
   const [menuDocument, setMenuDocument] =
@@ -197,6 +198,14 @@ export function MobileShell({
   useEffect(() => {
     hydrate(workspace?.root ?? null);
   }, [hydrate, workspace?.root]);
+
+  useEffect(() => {
+    return lifecycle.onBackground(() => {
+      if (useMobileShellStore.getState().editing) {
+        emitAppEvent(APP_EVENTS.saveNow);
+      }
+    });
+  }, [lifecycle]);
 
   useEffect(() => {
     if (tab !== "library") {
