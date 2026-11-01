@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { open, save, importLibrary, newPath } = vi.hoisted(() => ({
+const { open, save, importLibrary, exportLibrary, newPath } = vi.hoisted(() => ({
   open: vi.fn(),
   save: vi.fn(),
   importLibrary: vi.fn(),
+  exportLibrary: vi.fn(),
   newPath: vi.fn(),
 }));
 
@@ -20,6 +21,7 @@ vi.mock("@tauri-apps/api/path", () => ({
 vi.mock("../../application/managedLibraryService", () => ({
   managedLibraryService: {
     import: importLibrary,
+    export: exportLibrary,
     list: vi.fn(),
     newPath,
   },
@@ -32,6 +34,7 @@ describe("library adapters", () => {
     open.mockReset();
     save.mockReset();
     importLibrary.mockReset();
+    exportLibrary.mockReset();
     newPath.mockReset();
   });
 
@@ -70,6 +73,28 @@ describe("library adapters", () => {
     const library = createDesktopLibrary();
     await expect(library.pickNew("demo")).resolves.toBe("/tmp/new.note");
     expect(save).toHaveBeenCalledOnce();
+  });
+
+  it("exports through the save dialog and managed service", async () => {
+    save.mockResolvedValue("/tmp/out.note");
+    exportLibrary.mockResolvedValue("/tmp/out.note");
+    const library = createMobileLibrary();
+    await expect(
+      library.exportLibrary?.("/app/libraries/a.note"),
+    ).resolves.toBe("/tmp/out.note");
+    expect(exportLibrary).toHaveBeenCalledWith(
+      "/app/libraries/a.note",
+      "/tmp/out.note",
+    );
+  });
+
+  it("keeps export cancellation as null", async () => {
+    save.mockResolvedValue(null);
+    const library = createMobileLibrary();
+    await expect(
+      library.exportLibrary?.("/app/libraries/a.note"),
+    ).resolves.toBeNull();
+    expect(exportLibrary).not.toHaveBeenCalled();
   });
 
   it("mobile keeps cancellation as null", async () => {

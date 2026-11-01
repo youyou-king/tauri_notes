@@ -29,6 +29,17 @@ describe("managed library service", () => {
     });
   });
 
+  it("exports a managed library", async () => {
+    invoke.mockResolvedValue("/tmp/exported.note");
+    await expect(
+      managedLibraryService.export("/app/libraries/a.note", "/tmp/exported.note"),
+    ).resolves.toBe("/tmp/exported.note");
+    expect(invoke).toHaveBeenCalledWith("export_managed_library", {
+      source: "/app/libraries/a.note",
+      destination: "/tmp/exported.note",
+    });
+  });
+
   it("imports an external note", async () => {
     invoke.mockResolvedValue({ id: "b", title: "b", path: "/tmp/b.note" });
     await managedLibraryService.import("/tmp/source.note");

@@ -260,27 +260,47 @@
 
 .mobile-managed-library-list {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 8px;
 }
 
-.mobile-managed-library-list button {
+.mobile-managed-library-row {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 10px;
+  padding: 4px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--bg-panel);
-  color: var(--text);
-  cursor: pointer;
 }
 
-.mobile-managed-library-list button.active {
+.mobile-managed-library-row.active {
   border-color: var(--accent);
 }
 
-.mobile-managed-library-list button span {
+.mobile-managed-library-open {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.mobile-managed-library-export {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.mobile-managed-library-list span {
   color: var(--accent);
   font-size: 10px;
 }

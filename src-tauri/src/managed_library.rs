@@ -96,6 +96,29 @@ fn summary_for(path: &Path) -> ManagedLibrarySummary {
     }
 }
 
+/// Copies a managed library to an explicit destination after the same
+/// checkpoint used for import. The caller owns destination confirmation.
+pub async fn export_library(
+    source: &Path,
+    destination: &Path,
+) -> Result<String, String> {
+    if !source.is_file() {
+        return Err(format!("不是 .note 文件：{}", source.display()));
+    }
+    if destination.extension().and_then(|value| value.to_str()) != Some("note") {
+        return Err("导出目标必须是 .note 文件".to_string());
+    }
+    if let Some(parent) = destination.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|error| format!("创建导出目录失败：{error}"))?;
+    }
+    let source_text = source.to_string_lossy().into_owned();
+    database::checkpoint_workspace(&source_text).await?;
+    fs::copy(source, destination)
+        .map_err(|error| format!("导出书库失败：{error}"))?;
+    Ok(destination.to_string_lossy().into_owned())
+}
+
 pub fn list_libraries(data_dir: &Path) -> Result<Vec<ManagedLibrarySummary>, String> {
     let dir = libraries_dir(data_dir);
     if !dir.exists() {

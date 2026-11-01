@@ -171,7 +171,7 @@ export function MobileShell({
     reset: resetMobile,
     setEditing,
   } = useMobileShellStore();
-  const { dialogs, documentActions, navigation } = useRuntimeServices();
+  const { dialogs, documentActions, navigation, library } = useRuntimeServices();
   const keymap = useKeymapStore((state) => state.document);
   const loadKeymap = useKeymapStore((state) => state.load);
   const [menuDocument, setMenuDocument] =
@@ -266,6 +266,17 @@ export function MobileShell({
 
   const openDocument = (id: string) => {
     navigation.openDocument(id);
+  };
+
+  const exportManagedLibrary = async (item: ManagedLibrarySummary) => {
+    try {
+      const path = await library.exportLibrary?.(item.path);
+      if (path) {
+        dialogs.alert(`已导出到 ${path}`);
+      }
+    } catch (error) {
+      dialogs.alert(String(error));
+    }
   };
 
   const openDocumentFromAction = async (document: MobileDocumentLink) => {
@@ -431,18 +442,30 @@ export function MobileShell({
                 <p>还没有导入或新建书库。</p>
               ) : (
                 <div className="mobile-managed-library-list">
-                  {managedLibraries.map((library) => (
-                    <button
-                      key={library.id}
-                      type="button"
-                      className={
-                        workspace.root === library.path ? "active" : ""
-                      }
-                      onClick={() => void onOpenWorkspacePath?.(library.path)}
+                  {managedLibraries.map((item) => (
+                    <div
+                      key={item.id}
+                      className={`mobile-managed-library-row${
+                        workspace.root === item.path ? " active" : ""
+                      }`}
                     >
-                      <strong>{library.title}</strong>
-                      {workspace.root === library.path && <span>当前</span>}
-                    </button>
+                      <button
+                        type="button"
+                        className="mobile-managed-library-open"
+                        onClick={() => void onOpenWorkspacePath?.(item.path)}
+                      >
+                        <strong>{item.title}</strong>
+                        {workspace.root === item.path && <span>当前</span>}
+                      </button>
+                      <button
+                        type="button"
+                        className="mobile-managed-library-export"
+                        aria-label={`导出 ${item.title}`}
+                        onClick={() => void exportManagedLibrary(item)}
+                      >
+                        导出
+                      </button>
+                    </div>
                   ))}
                 </div>
               )}

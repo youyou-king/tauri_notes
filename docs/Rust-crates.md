@@ -2,7 +2,7 @@
 
 Rust 侧插件与内核 crate。
 
-> 最后核对：2026-11-01 | 当前版本 v0.1.1 | 基线 225 / 51 / 37
+> 最后核对：2026-11-01 | 当前版本 v0.1.1 | 基线 228 / 51 / 37
 
 ## 布局
 
@@ -81,7 +81,8 @@ managed_library（app 层）
 ├─ App 私有 libraries/ 列表
 ├─ 新建 managed path
 ├─ 导入前 WAL checkpoint
-└─ 复制外部 .note
+├─ 复制外部 .note
+└─ 导出前 checkpoint
 
 theme
 ├─ ThemeStore（注入 data/legacy 目录）

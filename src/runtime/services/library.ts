@@ -30,6 +30,19 @@ function createPathLibrary(): LibraryPort {
       return typeof picked === "string" ? picked : null;
     },
 
+    async exportLibrary(source) {
+      const name = source.split(/[\\/]/).pop() ?? "library.note";
+      const picked = await save({
+        title: "导出知识库",
+        defaultPath: name,
+        filters: [{ name: "Notes 知识库", extensions: ["note"] }],
+      });
+      if (typeof picked !== "string") {
+        return null;
+      }
+      return managedLibraryService.export(source, picked);
+    },
+
     async pickNew() {
       const picked = await save({
         title: "新建知识库",
@@ -65,5 +78,6 @@ export function createMobileLibrary(): LibraryPort {
     async pickNew(title) {
       return managedLibraryService.newPath(title ?? "未命名");
     },
+    exportLibrary: paths.exportLibrary,
   };
 }

@@ -13,4 +13,6 @@ export type LibraryPort = {
    * and therefore needs a title before creating the path.
    */
   readonly managed?: boolean;
+  /** Export an open library to a user-selected destination. */
+  exportLibrary?(source: string): Promise<string | null>;
 };

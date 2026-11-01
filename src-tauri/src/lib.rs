@@ -180,6 +180,18 @@ fn new_managed_library_path(
 }
 
 #[tauri::command]
+async fn export_managed_library(
+    source: String,
+    destination: String,
+) -> Result<String, String> {
+    managed_library::export_library(
+        std::path::Path::new(&source),
+        std::path::Path::new(&destination),
+    )
+    .await
+}
+
+#[tauri::command]
 async fn import_managed_library(
     state: tauri::State<'_, platform_state::PlatformState>,
     source: String,
@@ -220,6 +232,7 @@ pub fn run() {
             platform_commands::platform_info,
             list_managed_libraries,
             import_managed_library,
+            export_managed_library,
             new_managed_library_path,
             keymap_commands::load_keymap,
             keymap_commands::save_keymap,
