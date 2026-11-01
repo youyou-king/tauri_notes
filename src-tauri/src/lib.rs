@@ -123,6 +123,7 @@ fn help_note_path() -> Result<String, String> {
     candidates.push(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("..")
+            .join("resources")
             .join("help.note"),
     );
     for candidate in candidates {

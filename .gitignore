@@ -6,9 +6,15 @@ src-tauri/target
 .tmp
 *.log
 installer/custom/*.exe
+Tauri Notes Setup.exe
 test-results
+playwright-report
+blob-report
 .snapshots
+coverage
 perm_workspace.note
-help.note-shm
-help.note-wal
+*.note-shm
+*.note-wal
 *.schema-v*.bak
+.DS_Store
+Thumbs.db

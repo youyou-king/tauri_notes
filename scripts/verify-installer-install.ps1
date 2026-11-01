@@ -12,7 +12,7 @@ if (-not $Target) {
     $Target = Join-Path $root ".tmp\installer-verify"
 }
 $release = Join-Path $root "src-tauri\target\release\tauri-notes.exe"
-$help = Join-Path $root "help.note"
+$help = Join-Path $root "resources\help.note"
 
 if (-not (Test-Path $Setup)) { throw "Missing installer: $Setup" }
 if (-not (Test-Path $release)) { throw "Missing release app: $release" }

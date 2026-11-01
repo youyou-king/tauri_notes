@@ -44,7 +44,7 @@ function storedZip(files: Array<[string, string]>): Buffer {
 }
 
 test("loads the demo workspace and switches theme", async ({ page }) => {
-  await page.goto("/e2e.html");
+  await page.goto("/e2e/fixtures/e2e.html");
 
   await expect(page.getByText(/演示知识库/).first()).toBeVisible();
   await expect(page.getByText("演示导图").first()).toBeVisible();
@@ -67,7 +67,7 @@ test("loads the demo workspace and switches theme", async ({ page }) => {
 });
 
 test("opens a document from a mind-map node", async ({ page }) => {
-  await page.goto("/e2e.html");
+  await page.goto("/e2e/fixtures/e2e.html");
   await expect(page.getByText("测试想法").first()).toBeVisible();
 
   await page.locator(".mind-map-node-doc").first().click();
@@ -77,7 +77,7 @@ test("opens a document from a mind-map node", async ({ page }) => {
 test("keeps document blocks compact when the editor has spare height", async ({
   page,
 }) => {
-  await page.goto("/e2e.html");
+  await page.goto("/e2e/fixtures/e2e.html");
   await page.locator(".mind-map-node-doc").first().click();
   await expect(page.getByText("测试文档").first()).toBeVisible();
 
@@ -100,7 +100,7 @@ test("keeps document blocks compact when the editor has spare height", async ({
 test("syncs heading toolbar state with the current line", async ({
   page,
 }) => {
-  await page.goto("/e2e.html");
+  await page.goto("/e2e/fixtures/e2e.html");
   await page.locator(".mind-map-node-doc").first().click();
   await expect(page.getByText("测试文档").first()).toBeVisible();
 
@@ -127,7 +127,7 @@ test("syncs heading toolbar state with the current line", async ({
 });
 
 test("inserts a table with its operation toolbar", async ({ page }) => {
-  await page.goto("/e2e.html");
+  await page.goto("/e2e/fixtures/e2e.html");
   await page.locator(".mind-map-node-doc").first().click();
   await expect(page.getByText("测试文档").first()).toBeVisible();
 
@@ -145,7 +145,7 @@ test("inserts a table with its operation toolbar", async ({ page }) => {
 });
 
 test("recognizes pasted markdown tables", async ({ page }) => {
-  await page.goto("/e2e.html");
+  await page.goto("/e2e/fixtures/e2e.html");
   await page.locator(".mind-map-node-doc").first().click();
   await expect(page.getByText("测试文档").first()).toBeVisible();
 
@@ -178,7 +178,7 @@ test("recognizes pasted markdown tables", async ({ page }) => {
 });
 
 test("runs the viewport command from its shortcut", async ({ page }) => {
-  await page.goto("/e2e.html");
+  await page.goto("/e2e/fixtures/e2e.html");
   await page.locator(".mind-map-node-doc").first().click();
   await expect(page.getByText("测试文档").first()).toBeVisible();
   await page.locator(".ProseMirror").first().click();
@@ -187,7 +187,7 @@ test("runs the viewport command from its shortcut", async ({ page }) => {
 });
 
 test("selects multiple paragraphs for a view", async ({ page }) => {
-  await page.goto("/e2e.html");
+  await page.goto("/e2e/fixtures/e2e.html");
   await page.locator(".mind-map-node-doc").first().click();
   await expect(page.getByText("测试文档").first()).toBeVisible();
 
@@ -244,7 +244,7 @@ test("selects multiple paragraphs for a view", async ({ page }) => {
 });
 
 test("drags a map node without resetting its position", async ({ page }) => {
-  await page.goto("/e2e.html");
+  await page.goto("/e2e/fixtures/e2e.html");
   const node = page
     .locator(".react-flow__node")
     .filter({ hasText: "测试想法" })
@@ -279,7 +279,7 @@ test("drags a map node without resetting its position", async ({ page }) => {
 });
 
 test("opens the heading document with Ctrl + left click", async ({ page }) => {
-  await page.goto("/e2e.html");
+  await page.goto("/e2e/fixtures/e2e.html");
   await page.locator(".mind-map-node-doc").first().click();
   await expect(page.getByText("测试文档").first()).toBeVisible();
 
@@ -305,7 +305,7 @@ test("opens the heading document with Ctrl + left click", async ({ page }) => {
 });
 
 test("opens the plugin-provided appearance settings", async ({ page }) => {
-  await page.goto("/e2e.html");
+  await page.goto("/e2e/fixtures/e2e.html");
   await expect(page.getByText(/演示知识库/).first()).toBeVisible();
   await page.getByRole("button", { name: /主题/ }).click();
   await page.getByRole("button", { name: "外观设置…" }).click();
@@ -321,7 +321,7 @@ test("opens the plugin-provided appearance settings", async ({ page }) => {
 });
 
 test("requires trust for a signed appearance pack", async ({ page }) => {
-  await page.goto("/e2e.html");
+  await page.goto("/e2e/fixtures/e2e.html");
   await expect(page.getByText(/演示知识库/).first()).toBeVisible();
   await page.getByRole("button", { name: /主题/ }).click();
   await page.getByRole("button", { name: "导入外观包…" }).click();
@@ -374,7 +374,7 @@ test("requires trust for a signed appearance pack", async ({ page }) => {
 });
 
 test("warns about low contrast appearance packs", async ({ page }) => {
-  await page.goto("/e2e.html");
+  await page.goto("/e2e/fixtures/e2e.html");
   await expect(page.getByText(/演示知识库/).first()).toBeVisible();
   await page.getByRole("button", { name: /主题/ }).click();
   await page.getByRole("button", { name: "导入外观包…" }).click();
@@ -411,7 +411,7 @@ test("warns about low contrast appearance packs", async ({ page }) => {
 });
 
 test("disables a plugin from the plugin manager", async ({ page }) => {
-  await page.goto("/e2e.html");
+  await page.goto("/e2e/fixtures/e2e.html");
   await expect(page.getByText(/演示知识库/).first()).toBeVisible();
   await page.getByRole("button", { name: /主题/ }).click();
   await page.getByRole("button", { name: "外观设置…" }).click();
@@ -431,7 +431,7 @@ test("disables a plugin from the plugin manager", async ({ page }) => {
 });
 
 test("opens settings from the core toolbar", async ({ page }) => {
-  await page.goto("/e2e.html");
+  await page.goto("/e2e/fixtures/e2e.html");
   await expect(page.getByText(/演示知识库/).first()).toBeVisible();
 
   await page.getByRole("button", { name: "设置", exact: true }).click();
@@ -443,7 +443,7 @@ test("opens settings from the core toolbar", async ({ page }) => {
 test("keeps settings available when the theme plugin is disabled", async ({
   page,
 }) => {
-  await page.goto("/e2e.html");
+  await page.goto("/e2e/fixtures/e2e.html");
   await expect(page.getByText(/演示知识库/).first()).toBeVisible();
 
   await page.getByRole("button", { name: "设置", exact: true }).click();
@@ -464,7 +464,7 @@ test("keeps settings available when the theme plugin is disabled", async ({
 });
 
 test("imports and validates an appearance pack", async ({ page }) => {
-  await page.goto("/e2e.html");
+  await page.goto("/e2e/fixtures/e2e.html");
   await expect(page.getByText(/演示知识库/).first()).toBeVisible();
   await page.getByRole("button", { name: /主题/ }).click();
   await page.getByRole("button", { name: "导入外观包…" }).click();
@@ -611,7 +611,7 @@ test("imports and validates an appearance pack", async ({ page }) => {
 test("switches appearance pack variants with the theme mode", async ({
   page,
 }) => {
-  await page.goto("/e2e.html");
+  await page.goto("/e2e/fixtures/e2e.html");
   await expect(page.getByText(/演示知识库/).first()).toBeVisible();
   await page.getByRole("button", { name: "主题", exact: true }).click();
   await page.getByRole("button", { name: "导入外观包…" }).click();
@@ -708,7 +708,7 @@ test("switches appearance pack variants with the theme mode", async ({
 
 test("hides appearance decorations on narrow windows", async ({ page }) => {
   await page.setViewportSize({ width: 700, height: 800 });
-  await page.goto("/e2e.html");
+  await page.goto("/e2e/fixtures/e2e.html");
   await expect(page.getByText(/演示知识库/).first()).toBeVisible();
   await page.getByRole("button", { name: /主题/ }).click();
   await page.getByRole("button", { name: "导入外观包…" }).click();
@@ -754,7 +754,7 @@ test("hides appearance decorations on narrow windows", async ({ page }) => {
 
 test("switches shell profile at mobile breakpoint", async ({ page }) => {
   await page.setViewportSize({ width: 600, height: 800 });
-  await page.goto("/e2e.html");
+  await page.goto("/e2e/fixtures/e2e.html");
   await expect(page.locator(".app")).toHaveAttribute(
     "data-shell",
     "mobile",
@@ -768,7 +768,7 @@ test("switches shell profile at mobile breakpoint", async ({ page }) => {
 
 test("renders the mobile shell and opens documents", async ({ page }) => {
   await page.setViewportSize({ width: 600, height: 800 });
-  await page.goto("/e2e.html");
+  await page.goto("/e2e/fixtures/e2e.html");
   await expect(page.locator(".mobile-shell")).toBeVisible();
   await expect(page.getByRole("button", { name: "导图" })).toBeVisible();
   await expect(
@@ -812,7 +812,7 @@ test("renders the mobile shell and opens documents", async ({ page }) => {
 });
 
 test("creates and applies a custom theme", async ({ page }) => {
-  await page.goto("/e2e.html");
+  await page.goto("/e2e/fixtures/e2e.html");
   await expect(page.getByText(/演示知识库/).first()).toBeVisible();
   await page.getByRole("button", { name: /主题/ }).click();
   await page.getByRole("button", { name: "新建主题…" }).click();
@@ -840,7 +840,7 @@ test("creates and applies a custom theme", async ({ page }) => {
 });
 
 test("opens the board with the keyboard shortcut", async ({ page }) => {
-  await page.goto("/e2e.html");
+  await page.goto("/e2e/fixtures/e2e.html");
   await expect(page.getByText(/演示知识库/).first()).toBeVisible();
   await expect(page.locator(".dv-tab").first()).toBeVisible();
 
@@ -849,7 +849,7 @@ test("opens the board with the keyboard shortcut", async ({ page }) => {
 });
 
 test("closes and reopens the map panel", async ({ page }) => {
-  await page.goto("/e2e.html");
+  await page.goto("/e2e/fixtures/e2e.html");
   await expect(page.locator(".mind-map-flow")).toBeVisible();
 
   await page.locator(".workspace-tab-close").nth(1).click();
@@ -860,7 +860,7 @@ test("closes and reopens the map panel", async ({ page }) => {
 });
 
 test("opens the console from the view menu", async ({ page }) => {
-  await page.goto("/e2e.html");
+  await page.goto("/e2e/fixtures/e2e.html");
   await expect(page.getByText(/演示知识库/).first()).toBeVisible();
 
   await page.getByRole("button", { name: "视图", exact: true }).click();
@@ -869,7 +869,7 @@ test("opens the console from the view menu", async ({ page }) => {
 });
 
 test("opens the knowledge menu", async ({ page }) => {
-  await page.goto("/e2e.html");
+  await page.goto("/e2e/fixtures/e2e.html");
   await expect(page.getByText(/演示知识库/).first()).toBeVisible();
 
   await page.getByRole("button", { name: "知识库", exact: true }).click();
@@ -879,7 +879,7 @@ test("opens the knowledge menu", async ({ page }) => {
 });
 
 test("closes the knowledge menu on outside click", async ({ page }) => {
-  await page.goto("/e2e.html");
+  await page.goto("/e2e/fixtures/e2e.html");
   await expect(page.getByText(/演示知识库/).first()).toBeVisible();
 
   await page.getByRole("button", { name: "知识库", exact: true }).click();
@@ -894,7 +894,7 @@ test("closes the knowledge menu on outside click", async ({ page }) => {
 test("closes the theme menu on outside click and Escape", async ({
   page,
 }) => {
-  await page.goto("/e2e.html");
+  await page.goto("/e2e/fixtures/e2e.html");
   await expect(page.getByText(/演示知识库/).first()).toBeVisible();
 
   await page.getByRole("button", { name: "主题", exact: true }).click();
@@ -917,7 +917,7 @@ test("closes the theme menu on outside click and Escape", async ({
 });
 
 test("opens the help knowledge base from the toolbar", async ({ page }) => {
-  await page.goto("/e2e.html");
+  await page.goto("/e2e/fixtures/e2e.html");
   await expect(page.getByText(/演示知识库/).first()).toBeVisible();
 
   const help = page.getByRole("button", { name: "帮助" });
@@ -937,7 +937,7 @@ test("opens the help knowledge base from the toolbar", async ({ page }) => {
 test("opens the search palette with the keyboard shortcut", async ({
   page,
 }) => {
-  await page.goto("/e2e.html");
+  await page.goto("/e2e/fixtures/e2e.html");
   await expect(page.getByText(/演示知识库/).first()).toBeVisible();
 
   await page.keyboard.press("Control+p");

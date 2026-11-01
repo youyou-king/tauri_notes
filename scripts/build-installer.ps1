@@ -21,7 +21,7 @@ $setup = Join-Path $custom "Tauri Notes Setup.exe"
 $icon = Join-Path $icons "icon.ico"
 $png = Join-Path $icons "icon.png"
 $manifest = Join-Path $custom "admin.manifest"
-$help = Join-Path $root "help.note"
+$help = Join-Path $root "resources\help.note"
 
 if (-not (Test-Path $help)) { throw "Missing help knowledge base: $help" }
 

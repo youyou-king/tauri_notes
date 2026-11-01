@@ -13,7 +13,7 @@ export default defineConfig({
   },
   webServer: {
     command: "npm run dev",
-    url: "http://localhost:1420/e2e.html",
+    url: "http://localhost:1420/e2e/fixtures/e2e.html",
     reuseExistingServer: true,
     timeout: 120_000,
   },

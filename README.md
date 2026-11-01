@@ -58,7 +58,7 @@ npm run tauri dev
 
 首次启动不自动打开示例知识库；无知识库时显示空工作区，可通过“知识库”菜单新建或打开。带 `.note` 参数启动时会直接打开该文件。
 
-顶部“帮助”按钮会打开内置 `help.note` 使用帮助知识库。
+顶部“帮助”按钮打开内置使用帮助知识库，源文件位于 `resources/help.note`。
 
 顶部“设置”按钮或 `Ctrl/Cmd + ,` 打开设置；插件管理在“设置 → 插件”，数据库校验、备份和回收站恢复在“设置 → 数据”。
 
@@ -159,7 +159,7 @@ tauri_notes/
 ├── docs/                    # 设计文档、状态契约、专题文档
 ├── CONTRIBUTING.md          # 开发与插件规范
 ├── CHANGELOG.md             # 版本变更
-├── help.note                # 内置使用帮助知识库
+├── resources/help.note      # 内置使用帮助知识库
 ├── e2e/                     # Playwright 冒烟与视觉回归
 ├── installer/custom/        # 安装器 / 卸载器 C# 源码
 └── scripts/                 # 构建与验证脚本

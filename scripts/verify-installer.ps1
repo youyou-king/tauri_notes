@@ -10,7 +10,7 @@ if (-not $Setup) {
 $app = Join-Path $root "src-tauri\target\release\tauri-notes.exe"
 $uninstaller = Join-Path $root "installer\custom\Uninstall.exe"
 $icon = Join-Path $root "src-tauri\icons\icon.png"
-$help = Join-Path $root "help.note"
+$help = Join-Path $root "resources\help.note"
 
 if (-not (Test-Path $Setup)) { throw "Missing installer: $Setup" }
 if (-not (Test-Path $app)) { throw "Missing app: $app" }
