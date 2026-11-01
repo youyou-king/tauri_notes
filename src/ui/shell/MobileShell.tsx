@@ -1,6 +1,10 @@
 import { Suspense, useEffect, useState } from "react";
 import { documentService } from "../../application/documentService";
 import { useMobileShellStore } from "../../application/stores/mobileShellStore";
+import { confirmDialog } from "../dialog/confirmDialog";
+import { MobileActionSheet } from "./MobileActionSheet";
+import { useLongPress } from "../interaction/useLongPress";
+import { useSwipeBack } from "../interaction/useSwipeBack";
 import type { MobileTab } from "../../application/stores/mobileShellStore";
 import type { StoredBlock } from "../../domain/importedDocument";
 import type { BoardControllerPort } from "../../kernel/panel/boardPort";
@@ -92,6 +96,31 @@ function MobileDocumentView({
   );
 }
 
+function MobileLibraryRow({
+  document,
+  onOpen,
+  onMenu,
+}: {
+  document: MobileDocumentLink;
+  onOpen: (id: string) => void;
+  onMenu: (document: MobileDocumentLink) => void;
+}) {
+  const press = useLongPress({
+    onLongPress: () => onMenu(document),
+  });
+  return (
+    <button
+      type="button"
+      className="mobile-pressable"
+      {...press}
+      onClick={() => onOpen(document.id)}
+    >
+      <strong>{document.title}</strong>
+      <span>{document.id}</span>
+    </button>
+  );
+}
+
 export function MobileShell({
   workspace,
   activeMap,
@@ -112,11 +141,23 @@ export function MobileShell({
     openDocument: openStoredDocument,
     back,
     history,
+    reset: resetMobile,
     setEditing,
   } = useMobileShellStore();
   const keymap = useKeymapStore((state) => state.document);
   const loadKeymap = useKeymapStore((state) => state.load);
+  const [menuDocument, setMenuDocument] =
+    useState<MobileDocumentLink | null>(null);
   const map = activeMap ?? workspace?.maps[0] ?? null;
+  const swipeBack = useSwipeBack({
+    onBack: () => {
+      if (editing) {
+        emitAppEvent(APP_EVENTS.saveNow);
+      }
+      back();
+    },
+    edgeOnly: editing,
+  });
 
   useEffect(() => {
     void loadKeymap();
@@ -165,6 +206,52 @@ export function MobileShell({
   const openDocument = (id: string) => {
     requestSave();
     openStoredDocument(id);
+  };
+
+
+  const renameDocument = async (document: MobileDocumentLink) => {
+    const next = window.prompt("重命名文档", document.title)?.trim();
+    if (!next || next === document.title) {
+      return;
+    }
+    try {
+      await documentService.rename(workspace.root, document.id, next);
+      emitAppEvent(APP_EVENTS.documentRenamed, {
+        documentId: document.id,
+        title: next,
+      });
+      emitAppEvent(APP_EVENTS.documentChanged);
+    } catch (error) {
+      window.alert(String(error));
+    }
+  };
+
+  const deleteDocument = async (document: MobileDocumentLink) => {
+    const confirmed = await confirmDialog({
+      title: "删除文档？",
+      message: `“${document.title}”会移到回收站，可稍后恢复。`,
+      confirmLabel: "移到回收站",
+      tone: "danger",
+    });
+    if (!confirmed) {
+      return;
+    }
+    try {
+      await documentService.delete(workspace.root, document.id);
+      emitAppEvent(APP_EVENTS.documentDeleted, {
+        documentId: document.id,
+        root: workspace.root,
+      });
+      emitAppEvent(APP_EVENTS.documentChanged);
+      if (documentId === document.id) {
+        requestSave();
+        if (!back()) {
+          resetMobile();
+        }
+      }
+    } catch (error) {
+      window.alert(String(error));
+    }
   };
 
   const runMobileCommand = (id: string) => {
@@ -270,14 +357,12 @@ export function MobileShell({
           documents.length > 0 ? (
             <div className="mobile-library">
               {documents.map((document) => (
-                <button
+                <MobileLibraryRow
                   key={document.id}
-                  type="button"
-                  onClick={() => openDocument(document.id)}
-                >
-                  <strong>{document.title}</strong>
-                  <span>{document.id}</span>
-                </button>
+                  document={document}
+                  onOpen={openDocument}
+                  onMenu={setMenuDocument}
+                />
               ))}
             </div>
           ) : (
@@ -286,7 +371,7 @@ export function MobileShell({
             </div>
           )
         ) : documentId ? (
-          <div className="mobile-document-shell">
+          <div className="mobile-document-shell" {...swipeBack}>
             <div className="mobile-document-actions">
               {editing ? (
                 <>
@@ -374,6 +459,41 @@ export function MobileShell({
           设置
         </button>
       </nav>
+
+      {menuDocument && (
+        <MobileActionSheet
+          title={menuDocument.title}
+          onClose={() => setMenuDocument(null)}
+          items={[
+            {
+              id: "open",
+              label: "打开",
+              onSelect: () => {
+                openDocument(menuDocument.id);
+                setMenuDocument(null);
+              },
+            },
+            {
+              id: "rename",
+              label: "重命名",
+              onSelect: () => {
+                void renameDocument(menuDocument).finally(() =>
+                  setMenuDocument(null),
+                );
+              },
+            },
+            {
+              id: "delete",
+              label: "移到回收站",
+              tone: "danger",
+              onSelect: () => {
+                void deleteDocument(menuDocument);
+                setMenuDocument(null);
+              },
+            },
+          ]}
+        />
+      )}
     </div>
   );
 }

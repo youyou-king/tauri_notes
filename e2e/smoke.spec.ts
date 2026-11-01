@@ -971,3 +971,18 @@ test("customizes a shortcut from settings", async ({ page }) => {
     )
     .toBeGreaterThan(0);
 });
+
+
+test("opens the mobile document action sheet from contextmenu", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 600, height: 800 });
+  await page.goto("/e2e/fixtures/e2e.html");
+  await page.getByRole("button", { name: "目录", exact: true }).click();
+  const row = page.locator(".mobile-library button").first();
+  await row.dispatchEvent("contextmenu", { clientX: 24, clientY: 120 });
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "移到回收站" }),
+  ).toBeVisible();
+});

@@ -20,6 +20,7 @@
 - SQLite 每个 workspace 使用连接池，迁移进程内只执行一次；卸载 workspace 时关闭连接池。
 - 编辑器快照按 `EditorState` 缓存，避免同一 transaction 多订阅重复全量计算。
 - 移动端增加返回栈和“返回”按钮，保留 tab/document 导航历史。
+- 移动端文档列表支持长按/右键动作面板，并支持滑动返回。
 - 统一 keymap 状态，桌面工具栏根据有效绑定显示 shortcut hint；支持快捷键 TOML 导入/导出。
 - 内置默认 keymap 资源化为 `resources/keymap/default.toml`，编译期嵌入并由 Rust 返回。
 - 新增 E2E：禁用主题插件后仍可打开设置和插件管理器；

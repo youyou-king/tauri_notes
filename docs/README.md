@@ -58,9 +58,9 @@
    - 面板：活动 map/blockdoc 同步选中状态，session 恢复 activity panel，文档脏状态上报 `usePanelStore`。
 7. **设置入口属于 shell**：核心工具栏“设置”、`settings.open` 和 `Ctrl/Cmd + ,`；主题菜单只是另一个入口；插件管理器是核心设置区 `core.plugins`。
 8. **验收基线**：
-   - 前端单元测试 198 个；
+   - 前端单元测试 202 个；
    - Rust 单元测试 47 个；
-   - Playwright E2E / 视觉回归 36 个；
+   - Playwright E2E / 视觉回归 37 个；
    - 安装包载荷、解包流程已在 Windows CI 验证；
    - 真实中文 IME 仍需在目标输入法环境人工确认。
 9. **首次启动不自动打开示例**：没有会话时保持空工作区，通过“知识库”菜单新建或打开。
