@@ -9,9 +9,10 @@ jobs:
     timeout-minutes: 60
     env:
       NDK_VERSION: 27.0.12077973
-      ANDROID_NDK_HOME: ${{ github.workspace }}/android-sdk/ndk/27.0.12077973
-      NDK_HOME: ${{ github.workspace }}/android-sdk/ndk/27.0.12077973
-      ANDROID_HOME: ${{ github.workspace }}/android-sdk
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+      ANDROID_NDK_HOME: /usr/local/lib/android/sdk/ndk/27.0.12077973
+      NDK_HOME: /usr/local/lib/android/sdk/ndk/27.0.12077973
     steps:
       - uses: actions/checkout@v4
 
@@ -25,14 +26,11 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - name: Install Android SDK and NDK
+      - name: Install Android SDK packages
         run: |
-          mkdir -p "$ANDROID_HOME/cmdline-tools"
-          curl -fsSL -o /tmp/cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-          unzip -q /tmp/cmdline-tools.zip -d "$ANDROID_HOME/cmdline-tools"
-          mv "$ANDROID_HOME/cmdline-tools/cmdline-tools" "$ANDROID_HOME/cmdline-tools/latest"
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses >/dev/null
+          "$SDKMANAGER" \
             "platform-tools" \
             "platforms;android-37.0" \
             "build-tools;37.0.0" \
