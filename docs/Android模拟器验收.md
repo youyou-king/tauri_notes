@@ -51,6 +51,16 @@ adb shell am start -n com.youyou.taurinotes/.MainActivity
 
 WebView 已创建，移动 Shell 正常渲染；启动日志中 `webview created` 可见。
 
+## 390 宽度
+
+模拟 390×844 逻辑像素：
+
+![Android 390 宽度](assets/android-emulator-390.png)
+
+- 移动 header、导图、底部 tab 均可用；
+- 没有横向溢出；
+- 底栏安全区内可见。
+
 ## 导出
 
 点击“目录 → 导出”会打开 Android SAF 保存面板：
