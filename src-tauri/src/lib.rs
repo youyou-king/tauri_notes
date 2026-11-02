@@ -103,11 +103,13 @@ pub(crate) fn startup_note_arg() -> Option<String> {
     note_arg(&args)
 }
 
+#[cfg(desktop)]
 #[tauri::command]
 fn take_pending_note_file() -> Option<String> {
     PENDING_NOTE.lock().ok().and_then(|mut pending| pending.take())
 }
 
+#[cfg(desktop)]
 #[tauri::command]
 fn register_note_association(
     state: tauri::State<'_, platform_state::PlatformState>,
@@ -117,6 +119,7 @@ fn register_note_association(
     state.adapter.register_file_association(&exe)
 }
 
+#[cfg(desktop)]
 #[tauri::command]
 fn unregister_note_association(
     state: tauri::State<'_, platform_state::PlatformState>,
@@ -198,21 +201,14 @@ async fn export_managed_library(
     .await
 }
 
+#[cfg(mobile)]
 #[tauri::command]
 fn share_managed_library(
     app: tauri::AppHandle,
     path: String,
 ) -> Result<(), String> {
-    #[cfg(mobile)]
-    {
-        let state = app.state::<share::ShareHandle<tauri::Wry>>();
-        share::share_library(&state, &path)
-    }
-    #[cfg(desktop)]
-    {
-        let _ = (app, path);
-        Err("当前平台不支持系统分享".to_string())
-    }
+    let state = app.state::<share::ShareHandle<tauri::Wry>>();
+    share::share_library(&state, &path)
 }
 
 #[tauri::command]
@@ -255,8 +251,11 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .invoke_handler(tauri::generate_handler![
+            #[cfg(desktop)]
             take_pending_note_file,
+            #[cfg(desktop)]
             register_note_association,
+            #[cfg(desktop)]
             unregister_note_association,
             help_note_path,
             validate_plugin_manifest,
@@ -266,6 +265,7 @@ pub fn run() {
             import_managed_library,
             export_managed_library,
             new_managed_library_path,
+            #[cfg(mobile)]
             share_managed_library,
             keymap_commands::load_keymap,
             keymap_commands::save_keymap,
