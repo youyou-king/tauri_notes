@@ -81,6 +81,8 @@ export function MobileShell({
     ManagedLibrarySummary[]
   >([]);
   const map = activeMap ?? workspace?.maps[0] ?? null;
+  const currentLibraryId =
+    managedLibraries.find((item) => item.path === workspace?.root)?.id ?? null;
   const swipeBack = useSwipeBack({
     onBack: () => {
       navigation.back();
@@ -96,8 +98,8 @@ export function MobileShell({
   }, [loadKeymap]);
 
   useEffect(() => {
-    hydrate(workspace?.root ?? null);
-  }, [hydrate, workspace?.root]);
+    hydrate(workspace?.root ?? null, currentLibraryId);
+  }, [currentLibraryId, hydrate, workspace?.root]);
 
   useEffect(() => {
     return lifecycle.onBackground(() => {

@@ -9,11 +9,12 @@ export type MobileLocation = {
 
 type MobileShellState = {
   workspaceRoot: string | null;
+  libraryId: string | null;
   tab: MobileTab;
   documentId: string | null;
   editing: boolean;
   history: MobileLocation[];
-  hydrate: (workspaceRoot: string | null) => void;
+  hydrate: (workspaceRoot: string | null, libraryId?: string | null) => void;
   setTab: (tab: MobileTab) => void;
   openDocument: (documentId: string) => void;
   back: () => boolean;
@@ -27,6 +28,7 @@ const MAX_HISTORY = 20;
 type StoredState = {
   version?: number;
   workspaceRoot?: unknown;
+  libraryId?: unknown;
   tab?: unknown;
   documentId?: unknown;
   history?: unknown;
@@ -50,8 +52,9 @@ function writeStored(state: MobileShellState): void {
     window.localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
-        version: 2,
+        version: 3,
         workspaceRoot: state.workspaceRoot,
+        libraryId: state.libraryId,
         tab: state.tab,
         documentId: state.documentId,
         history: state.history,
@@ -100,14 +103,16 @@ function readHistory(value: unknown): MobileLocation[] {
 
 export const useMobileShellStore = create<MobileShellState>((set, get) => ({
   workspaceRoot: null,
+  libraryId: null,
   tab: "map",
   documentId: null,
   editing: false,
   history: [],
-  hydrate: (workspaceRoot) => {
+  hydrate: (workspaceRoot, libraryId = null) => {
     if (!workspaceRoot) {
       set({
         workspaceRoot: null,
+        libraryId: null,
         tab: "map",
         documentId: null,
         editing: false,
@@ -115,13 +120,35 @@ export const useMobileShellStore = create<MobileShellState>((set, get) => ({
       });
       return;
     }
-    if (get().workspaceRoot === workspaceRoot) {
+
+    const current = get();
+    if (current.workspaceRoot === workspaceRoot) {
+      // The managed library list loads after the workspace. Upgrading from
+      // the path fallback to the stable id must not reset navigation.
+      if (current.libraryId !== libraryId) {
+        if (current.libraryId && libraryId) {
+          set({
+            libraryId,
+            tab: "map",
+            documentId: null,
+            editing: false,
+            history: [],
+          });
+        } else {
+          set({ libraryId });
+        }
+        writeStored(get());
+      }
       return;
     }
+
     const stored = readStored();
     if (stored?.workspaceRoot === workspaceRoot) {
+      const storedLibraryId =
+        typeof stored.libraryId === "string" ? stored.libraryId : null;
       set({
         workspaceRoot,
+        libraryId: storedLibraryId ?? libraryId,
         tab: isTab(stored.tab) ? stored.tab : "map",
         documentId:
           typeof stored.documentId === "string" ? stored.documentId : null,
@@ -130,8 +157,10 @@ export const useMobileShellStore = create<MobileShellState>((set, get) => ({
       });
       return;
     }
+
     set({
       workspaceRoot,
+      libraryId,
       tab: "map",
       documentId: null,
       editing: false,

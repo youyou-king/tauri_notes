@@ -6,6 +6,7 @@ describe("mobile shell store", () => {
     window.localStorage.clear();
     useMobileShellStore.setState({
       workspaceRoot: null,
+      libraryId: null,
       tab: "map",
       documentId: null,
       editing: false,
@@ -20,6 +21,7 @@ describe("mobile shell store", () => {
 
     useMobileShellStore.setState({
       workspaceRoot: null,
+      libraryId: null,
       tab: "map",
       documentId: null,
       history: [],
@@ -28,6 +30,29 @@ describe("mobile shell store", () => {
     expect(useMobileShellStore.getState()).toMatchObject({
       tab: "library",
       documentId: "map_1/doc_1",
+    });
+  });
+
+  it("keeps navigation when the stable id arrives", () => {
+    useMobileShellStore.getState().hydrate("/notes/demo.note");
+    useMobileShellStore.getState().openDocument("map_1/doc_1");
+    useMobileShellStore.getState().hydrate("/notes/demo.note", "demo");
+    expect(useMobileShellStore.getState()).toMatchObject({
+      workspaceRoot: "/notes/demo.note",
+      libraryId: "demo",
+      documentId: "map_1/doc_1",
+      tab: "document",
+    });
+  });
+
+  it("resets navigation when the library identity changes", () => {
+    useMobileShellStore.getState().hydrate("/notes/demo.note", "one");
+    useMobileShellStore.getState().openDocument("map_1/doc_1");
+    useMobileShellStore.getState().hydrate("/notes/demo.note", "two");
+    expect(useMobileShellStore.getState()).toMatchObject({
+      libraryId: "two",
+      tab: "map",
+      documentId: null,
     });
   });
 

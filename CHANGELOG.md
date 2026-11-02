@@ -18,17 +18,19 @@
 - 平台抽象 Phase 1：新增 `src/runtime`、`DesktopShell`、`MobileRuntimeShell`；`App` 不再直接选择壳层，移动端不再渲染桌面工具栏。
 - 平台抽象 Phase 2：新增 `LibraryPort`、`DialogPort`、`DocumentActionsPort`、`WorkspacePresenter`、`NavigationPort`；`useWorkspaceOpen` 不再直接使用文件对话框或 dockRef；快捷键导入/导出对话框移入 application 服务；移动端重命名/删除不再直接调用 documentService。
 - 平台抽象 Phase 3（完成）：新增 `document.open/rename/delete` 与 `library.import/export` Action；移动端动作面板和桌面文档库菜单均从 `listActions()` 生成。
-- 平台抽象 Phase 4（部分）：新增 `src-tauri/src/desktop.rs`、`mobile.rs`、`platform_commands.rs`；桌面窗口/单实例移入 desktop，移动端构造 `PlatformState`，新增 `platform_info`；命令层通过 `PlatformState.adapter` 取平台服务；theme 改用注入 `ThemeStore`。
-- 平台抽象 Phase 5（部分）：移动端空状态新增打开/新建知识库入口；新增 managed library list/import/new-path；移动端打开外部 `.note` 时复制到 App 私有书库，新建时先输入标题；移动端“目录”页新增本机书库列表；支持导出到保存位置；新增 LifecyclePort，监听 Tauri `tauri://paused` 与 visibilitychange/pagehide 保存；系统分享和 Android 工程未落地。
+- 平台抽象 Phase 4（完成）：新增 `src-tauri/src/desktop.rs`、`mobile.rs`、`platform_commands.rs`；桌面窗口/单实例移入 desktop，移动端构造 `PlatformState`，新增 `platform_info`；命令层通过 `PlatformState.adapter` 取平台服务；theme 改用注入 `ThemeStore`；平台专属命令用 `#[cfg(desktop)]` / `#[cfg(mobile)]` 挂在同一个 handler。
+- 平台抽象 Phase 5（大部分）：移动端空状态新增打开/新建知识库入口；managed library list/import/new-path/export；移动端导入/导出通过 SAF content URI；新增 LifecyclePort、SharePort 和 Android 系统分享；Android 工程已初始化。
 - E2E 稳定性：标题工具栏用例先等待编辑器与标题可见再点击，避免 CI 冷启动超时。
 - Rust 平台边界：`help_note_path` 支持 Tauri resource_dir，并保留 exe/开发目录回退。
 - 移动端拆分：`MobileShell` 的文档只读视图、文档面板、文档动作面板、书库行、本机书库列表、header 和 tabbar 移入 `src/ui/mobile`。
 - Phase 6（部分）：新增 390/600/768 视口 E2E 与移动端真机检查清单。
 - Storage 测试在 Windows 上重试临时目录清理，避免文件锁偶发失败。
-- Android：导出改为通过 `tauri-plugin-fs` content resolver 写入 SAF `content://` URI，修复 0 字节导出。
+- Android：导入/导出改为通过 `tauri-plugin-fs` content resolver 读写 SAF `content://` URI。
 - 移动端：`MobileRuntimeShell` 转发空状态回调；移动 DialogPort 使用紧凑 DOM 对话框，修复 Android WebView 不支持 `window.prompt` 的问题。
 - Android：移动端显式创建 `main` WebView 窗口，修复 APK 启动白屏；模拟器验收通过。
 - Android：launcher 图标使用应用 icon.png 生成各密度 PNG。
+- 移动端：`mobileShellStore` 增加 `libraryId` 兼容映射，稳定身份到达时不重置导航。
+- 测试：`opens_help_note_fixture` 使用临时副本，避免在 `resources/help.note` 旁生成 WAL/SHM。
 - Android：新增 `tauri.android.conf.json`，Android identifier 使用 `com.youyou.taurinotes`（ADR-008）。
 - Android：初始化 `src-tauri/gen/android`，新增手动 `android` CI workflow；arm64 debug APK 构建成功并上传 artifact。
 - 文档同步：明确移动端当前是响应式 compact Shell，原生 Android/iOS 工程尚未初始化。

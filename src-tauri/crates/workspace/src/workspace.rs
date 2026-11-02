@@ -867,12 +867,21 @@ mod tests {
 
     #[test]
     fn opens_help_note_fixture() {
-        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("..")
             .join("..")
             .join("..")
             .join("resources")
             .join("help.note");
+        // Never open the repository fixture read-write: SQLite would create
+        // WAL/SHM files next to the tracked help.note.
+        let root = std::env::temp_dir().join(format!(
+            "tauri-notes-help-fixture-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&root).unwrap();
+        let path = root.join("help.note");
+        fs::copy(&fixture, &path).unwrap();
         let view = block_on(open_note_workspace(
             path.to_string_lossy().into_owned(),
         ))
@@ -880,6 +889,8 @@ mod tests {
         assert_eq!(view.maps.len(), 1);
         assert_eq!(view.maps[0].title, "使用帮助");
         assert!(!view.maps[0].root.children.is_empty());
+        drop(view);
+        let _ = fs::remove_dir_all(root);
     }
 
     #[test]
