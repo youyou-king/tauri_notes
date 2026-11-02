@@ -6,12 +6,14 @@ export function MobileManagedLibraries({
   onOpen,
   onImport,
   onExport,
+  onShare,
 }: {
   libraries: ManagedLibrarySummary[];
   workspaceRoot: string;
   onOpen: (path: string) => void;
   onImport: () => void;
   onExport: (library: ManagedLibrarySummary) => void;
+  onShare: (library: ManagedLibrarySummary) => void;
 }) {
   return (
     <section className="mobile-managed-libraries">
@@ -39,6 +41,14 @@ export function MobileManagedLibraries({
               >
                 <strong>{item.title}</strong>
                 {workspaceRoot === item.path && <span>当前</span>}
+              </button>
+              <button
+                type="button"
+                className="mobile-managed-library-share"
+                aria-label={`分享 ${item.title}`}
+                onClick={() => onShare(item)}
+              >
+                分享
               </button>
               <button
                 type="button"

@@ -71,7 +71,7 @@ export function MobileShell({
     reset: resetMobile,
     setEditing,
   } = useMobileShellStore();
-  const { dialogs, documentActions, navigation, library, lifecycle } =
+  const { dialogs, documentActions, navigation, library, lifecycle, share } =
     useRuntimeServices();
   const keymap = useKeymapStore((state) => state.document);
   const loadKeymap = useKeymapStore((state) => state.load);
@@ -175,6 +175,19 @@ export function MobileShell({
 
   const openDocument = (id: string) => {
     navigation.openDocument(id);
+  };
+
+  const shareManagedLibrary = async (item: ManagedLibrarySummary) => {
+    try {
+      await runLibraryAction("library.share", {
+        platform: "mobile",
+        library,
+        source: item.path,
+        share,
+      });
+    } catch (error) {
+      dialogs.alert(String(error));
+    }
   };
 
   const exportManagedLibrary = async (item: ManagedLibrarySummary) => {
@@ -359,6 +372,7 @@ export function MobileShell({
               workspaceRoot={workspace.root}
               onOpen={(path) => void onOpenWorkspacePath?.(path)}
               onImport={() => void importManagedLibrary()}
+              onShare={(item) => void shareManagedLibrary(item)}
               onExport={(item) => void exportManagedLibrary(item)}
             />
             {documents.length > 0 ? (

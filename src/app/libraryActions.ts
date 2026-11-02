@@ -1,11 +1,13 @@
 import type { ActionRuntime, InputPlatform } from "../kernel/action";
 import { getAction, registerAction } from "../kernel/action";
 import type { LibraryPort } from "../application/ports/libraryPort";
+import type { SharePort } from "../application/ports/sharePort";
 
 export type LibraryActionContext = {
   platform: InputPlatform;
   library: LibraryPort;
   source?: string;
+  share?: SharePort;
   onImported?: (path: string) => void;
   onExported?: (path: string) => void;
 };
@@ -37,6 +39,24 @@ export function registerLibraryActions(): void {
   });
 
   registerAction({
+    id: "library.share",
+    title: "分享知识库",
+    category: "library",
+    scope: "global",
+    platforms: ["mobile"],
+    defaultBindings: [],
+    enabled: (runtime) =>
+      Boolean(readContext(runtime)?.source && readContext(runtime)?.share),
+    run: async (runtime) => {
+      const context = readContext(runtime);
+      if (!context?.source || !context.share) {
+        return;
+      }
+      await context.share.shareLibrary(context.source);
+    },
+  });
+
+  registerAction({
     id: "library.export",
     title: "导出知识库",
     category: "library",
@@ -58,7 +78,7 @@ export function registerLibraryActions(): void {
 }
 
 export async function runLibraryAction(
-  id: "library.import" | "library.export",
+  id: "library.import" | "library.export" | "library.share",
   context: LibraryActionContext,
 ): Promise<boolean> {
   const action = getAction(id);

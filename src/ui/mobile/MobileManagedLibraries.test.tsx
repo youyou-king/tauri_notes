@@ -13,12 +13,14 @@ describe("MobileManagedLibraries", () => {
   it("opens a library and reports export", () => {
     const onOpen = vi.fn();
     const onExport = vi.fn();
+    const onShare = vi.fn();
     render(
       <MobileManagedLibraries
         libraries={[library]}
         workspaceRoot="/app/libraries/demo.note"
         onOpen={onOpen}
         onImport={vi.fn()}
+        onShare={onShare}
         onExport={onExport}
       />,
     );
@@ -37,6 +39,7 @@ describe("MobileManagedLibraries", () => {
         workspaceRoot="/app/libraries/demo.note"
         onOpen={vi.fn()}
         onImport={onImport}
+        onShare={vi.fn()}
         onExport={vi.fn()}
       />,
     );

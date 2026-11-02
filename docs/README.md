@@ -33,6 +33,7 @@
 | [系统架构审计](系统架构审计.md) | 数据访问、持久化、契约、移动端目标与备份审计 |
 | [ADR-008](adr/ADR-008-android-identifier.md) | Android 合法包名与桌面 identifier 分离 | **已实施** |
 | [ADR-009](adr/ADR-009-android-content-uri-export.md) | Android 导出通过 content URI + fs plugin 写入 | **已实施** |
+| [ADR-010](adr/ADR-010-android-system-share.md) | Android 系统分享通过 FileProvider + Sharesheet | **已实施** |
 | [ADR-007](adr/ADR-007-config-format-boundaries.md) | 配置用 TOML、运行时状态用 JSON、内容用 SQLite |
 | [主题插件](主题插件.md) | 主题运行时、`.tnlook`、签名与测试 |
 | [Rust crates](Rust-crates.md) | Rust workspace 结构、职责和依赖规则 |

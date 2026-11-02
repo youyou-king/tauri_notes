@@ -11,6 +11,8 @@ mod content_commands;
 mod command_error;
 #[cfg(mobile)]
 mod mobile;
+#[cfg(mobile)]
+mod share;
 mod platform_commands;
 mod platform_state;
 mod storage_commands;
@@ -197,6 +199,23 @@ async fn export_managed_library(
 }
 
 #[tauri::command]
+fn share_managed_library(
+    app: tauri::AppHandle,
+    path: String,
+) -> Result<(), String> {
+    #[cfg(mobile)]
+    {
+        let state = app.state::<share::ShareHandle<tauri::Wry>>();
+        share::share_library(&state, &path)
+    }
+    #[cfg(desktop)]
+    {
+        let _ = (app, path);
+        Err("当前平台不支持系统分享".to_string())
+    }
+}
+
+#[tauri::command]
 async fn import_managed_library(
     state: tauri::State<'_, platform_state::PlatformState>,
     source: String,
@@ -240,6 +259,7 @@ pub fn run() {
             import_managed_library,
             export_managed_library,
             new_managed_library_path,
+            share_managed_library,
             keymap_commands::load_keymap,
             keymap_commands::save_keymap,
             keymap_commands::export_keymap,
@@ -309,6 +329,8 @@ pub fn run() {
 
     #[cfg(desktop)]
     let builder = desktop::configure(builder);
+    #[cfg(mobile)]
+    let builder = builder.plugin(share::init());
     #[cfg(mobile)]
     let builder = mobile::configure(builder);
 

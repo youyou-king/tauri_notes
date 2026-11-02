@@ -66,6 +66,17 @@ WebView 已创建，移动 Shell 正常渲染；启动日志中 `webview created
 
 旧实现会生成 0 字节文件；本轮已修复并验证。
 
+## 系统分享
+
+点击“分享”打开 Android Sharesheet：
+
+![Android 系统分享](assets/android-emulator-share.png)
+
+- Kotlin `SharePlugin` 把 App 私有书库复制到 `cacheDir/shared/`；
+- 通过 `FileProvider` 生成 `content://` URI；
+- `Intent.ACTION_SEND` + `FLAG_GRANT_READ_URI_PERMISSION`；
+- 系统面板显示文件名并列出 Quick Share、Gmail、Drive。
+
 ## 发现并修复
 
 首次启动为纯白屏。根因：
