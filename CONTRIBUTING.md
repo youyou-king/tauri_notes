@@ -163,16 +163,31 @@ cargo clippy --workspace --all-targets -- -D warnings
 
 要求：JDK 21、Android SDK 37、NDK 27、Rust `aarch64-linux-android` target。
 
+如果 SDK 放在项目内（`tools/android-sdk/`）：
+
 ```powershell
+$env:ANDROID_HOME = "$PWD\tools\android-sdk"
+$env:ANDROID_NDK_HOME = "$env:ANDROID_HOME\ndk\27.0.12077973"
 rustup target add aarch64-linux-android
 npm run tauri -- android build --debug --apk --target aarch64
 ```
+
+否则按系统环境中的 `ANDROID_HOME` / `ANDROID_NDK_HOME` 构建。
 
 产物在 `src-tauri/gen/android/app/build/outputs/apk/`。CI 中的 `android` workflow 也可手动触发并上传 APK。
 
 ### Android 模拟器运行
 
-跨平台脚本（Windows / macOS / Linux）位于 `scripts/mobile-test/`：
+移动端测试工具在 `scripts/` 下，是一个 Rust workspace；每个命令是一个独立 crate：
+
+```bash
+cargo run --quiet --manifest-path scripts/Cargo.toml -p mobile-doctor
+cargo run --quiet --manifest-path scripts/Cargo.toml -p mobile-up
+cargo run --quiet --manifest-path scripts/Cargo.toml -p mobile-smoke
+cargo run --quiet --manifest-path scripts/Cargo.toml -p mobile-screenshot
+```
+
+也可以用 npm 别名：
 
 ```bash
 npm run mobile:doctor
@@ -181,16 +196,16 @@ npm run mobile:smoke
 npm run mobile:screenshot
 ```
 
-脚本会从 `ANDROID_HOME` / `ANDROID_SDK_ROOT` 或常见 SDK 目录发现工具；也可以显式指定：
+脚本优先使用项目内 `tools/android-sdk/`，其次才查 `ANDROID_HOME` / `ANDROID_SDK_ROOT` 或常见 SDK 目录；也可以显式指定：
 
 ```bash
-npm run mobile:up -- --sdk D:/Android/sdk --avd tn_test
+cargo run --quiet --manifest-path scripts/Cargo.toml -p mobile-up -- --sdk D:/Android/sdk --avd tn_test
 ```
 
 APK 安装：
 
 ```bash
-npm run mobile:install -- --apk path/to/app.apk
+cargo run --quiet --manifest-path scripts/Cargo.toml -p mobile-install -- --apk path/to/app.apk
 ```
 
 模拟器需要对应架构的 APK；CI 的 arm64 包不能直接装到 x86_64 模拟器。

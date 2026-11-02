@@ -4,7 +4,8 @@
 
 ### 架构
 
-- 新增 `scripts/mobile-test/` 跨平台 Android 模拟器 CLI：doctor / start / up / launch / install / smoke / screenshot / reset / stop；只依赖 Node.js 和 Android SDK。
+- `scripts/` 新增 Rust workspace：每个移动端测试命令一个 crate（doctor / devices / start / up / launch / install / smoke / screenshot / reset / stop），共享 `mobile-test-core`。
+- 移动端脚本优先使用项目内 `tools/android-sdk/`（已 gitignore）；模拟器使用项目内 AVD/home。
 
 - 设置入口升级为 shell 能力：核心工具栏“设置”、`settings.open`、`Ctrl/Cmd + ,`；
 - 主题菜单不再拥有唯一设置入口；

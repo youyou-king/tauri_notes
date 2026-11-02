@@ -1,0 +1,12 @@
+[package]
+name = "mobile-install"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[[bin]]
+name = "mobile-install"
+path = "src/main.rs"
+
+[dependencies]
+mobile-test-core = { path = "../mobile-test-core" }

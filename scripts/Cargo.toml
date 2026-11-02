@@ -1,0 +1,15 @@
+[workspace]
+resolver = "2"
+members = [
+    "mobile-test-core",
+    "mobile-doctor",
+    "mobile-devices",
+    "mobile-start",
+    "mobile-up",
+    "mobile-launch",
+    "mobile-install",
+    "mobile-screenshot",
+    "mobile-reset",
+    "mobile-stop",
+    "mobile-smoke",
+]

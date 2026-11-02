@@ -144,7 +144,15 @@ node scripts/sign-appearance-pack.mjs appearance.json private-key.pem "发布者
 
 ## 移动端测试
 
-跨平台 Android 模拟器脚本在 [`scripts/mobile-test/`](scripts/mobile-test/README.md)，只依赖 Node.js 和 Android SDK：
+移动端测试工具是 [`scripts/`](scripts/README.md) 下的 Rust workspace，每个命令一个 crate：
+
+```bash
+cargo run --quiet --manifest-path scripts/Cargo.toml -p mobile-doctor
+cargo run --quiet --manifest-path scripts/Cargo.toml -p mobile-up
+cargo run --quiet --manifest-path scripts/Cargo.toml -p mobile-screenshot
+```
+
+也可以使用 npm 别名：
 
 ```bash
 npm run mobile:doctor
@@ -152,7 +160,7 @@ npm run mobile:up
 npm run mobile:screenshot
 ```
 
-详细参数和 Windows/macOS/Linux 的 SDK 发现规则见脚本 README。
+脚本优先使用项目内 `tools/android-sdk/`；该目录不提交。详细参数和 Windows/macOS/Linux 的 SDK 发现规则见 [scripts/README.md](scripts/README.md)。
 
 ## 主要目录
 
@@ -178,8 +186,12 @@ tauri_notes/
 ├── resources/help.note      # 内置使用帮助知识库
 ├── e2e/                     # Playwright 冒烟与视觉回归
 ├── installer/custom/        # 安装器 / 卸载器 C# 源码
-└── scripts/                 # 构建、验证与移动端测试脚本
-    └── mobile-test/         # 跨平台 Android 模拟器 CLI
+└── scripts/                 # 构建/验证脚本 + 移动端 Rust workspace
+    ├── Cargo.toml           # scripts workspace
+    ├── mobile-test-core/    # SDK / adb / emulator 公共库
+    ├── mobile-doctor/       # 每个命令一个 crate
+    ├── mobile-start/
+    └── ...
 ```
 
 ## 编辑器

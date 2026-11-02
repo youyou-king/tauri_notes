@@ -2,6 +2,7 @@ node_modules
 node_modules_old
 dist
 src-tauri/target
+scripts/target
 .webview2
 .tmp
 *.log
@@ -9,6 +10,9 @@ installer/custom/*.exe
 Tauri Notes Setup.exe
 test-results
 test-artifacts
+tools/android-sdk
+tools/android-home
+tools/android-avd
 playwright-report
 blob-report
 .snapshots
