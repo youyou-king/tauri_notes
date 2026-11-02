@@ -170,6 +170,31 @@ npm run tauri -- android build --debug --apk --target aarch64
 
 产物在 `src-tauri/gen/android/app/build/outputs/apk/`。CI 中的 `android` workflow 也可手动触发并上传 APK。
 
+### Android 模拟器运行
+
+跨平台脚本（Windows / macOS / Linux）位于 `scripts/mobile-test/`：
+
+```bash
+npm run mobile:doctor
+npm run mobile:up
+npm run mobile:smoke
+npm run mobile:screenshot
+```
+
+脚本会从 `ANDROID_HOME` / `ANDROID_SDK_ROOT` 或常见 SDK 目录发现工具；也可以显式指定：
+
+```bash
+npm run mobile:up -- --sdk D:/Android/sdk --avd tn_test
+```
+
+APK 安装：
+
+```bash
+npm run mobile:install -- --apk path/to/app.apk
+```
+
+模拟器需要对应架构的 APK；CI 的 arm64 包不能直接装到 x86_64 模拟器。
+
 ## 文档更新规则
 
 - 当前实现变化时更新 `README.md`、`CHANGELOG.md` 和相关专题文档；

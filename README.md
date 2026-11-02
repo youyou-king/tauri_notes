@@ -27,7 +27,7 @@ https://github.com/youyou-king/tauri_notes/releases
 - 编辑器、主题、工作区和面板状态按单一数据源收敛；
 - 顶栏“设置”是 shell 入口，插件管理器不依赖主题插件；
 - Windows 安装器、卸载器和 `.note` 文件关联；
-- 移动端目前是响应式 compact Shell，原生 Android/iOS 工程尚未初始化。
+- 移动端 Android 已初始化并在模拟器验证；iOS 尚未初始化。
 
 架构说明：
 
@@ -142,6 +142,18 @@ node scripts/sign-appearance-pack.mjs appearance.json private-key.pem "发布者
 
 生成后的 `appearance.json` 重新打包为 `.tnlook` 即可。
 
+## 移动端测试
+
+跨平台 Android 模拟器脚本在 [`scripts/mobile-test/`](scripts/mobile-test/README.md)，只依赖 Node.js 和 Android SDK：
+
+```bash
+npm run mobile:doctor
+npm run mobile:up
+npm run mobile:screenshot
+```
+
+详细参数和 Windows/macOS/Linux 的 SDK 发现规则见脚本 README。
+
 ## 主要目录
 
 ```text
@@ -166,7 +178,8 @@ tauri_notes/
 ├── resources/help.note      # 内置使用帮助知识库
 ├── e2e/                     # Playwright 冒烟与视觉回归
 ├── installer/custom/        # 安装器 / 卸载器 C# 源码
-└── scripts/                 # 构建与验证脚本
+└── scripts/                 # 构建、验证与移动端测试脚本
+    └── mobile-test/         # 跨平台 Android 模拟器 CLI
 ```
 
 ## 编辑器

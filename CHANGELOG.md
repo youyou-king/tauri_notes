@@ -4,6 +4,8 @@
 
 ### 架构
 
+- 新增 `scripts/mobile-test/` 跨平台 Android 模拟器 CLI：doctor / start / up / launch / install / smoke / screenshot / reset / stop；只依赖 Node.js 和 Android SDK。
+
 - 设置入口升级为 shell 能力：核心工具栏“设置”、`settings.open`、`Ctrl/Cmd + ,`；
 - 主题菜单不再拥有唯一设置入口；
 - 插件管理器迁移为核心设置区 `core.plugins`，不再依赖 manager 插件；旧 `manager` id 保留兼容禁用列表；

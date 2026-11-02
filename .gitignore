@@ -8,6 +8,7 @@ src-tauri/target
 installer/custom/*.exe
 Tauri Notes Setup.exe
 test-results
+test-artifacts
 playwright-report
 blob-report
 .snapshots
