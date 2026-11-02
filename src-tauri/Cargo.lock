@@ -3730,9 +3730,11 @@ dependencies = [
  "tauri-notes-theme",
  "tauri-notes-workspace",
  "tauri-plugin-dialog",
+ "tauri-plugin-fs",
  "tauri-plugin-single-instance",
  "toml 0.8.2",
  "toml_edit 0.20.2",
+ "url",
  "windows-sys 0.61.2",
 ]
 

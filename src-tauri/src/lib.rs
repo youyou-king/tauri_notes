@@ -179,9 +179,16 @@ fn new_managed_library_path(
 
 #[tauri::command]
 async fn export_managed_library(
+    app: tauri::AppHandle,
     source: String,
     destination: String,
 ) -> Result<String, String> {
+    #[cfg(mobile)]
+    if destination.starts_with("content://") {
+        return managed_library::export_library_uri(&app, &source, &destination).await;
+    }
+    #[cfg(desktop)]
+    let _ = &app;
     managed_library::export_library(
         std::path::Path::new(&source),
         std::path::Path::new(&destination),
@@ -220,6 +227,7 @@ pub fn run() {
 
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
         .invoke_handler(tauri::generate_handler![
             take_pending_note_file,
             register_note_association,

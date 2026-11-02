@@ -96,6 +96,40 @@ fn summary_for(path: &Path) -> ManagedLibrarySummary {
     }
 }
 
+
+/// Android's save dialog returns a `content://` URI; copy through the
+/// platform content resolver via the fs plugin instead of treating it as a
+/// filesystem path.
+#[cfg(mobile)]
+pub async fn export_library_uri(
+    app: &tauri::AppHandle,
+    source: &str,
+    destination: &str,
+) -> Result<String, String> {
+    use tauri_plugin_fs::{FilePath, FsExt, OpenOptions};
+
+    let source = Path::new(source);
+    if !source.is_file() {
+        return Err(format!("不是 .note 文件：{}", source.display()));
+    }
+    let source_text = source.to_string_lossy().into_owned();
+    database::checkpoint_workspace(&source_text).await?;
+
+    let url = url::Url::parse(destination)
+        .map_err(|error| format!("导出目标 URI 无效：{error}"))?;
+    let mut options = OpenOptions::new();
+    options.write(true).create(true).truncate(true);
+    let mut target = app
+        .fs()
+        .open(FilePath::Url(url), options)
+        .map_err(|error| format!("打开导出目标失败：{error}"))?;
+    let mut input = fs::File::open(source)
+        .map_err(|error| format!("读取书库失败：{error}"))?;
+    std::io::copy(&mut input, &mut target)
+        .map_err(|error| format!("写入导出文件失败：{error}"))?;
+    Ok(destination.to_string())
+}
+
 /// Copies a managed library to an explicit destination after the same
 /// checkpoint used for import. The caller owns destination confirmation.
 pub async fn export_library(

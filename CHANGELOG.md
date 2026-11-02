@@ -25,6 +25,7 @@
 - 移动端拆分：`MobileShell` 的文档只读视图、文档面板、文档动作面板、书库行、本机书库列表、header 和 tabbar 移入 `src/ui/mobile`。
 - Phase 6（部分）：新增 390/600/768 视口 E2E 与移动端真机检查清单。
 - Storage 测试在 Windows 上重试临时目录清理，避免文件锁偶发失败。
+- Android：导出改为通过 `tauri-plugin-fs` content resolver 写入 SAF `content://` URI，修复 0 字节导出。
 - 移动端：`MobileRuntimeShell` 转发空状态回调；移动 DialogPort 使用紧凑 DOM 对话框，修复 Android WebView 不支持 `window.prompt` 的问题。
 - Android：移动端显式创建 `main` WebView 窗口，修复 APK 启动白屏；模拟器验收通过。
 - Android：launcher 图标使用应用 icon.png 生成各密度 PNG。

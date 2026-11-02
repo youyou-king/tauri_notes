@@ -51,6 +51,21 @@ adb shell am start -n com.youyou.taurinotes/.MainActivity
 
 WebView 已创建，移动 Shell 正常渲染；启动日志中 `webview created` 可见。
 
+## 导出
+
+点击“目录 → 导出”会打开 Android SAF 保存面板：
+
+![Android 导出面板](assets/android-emulator-export.png)
+
+确认后 Rust 通过 `tauri-plugin-fs` 的 content resolver 写入 `content://` URI，而不是把 URI 当成本地路径：
+
+```text
+/sdcard/Download/未命名-1793595299019.note
+126,976 bytes
+```
+
+旧实现会生成 0 字节文件；本轮已修复并验证。
+
 ## 发现并修复
 
 首次启动为纯白屏。根因：
