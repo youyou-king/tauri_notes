@@ -455,3 +455,65 @@ a:focus-visible {
   text-align: center;
   color: var(--text-muted);
 }
+
+
+.mobile-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(0 0 0 / 45%);
+}
+
+.mobile-dialog {
+  width: min(100%, 420px);
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-panel-bg, var(--surface));
+  color: var(--text);
+  box-shadow: 0 18px 60px rgb(0 0 0 / 35%);
+}
+
+.mobile-dialog-title {
+  margin: 0 0 8px;
+  font-size: 17px;
+}
+
+.mobile-dialog-message {
+  margin: 0 0 14px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.mobile-dialog-input {
+  width: 100%;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.mobile-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.mobile-dialog-actions button {
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+}
+
+.mobile-dialog-actions button.danger {
+  color: var(--danger, #e06c75);
+  border-color: color-mix(in srgb, var(--danger, #e06c75) 45%, transparent);
+}

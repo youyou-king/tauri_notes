@@ -26,14 +26,28 @@ adb shell am start -n com.youyou.taurinotes/.MainActivity
 
 截图：
 
+空状态：
+
 ![Android 空状态](assets/android-emulator-empty.png)
+
+创建知识库后：
+
+![Android 创建知识库](assets/android-emulator-created.png)
 
 显示内容：
 
 ```text
-请先打开一个知识库。
-打开知识库  新建知识库
+空状态：请先打开一个知识库。 / 打开知识库 / 新建知识库
+创建后：移动端测试 / 未命名-1793595299019 / 导图 / 目录 / 文档 / 设置
 ```
+
+验证过程：
+
+1. 启动应用；
+2. 点击“新建知识库”；
+3. 移动对话框输入“移动端测试”并确认；
+4. `new_library_path` 创建 App 私有库，`createNoteFile` 建立 `.note`；
+5. 移动 Shell 展示知识库标题、导图根节点和底部 tab。
 
 WebView 已创建，移动 Shell 正常渲染；启动日志中 `webview created` 可见。
 
@@ -53,7 +67,7 @@ WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
     .build()?;
 ```
 
-修复后移动空状态、打开/新建入口均可见。
+修复后移动空状态、打开/新建入口均可见，创建知识库闭环可用。
 
 ## 说明
 

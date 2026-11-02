@@ -13,6 +13,9 @@ export function MobileRuntimeShell({
   activeMap,
   selected,
   board,
+  onOpenWorkspace,
+  onCreateKnowledgeBase,
+  onOpenWorkspacePath,
 }: ShellProps) {
   if (!pluginReady) {
     return (
@@ -38,6 +41,9 @@ export function MobileRuntimeShell({
             activeMap={activeMap}
             selected={selected}
             board={board}
+            onOpenWorkspace={onOpenWorkspace}
+            onCreateKnowledgeBase={onCreateKnowledgeBase}
+            onOpenWorkspacePath={onOpenWorkspacePath}
           />
         </div>
       </main>

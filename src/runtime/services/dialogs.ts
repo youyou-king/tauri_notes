@@ -1,4 +1,9 @@
 import { confirmDialog } from "../../ui/dialog/confirmDialog";
+import {
+  createMobileAlert,
+  createMobileConfirm,
+  createMobilePrompt,
+} from "../../ui/mobile/mobileDialogs";
 import type { DialogPort } from "../../application/ports/dialogPort";
 
 function createTauriDialogs(): DialogPort {
@@ -24,9 +29,13 @@ export function createDesktopDialogs(): DialogPort {
 }
 
 /**
- * Same behavior for now; the mobile Shell can swap in a bottom-sheet prompt
- * without touching callers.
+ * Mobile WebViews do not implement `window.prompt`/`window.confirm`
+ * consistently. Use the compact DOM dialog adapter instead.
  */
 export function createMobileDialogs(): DialogPort {
-  return createTauriDialogs();
+  return {
+    confirm: createMobileConfirm,
+    prompt: createMobilePrompt,
+    alert: createMobileAlert,
+  };
 }
