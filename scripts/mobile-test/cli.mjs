@@ -58,18 +58,48 @@ function parseArgs(argv) {
   return options;
 }
 
+function sdkFromPath() {
+  const result = spawnSync(IS_WIN ? "where" : "which", ["adb"], {
+    encoding: "utf8",
+    windowsHide: true,
+  });
+  if (result.status !== 0 || !result.stdout) {
+    return null;
+  }
+  const adb = result.stdout.split(/\r?\n/)[0]?.trim();
+  return adb ? resolve(dirname(dirname(adb))) : null;
+}
+
+function windowsDriveCandidates() {
+  if (!IS_WIN) {
+    return [];
+  }
+  const candidates = [];
+  for (const letter of "CDEFGHIJKLMNOPQRSTUVWXYZ") {
+    candidates.push(
+      `${letter}:\\Android\\sdk`,
+      `${letter}:\\Android\\Sdk`,
+      `${letter}:\\android-sdk`,
+      `${letter}:\\Sdk`,
+    );
+  }
+  return candidates;
+}
+
 function sdkCandidates() {
   const home = homedir();
   const candidates = [
     process.env.ANDROID_HOME,
     process.env.ANDROID_SDK_ROOT,
     process.env.ANDROID_SDK,
+    sdkFromPath(),
     IS_WIN ? process.env.LOCALAPPDATA && join(process.env.LOCALAPPDATA, "Android", "Sdk") : null,
     join(home, "AppData", "Local", "Android", "Sdk"),
     join(home, "Library", "Android", "sdk"),
     join(home, "Android", "Sdk"),
     "/usr/local/lib/android/sdk",
     "/opt/android-sdk",
+    ...windowsDriveCandidates(),
   ];
   return [...new Set(candidates.filter(Boolean).map((item) => resolve(item)))];
 }
@@ -81,7 +111,7 @@ function findSdk(override) {
   );
   if (!sdk) {
     throw new Error(
-      "未找到 Android SDK。请设置 ANDROID_HOME，或把 platform-tools 安装到常见目录。",
+      "未找到 Android SDK。请设置 ANDROID_HOME，或用 --sdk 指定 SDK 路径。",
     );
   }
   return sdk;
