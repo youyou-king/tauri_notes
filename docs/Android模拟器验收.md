@@ -66,6 +66,17 @@ WebView 已创建，移动 Shell 正常渲染；启动日志中 `webview created
 
 旧实现会生成 0 字节文件；本轮已修复并验证。
 
+## 导入
+
+点击“目录 → 导入”，从系统文件选择器选择 `import-test.note`：
+
+![Android 导入结果](assets/android-emulator-import.png)
+
+- 文件选择器返回 `content://` URI；
+- Rust `import_managed_library` 通过 `tauri-plugin-fs` 读取 content URI；
+- 复制到 App 私有 `libraries/`，生成 `imported-*.note`（516,096 bytes）；
+- 导入后自动打开“使用帮助”知识库。
+
 ## 系统分享
 
 点击“分享”打开 Android Sharesheet：

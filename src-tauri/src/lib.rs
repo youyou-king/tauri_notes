@@ -217,10 +217,17 @@ fn share_managed_library(
 
 #[tauri::command]
 async fn import_managed_library(
+    app: tauri::AppHandle,
     state: tauri::State<'_, platform_state::PlatformState>,
     source: String,
 ) -> Result<managed_library::ManagedLibrarySummary, String> {
     let data_dir = { state.adapter.data_dir()? };
+    #[cfg(mobile)]
+    if source.starts_with("content://") {
+        return managed_library::import_library_uri(&app, &source, &data_dir).await;
+    }
+    #[cfg(desktop)]
+    let _ = &app;
     managed_library::import_library(std::path::Path::new(&source), &data_dir)
         .await
 }

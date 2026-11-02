@@ -14,5 +14,5 @@
 | [ADR-006](ADR-006-theme-runtime-layering.md) | 主题运行时分层，不合并为单运行时 |
 | [ADR-007](ADR-007-config-format-boundaries.md) | 配置用 TOML、运行时状态用 JSON、内容用 SQLite |
 | [ADR-008](ADR-008-android-identifier.md) | Android identifier 使用合法包名，与桌面 identifier 分离 |
-| [ADR-009](ADR-009-android-content-uri-export.md) | Android 导出通过 content URI + fs plugin 写入 |
+| [ADR-009](ADR-009-android-content-uri-export.md) | Android content URI 读写（导入/导出） |
 | [ADR-010](ADR-010-android-system-share.md) | Android 系统分享通过 FileProvider + Sharesheet |

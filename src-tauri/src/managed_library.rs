@@ -153,6 +153,38 @@ pub async fn export_library(
     Ok(destination.to_string_lossy().into_owned())
 }
 
+
+/// Android's file picker returns a `content://` URI; copy through the
+/// platform content resolver instead of treating it as a filesystem path.
+#[cfg(mobile)]
+pub async fn import_library_uri(
+    app: &tauri::AppHandle,
+    source_uri: &str,
+    data_dir: &Path,
+) -> Result<ManagedLibrarySummary, String> {
+    use tauri_plugin_fs::{FilePath, FsExt, OpenOptions};
+
+    let url = url::Url::parse(source_uri)
+        .map_err(|error| format!("导入源 URI 无效：{error}"))?;
+    let dir = libraries_dir(data_dir);
+    fs::create_dir_all(&dir)
+        .map_err(|error| format!("创建移动书库失败：{error}"))?;
+    let target = unique_target(&dir, "imported");
+    let mut options = OpenOptions::new();
+    options.read(true);
+    let mut input = app
+        .fs()
+        .open(FilePath::Url(url), options)
+        .map_err(|error| format!("读取导入文件失败：{error}"))?;
+    let mut output = fs::File::create(&target)
+        .map_err(|error| format!("创建导入文件失败：{error}"))?;
+    std::io::copy(&mut input, &mut output).map_err(|error| {
+        let _ = fs::remove_file(&target);
+        format!("导入文件失败：{error}")
+    })?;
+    Ok(summary_for(&target))
+}
+
 pub fn list_libraries(data_dir: &Path) -> Result<Vec<ManagedLibrarySummary>, String> {
     let dir = libraries_dir(data_dir);
     if !dir.exists() {

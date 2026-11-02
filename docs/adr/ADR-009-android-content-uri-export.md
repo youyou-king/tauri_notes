@@ -1,10 +1,12 @@
-# ADR-009：Android 导出通过 content URI
+# ADR-009：Android content URI 读写（导入/导出）
 
 > 状态：已接受  
 > 日期：2026-11-02  
 > 关联：Phase 5 移动书库导出
 
 ## 背景
+
+Android 的导入文件选择器和导出保存面板都返回 `content://` URI，而不是文件系统路径。
 
 Android 的 `ACTION_CREATE_DOCUMENT` 保存面板返回的是：
 
@@ -17,6 +19,7 @@ content://com.android.providers.downloads.documents/document/...
 ## 决策
 
 - 桌面/普通路径继续使用 `std::fs::copy`，并先 checkpoint WAL；
+- 导入 `content://` 通过 `tauri-plugin-fs` 打开 InputStream，再写入 App 私有书库；
 - Android `content://` 目标通过 `tauri-plugin-fs` 的 `FilePath::Url` + content resolver 打开 OutputStream 写入；
 - 导出 API 仍是 `export_managed_library(source, destination)`；
 - 平台判断只存在于 Rust adapter 层，前端不分支。
