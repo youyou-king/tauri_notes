@@ -1,4 +1,4 @@
-import { confirmDialog } from "../ui/dialog/confirmDialog";
+import { confirmDialog } from "../ui/dialog/appDialog";
 
 export type CloseRequest = {
   kind: "window" | "workspace";

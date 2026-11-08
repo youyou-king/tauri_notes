@@ -2,7 +2,7 @@ import type { Runtime } from "./contracts";
 import type { ShellProfile } from "../ui/shell/profile";
 import { MobileRuntimeShell } from "../ui/shell/MobileRuntimeShell";
 import { createMobileLibrary } from "./services/library";
-import { createMobileDialogs } from "./services/dialogs";
+import { createAppDialogs } from "./services/dialogs";
 import { createMobileDocumentActions } from "./services/documentActions";
 import { createWorkspacePresenter } from "./services/workspacePresenter";
 import { createWebLifecycle } from "./services/lifecycle";
@@ -16,7 +16,7 @@ export function createMobileRuntime(profile: ShellProfile): Runtime {
     layout: profile.layout,
     services: {
       library: createMobileLibrary(),
-      dialogs: createMobileDialogs(),
+      dialogs: createAppDialogs(),
       documentActions: createMobileDocumentActions(),
       workspacePresenter: createWorkspacePresenter(),
       navigation: createMobileNavigation(),

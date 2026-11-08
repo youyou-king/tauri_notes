@@ -10,7 +10,6 @@ import type { ShellProps } from "../../runtime/contracts";
  */
 export function DesktopShell({
   pluginReady,
-  backend,
   busy,
   error,
   runCommand,
@@ -39,21 +38,18 @@ export function DesktopShell({
         const map = view.maps[0] ?? null;
         const root = map?.root ?? null;
         if (map && isNote) {
-          dockRef.current?.openMap(map.id, view.root);
+          dockRef.current?.openMap(map.id, view.id);
         } else if (map && root) {
           dockRef.current?.openDocument(
             map.id,
             root.id,
             root.title,
-            view.root,
+            view.id,
           );
         }
       },
       resetLayout() {
         dockRef.current?.resetLayout();
-      },
-      closeWorkspace(root, view) {
-        dockRef.current?.closeWorkspacePanels(root, view);
       },
       activatePanel(panelId) {
         dockRef.current?.activatePanel(panelId);
@@ -65,7 +61,6 @@ export function DesktopShell({
   return (
     <>
       <AppToolbar
-        backend={backend}
         busy={busy}
         hasWorkspace={Boolean(workspace)}
         runCommand={runCommand}

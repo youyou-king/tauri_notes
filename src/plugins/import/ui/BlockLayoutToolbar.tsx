@@ -1,4 +1,5 @@
 import type { SelectedBlock } from "../../../application/state/editorSnapshot";
+import { Select } from "../../../ui/sdk";
 
 type BlockLayoutToolbarProps = {
   selectedBlock: SelectedBlock;
@@ -98,7 +99,7 @@ export function BlockLayoutToolbar({
               )}
               <label>
                 宽
-                <select
+                <Select
                   value={selectedBlock.span}
                   onChange={(event) =>
                     onUpdateLayout({ span: Number(event.target.value) })
@@ -111,11 +112,11 @@ export function BlockLayoutToolbar({
                       </option>
                     ),
                   )}
-                </select>
+                </Select>
               </label>
               <label>
                 高
-                <select
+                <Select
                   value={
                     selectedBlock.heightMode === "fixed"
                       ? String(
@@ -149,7 +150,7 @@ export function BlockLayoutToolbar({
                         {lines} 行
                       </option>
                     ))}
-                </select>
+                </Select>
               </label>
               <label>
                 缩放

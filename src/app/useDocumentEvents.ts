@@ -1,5 +1,6 @@
 import { useEffect, type RefObject } from "react";
 import type { DockWorkspaceHandle } from "../components/DockWorkspace";
+import { libraryService } from "../application/libraryService";
 import { workspaceService } from "../application/workspaceService";
 import {
   buildDatabaseTree,
@@ -9,7 +10,7 @@ import type { WorkspaceView } from "../types";
 import { APP_EVENTS, onAppEvent } from "../kernel/events";
 
 type Args = {
-  workspaceRoot: string | null;
+  workspaceId: string | null;
   setWorkspace: (
     next:
       | WorkspaceView
@@ -21,7 +22,7 @@ type Args = {
 };
 
 export function useDocumentEvents({
-  workspaceRoot,
+  workspaceId,
   setWorkspace,
   appendLog,
   dockRef,
@@ -35,17 +36,17 @@ export function useDocumentEvents({
   }, [dockRef]);
 
   useEffect(() => {
-    if (!workspaceRoot) {
+    if (!workspaceId) {
       return;
     }
     const handler = () => {
       void (async () => {
         try {
-          const view = await workspaceService.open(workspaceRoot);
+          const view = await libraryService.open(workspaceId);
           const documents =
-            await workspaceService.listDocuments(workspaceRoot);
+            await workspaceService.listDocuments(view.id);
           const treeRows =
-            await workspaceService.loadDocumentTree(workspaceRoot);
+            await workspaceService.loadDocumentTree(view.id);
           setWorkspace(
             treeRows.length > 0
               ? buildDatabaseTree(view, treeRows)
@@ -57,7 +58,7 @@ export function useDocumentEvents({
       })();
     };
     return onAppEvent(APP_EVENTS.documentChanged, handler);
-  }, [appendLog, setWorkspace, workspaceRoot]);
+  }, [appendLog, setWorkspace, workspaceId]);
 
   useEffect(() => {
     return onAppEvent(APP_EVENTS.openSource, (docId) => {

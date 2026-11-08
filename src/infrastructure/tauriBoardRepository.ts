@@ -1,29 +1,30 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { Board, BoardSummary } from "../domain/board";
 import type { BoardId } from "../domain/ids";
+import type { LibraryId } from "../types";
 import type { BoardRepository, Clock, IdGenerator } from "../application/ports";
 
 export class TauriBoardRepository implements BoardRepository {
-  list(workspaceRoot: string): Promise<BoardSummary[]> {
+  list(libraryId: LibraryId): Promise<BoardSummary[]> {
     return invoke<BoardSummary[]>("list_boards_db", {
-      workspace: workspaceRoot,
+      libraryId,
     });
   }
 
-  read(workspaceRoot: string, boardId: BoardId): Promise<Board> {
+  read(libraryId: LibraryId, boardId: BoardId): Promise<Board> {
     return invoke<Board>("read_board_db", {
-      workspace: workspaceRoot,
+      libraryId,
       boardId,
     });
   }
 
-  save(workspaceRoot: string, board: Board): Promise<void> {
-    return invoke("save_board_db", { workspace: workspaceRoot, board });
+  save(libraryId: LibraryId, board: Board): Promise<void> {
+    return invoke("save_board_db", { libraryId, board });
   }
 
-  remove(workspaceRoot: string, boardId: BoardId): Promise<void> {
+  remove(libraryId: LibraryId, boardId: BoardId): Promise<void> {
     return invoke("delete_board_db", {
-      workspace: workspaceRoot,
+      libraryId,
       boardId,
     });
   }

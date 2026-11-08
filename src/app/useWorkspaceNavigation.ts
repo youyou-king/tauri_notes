@@ -2,7 +2,7 @@ import type { RefObject } from "react";
 import type { DockWorkspaceHandle } from "../components/DockWorkspace";
 import { findNode } from "../domain/tree";
 import type { MapView, NodeView, SearchHit, WorkspaceView } from "../types";
-import { writeWorkspaceTitle } from "../application/sessionService";
+import { libraryService } from "../application/libraryService";
 import { workspaceService } from "../application/workspaceService";
 
 type WorkspaceUpdater = (
@@ -56,27 +56,31 @@ export function useWorkspaceNavigation({
     }
     setSelected(node);
     appendLog(`打开节点：${node.title}`);
-    dockRef.current?.openDocument(activeMap.id, node.id, node.title);
+    dockRef.current?.openDocument(
+      activeMap.id,
+      node.id,
+      node.title,
+      workspace?.id,
+    );
   }
 
-  async function switchMap(map: MapView, workspaceRoot?: string) {
+  async function switchMap(map: MapView, libraryId?: string) {
     if (!(await confirmDiscard())) {
       return;
     }
-    const targetRoot = workspaceRoot ?? workspace?.root;
     const targetWorkspace = workspaces.find(
-      (item) => item.root === targetRoot,
+      (item) => item.id === (libraryId ?? workspace?.id),
     );
     if (targetWorkspace) {
       setWorkspace(targetWorkspace);
     }
     select(map.id, map.root);
     appendLog(`切换导图：${map.title}`);
-    dockRef.current?.openMap(map.id, targetRoot);
+    dockRef.current?.openMap(map.id, targetWorkspace?.id ?? workspace?.id);
   }
 
-  function activateWorkspace(root: string) {
-    const target = workspaces.find((item) => item.root === root);
+  function activateWorkspace(libraryId: string) {
+    const target = workspaces.find((item) => item.id === libraryId);
     if (!target) {
       return;
     }
@@ -87,18 +91,23 @@ export function useWorkspaceNavigation({
     );
   }
 
-  async function unloadWorkspace(root: string) {
+  async function unloadWorkspace(libraryId: string) {
     if (!(await confirmDiscard())) {
       return;
     }
-    const target = workspaces.find((item) => item.root === root) ?? null;
-    await workspaceService.closeDatabase(root).catch(() => {});
-    dockRef.current?.closeWorkspacePanels(root, target);
+    const target = workspaces.find((item) => item.id === libraryId) ?? null;
+    if (!target) {
+      return;
+    }
+    await workspaceService.closeDatabase(target.id).catch(() => {});
+    dockRef.current?.closeWorkspacePanels(target.id, target);
     setWorkspaces((current) =>
-      current.filter((item) => item.root !== root),
+      current.filter((item) => item.id !== libraryId),
     );
-    if (workspace?.root === root) {
-      const remaining = workspaces.filter((item) => item.root !== root);
+    if (workspace?.id === libraryId) {
+      const remaining = workspaces.filter(
+        (item) => item.id !== libraryId,
+      );
       const next = remaining[remaining.length - 1] ?? null;
       setWorkspace(next);
       select(
@@ -106,23 +115,26 @@ export function useWorkspaceNavigation({
         next?.maps[0]?.root ?? null,
       );
     }
-    appendLog(`卸载知识库：${root}`);
+    appendLog(`卸载知识库：${target.title}`);
   }
 
-  function renameWorkspaceDisplay(root: string, title: string) {
+  async function renameWorkspaceDisplay(libraryId: string, title: string) {
     const nextTitle = title.trim();
     if (!nextTitle) {
       return;
     }
-    writeWorkspaceTitle(root, nextTitle);
-    setWorkspaces((current) =>
-      current.map((item) =>
-        item.root === root ? { ...item, title: nextTitle } : item,
-      ),
-    );
-    setWorkspace((current) =>
-      current?.root === root ? { ...current, title: nextTitle } : current,
-    );
+    try {
+      const view = await libraryService.rename(libraryId, nextTitle);
+      setWorkspaces((current) =>
+        current.map((item) => (item.id === view.id ? view : item)),
+      );
+      setWorkspace((current) =>
+        current?.id === view.id ? view : current,
+      );
+      appendLog(`重命名知识库：${view.title}`);
+    } catch (error) {
+      setError(String(error));
+    }
   }
 
   async function openSearchHit(hit: SearchHit) {
@@ -140,7 +152,7 @@ export function useWorkspaceNavigation({
     }
     select(map.id, node);
     appendLog(`搜索打开：${node.title}`);
-    dockRef.current?.openDocument(map.id, node.id, node.title);
+    dockRef.current?.openDocument(map.id, node.id, node.title, workspace.id);
   }
 
   return {

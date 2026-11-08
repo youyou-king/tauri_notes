@@ -1,36 +1,69 @@
 import { create } from "zustand";
+import {
+  clampSplitRatio,
+  closeSplit,
+  DEFAULT_SPLIT_AXIS,
+  DEFAULT_SPLIT_RATIOS,
+  dockView,
+  documentView,
+  focusPane,
+  focusedView,
+  isLayoutValid,
+  isView,
+  MAP_VIEW,
+  normalizeSplitRatios,
+  replaceFocused,
+  sameView,
+  viewForKind,
+  type MobileDropPlacement,
+  type MobileLayout,
+  type MobilePane,
+  type MobileSplitAxis,
+  type MobileView,
+  type MobileViewKind,
+} from "./mobileLayout";
 
-export type MobileTab = "map" | "library" | "document";
+export type {
+  MobileDropPlacement,
+  MobileLayout,
+  MobilePane,
+  MobileSplitAxis,
+  MobileView,
+  MobileViewKind,
+} from "./mobileLayout";
+export { documentView, focusedView, viewForKind };
 
-export type MobileLocation = {
-  tab: MobileTab;
-  documentId: string | null;
-};
-
-type MobileShellState = {
-  workspaceRoot: string | null;
+type MobileShellState = MobileLayout & {
   libraryId: string | null;
-  tab: MobileTab;
-  documentId: string | null;
   editing: boolean;
-  history: MobileLocation[];
-  hydrate: (workspaceRoot: string | null, libraryId?: string | null) => void;
-  setTab: (tab: MobileTab) => void;
+  history: MobileView[];
+  hydrate: (libraryId: string | null) => void;
+  selectView: (kind: MobileViewKind, documentId?: string | null) => void;
   openDocument: (documentId: string) => void;
+  dropView: (
+    kind: MobileViewKind,
+    placement: MobileDropPlacement,
+    documentId?: string | null,
+  ) => void;
+  closeSplit: () => void;
+  setSplitRatio: (axis: MobileSplitAxis, ratio: number) => void;
+  focusPane: (pane: MobilePane) => void;
   back: () => boolean;
   setEditing: (editing: boolean) => void;
   reset: () => void;
 };
 
-const STORAGE_KEY = "tauri-notes.mobile-shell.v1";
+const STORAGE_KEY = "tauri-notes.mobile-shell";
+const STORAGE_VERSION = 6;
 const MAX_HISTORY = 20;
 
 type StoredState = {
-  version?: number;
-  workspaceRoot?: unknown;
+  version?: unknown;
   libraryId?: unknown;
-  tab?: unknown;
-  documentId?: unknown;
+  views?: unknown;
+  focused?: unknown;
+  ratios?: unknown;
+  axis?: unknown;
   history?: unknown;
 };
 
@@ -41,7 +74,11 @@ function readStored(): StoredState | null {
       return null;
     }
     const parsed = JSON.parse(raw) as StoredState;
-    return parsed && typeof parsed === "object" ? parsed : null;
+    return parsed &&
+      typeof parsed === "object" &&
+      parsed.version === STORAGE_VERSION
+      ? parsed
+      : null;
   } catch {
     return null;
   }
@@ -52,11 +89,12 @@ function writeStored(state: MobileShellState): void {
     window.localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
-        version: 3,
-        workspaceRoot: state.workspaceRoot,
+        version: STORAGE_VERSION,
         libraryId: state.libraryId,
-        tab: state.tab,
-        documentId: state.documentId,
+        views: state.views,
+        focused: state.focused,
+        ratios: state.ratios,
+        axis: state.axis,
         history: state.history,
       }),
     );
@@ -65,138 +103,167 @@ function writeStored(state: MobileShellState): void {
   }
 }
 
-function isTab(value: unknown): value is MobileTab {
-  return value === "map" || value === "library" || value === "document";
+function initialLayout(): MobileLayout {
+  return {
+    views: [MAP_VIEW, null],
+    focused: 0,
+    ratios: { ...DEFAULT_SPLIT_RATIOS },
+    axis: DEFAULT_SPLIT_AXIS,
+  };
 }
 
-function currentLocation(state: MobileShellState): MobileLocation {
-  return { tab: state.tab, documentId: state.documentId };
+function freshState(libraryId: string | null): Partial<MobileShellState> {
+  return {
+    libraryId,
+    ...initialLayout(),
+    editing: false,
+    history: [],
+  };
 }
 
-function pushHistory(state: MobileShellState): MobileLocation[] {
-  const current = currentLocation(state);
-  const previous = state.history[state.history.length - 1];
+function pushHistory(
+  history: MobileView[],
+  current: MobileView,
+): MobileView[] {
+  const previous = history[history.length - 1];
   if (
-    previous?.tab === current.tab &&
+    previous &&
+    previous.kind === current.kind &&
     previous.documentId === current.documentId
   ) {
-    return state.history;
+    return history;
   }
-  return [...state.history, current].slice(-MAX_HISTORY);
+  return [...history, current].slice(-MAX_HISTORY);
 }
 
-function readHistory(value: unknown): MobileLocation[] {
+function readHistory(value: unknown): MobileView[] {
   if (!Array.isArray(value)) {
     return [];
   }
-  return value
-    .filter(
-      (item): item is MobileLocation =>
-        Boolean(item) &&
-        typeof item === "object" &&
-        isTab((item as MobileLocation).tab) &&
-        (typeof (item as MobileLocation).documentId === "string" ||
-          (item as MobileLocation).documentId === null),
-    )
-    .slice(-MAX_HISTORY);
+  return value.filter(isView).slice(-MAX_HISTORY);
 }
 
 export const useMobileShellStore = create<MobileShellState>((set, get) => ({
-  workspaceRoot: null,
   libraryId: null,
-  tab: "map",
-  documentId: null,
+  ...initialLayout(),
   editing: false,
   history: [],
-  hydrate: (workspaceRoot, libraryId = null) => {
-    if (!workspaceRoot) {
-      set({
-        workspaceRoot: null,
-        libraryId: null,
-        tab: "map",
-        documentId: null,
-        editing: false,
-        history: [],
-      });
+  hydrate: (libraryId) => {
+    if (!libraryId) {
+      set(freshState(null));
       return;
     }
-
-    const current = get();
-    if (current.workspaceRoot === workspaceRoot) {
-      // The managed library list loads after the workspace. Upgrading from
-      // the path fallback to the stable id must not reset navigation.
-      if (current.libraryId !== libraryId) {
-        if (current.libraryId && libraryId) {
-          set({
-            libraryId,
-            tab: "map",
-            documentId: null,
-            editing: false,
-            history: [],
-          });
-        } else {
-          set({ libraryId });
-        }
-        writeStored(get());
-      }
+    if (get().libraryId === libraryId) {
       return;
     }
-
     const stored = readStored();
-    if (stored?.workspaceRoot === workspaceRoot) {
-      const storedLibraryId =
-        typeof stored.libraryId === "string" ? stored.libraryId : null;
+    if (
+      stored &&
+      stored.libraryId === libraryId &&
+      isLayoutValid(stored.views)
+    ) {
+      const focused = stored.focused === 1 ? 1 : 0;
+      const views = stored.views;
       set({
-        workspaceRoot,
-        libraryId: storedLibraryId ?? libraryId,
-        tab: isTab(stored.tab) ? stored.tab : "map",
-        documentId:
-          typeof stored.documentId === "string" ? stored.documentId : null,
+        libraryId,
+        views,
+        focused: views[focused] ? focused : 0,
+        ratios: normalizeSplitRatios(stored.ratios),
+        axis:
+          stored.axis === "row" || stored.axis === "column"
+            ? stored.axis
+            : DEFAULT_SPLIT_AXIS,
         editing: false,
         history: readHistory(stored.history),
       });
+      writeStored(get());
       return;
     }
-
-    set({
-      workspaceRoot,
-      libraryId,
-      tab: "map",
-      documentId: null,
-      editing: false,
-      history: [],
-    });
+    set(freshState(libraryId));
   },
-  setTab: (tab) => {
-    if (get().tab === tab) {
+  selectView: (kind, documentId) => {
+    const state = get();
+    const view = viewForKind(state, kind, documentId);
+    if (!view) {
       return;
     }
-    set({ history: pushHistory(get()), tab });
+    const current = focusedView(state);
+    set({
+      ...replaceFocused(state, view),
+      editing: false,
+      history: pushHistory(state.history, current),
+    });
     writeStored(get());
   },
   openDocument: (documentId) => {
-    if (get().tab === "document" && get().documentId === documentId) {
+    const state = get();
+    const view = documentView(documentId);
+    if (sameView(focusedView(state), view)) {
       return;
     }
     set({
-      history: pushHistory(get()),
-      documentId,
+      ...replaceFocused(state, view),
       editing: false,
-      tab: "document",
+      history: pushHistory(state.history, focusedView(state)),
     });
     writeStored(get());
   },
+  dropView: (kind, placement, documentId) => {
+    const state = get();
+    const view = viewForKind(state, kind, documentId);
+    if (!view) {
+      return;
+    }
+    set({
+      ...dockView(state, view, placement),
+      editing: false,
+    });
+    writeStored(get());
+  },
+  closeSplit: () => {
+    set({ ...closeSplit(get()), editing: false });
+    writeStored(get());
+  },
+  setSplitRatio: (axis, ratio) => {
+    if (!get().views[1]) {
+      return;
+    }
+    set({
+      ratios: {
+        ...get().ratios,
+        [axis]: clampSplitRatio(ratio),
+      },
+    });
+    writeStored(get());
+  },
+  focusPane: (pane) => {
+    set(focusPane(get(), pane));
+    writeStored(get());
+  },
   back: () => {
-    const history = get().history;
+    const state = get();
+    if (state.views[1]) {
+      set({ ...closeSplit(state), editing: false });
+      writeStored(get());
+      return true;
+    }
+    const history = state.history;
     const previous = history[history.length - 1];
     if (!previous) {
       return false;
     }
     set({
-      history: history.slice(0, -1),
-      tab: previous.tab,
-      documentId: previous.documentId,
+      ...replaceFocused(
+        {
+          views: [state.views[0], null],
+          focused: 0,
+          ratios: state.ratios,
+          axis: state.axis,
+        },
+        previous,
+      ),
       editing: false,
+      history: history.slice(0, -1),
     });
     writeStored(get());
     return true;
@@ -205,7 +272,7 @@ export const useMobileShellStore = create<MobileShellState>((set, get) => ({
     set({ editing });
   },
   reset: () => {
-    set({ tab: "map", documentId: null, editing: false, history: [] });
+    set(freshState(get().libraryId));
     writeStored(get());
   },
 }));

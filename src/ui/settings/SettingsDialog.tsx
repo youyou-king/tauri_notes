@@ -1,19 +1,19 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { SettingsSectionContribution } from "../../kernel/plugin";
 import { Dialog } from "../dialog/Dialog";
 import { ErrorBoundary } from "../ErrorBoundary";
 import { usePluginContributions } from "../plugins/PluginProvider";
+import { FileAssociationSection } from "./FileAssociationSection";
 import { PluginManagerSection } from "./PluginManagerSection";
 import { ShortcutSection } from "./ShortcutSection";
-import { StorageSection } from "./StorageSection";
 
 export const CORE_SETTINGS_SECTIONS: SettingsSectionContribution[] = [
   {
-    id: "core.storage",
-    title: "数据",
-    description: "备份、校验和恢复",
-    order: 80,
-    component: StorageSection,
+    id: "core.file-association",
+    title: "文件关联",
+    description: "使用 Tauri Notes 打开 .note 知识库",
+    order: 70,
+    component: FileAssociationSection,
   },
   {
     id: "core.shortcuts",
@@ -31,7 +31,13 @@ export const CORE_SETTINGS_SECTIONS: SettingsSectionContribution[] = [
   },
 ];
 
-export function SettingsDialog({ onClose }: { onClose: () => void }) {
+export function SettingsDialog({
+  onClose,
+  initialSectionId,
+}: {
+  onClose: () => void;
+  initialSectionId?: string;
+}) {
   const pluginSections = usePluginContributions<SettingsSectionContribution>(
     "settingsSections",
   );
@@ -46,8 +52,19 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
       .filter((section) => section.component)
       .sort((left, right) => (left.order ?? 0) - (right.order ?? 0));
   }, [pluginSections]);
-  const initial = sections[0]?.id ?? "";
+  const initial =
+    sections.find((section) => section.id === initialSectionId)?.id ??
+    sections[0]?.id ??
+    "";
   const [activeId, setActiveId] = useState(initial);
+  useEffect(() => {
+    if (
+      initialSectionId &&
+      sections.some((section) => section.id === initialSectionId)
+    ) {
+      setActiveId(initialSectionId);
+    }
+  }, [initialSectionId, sections]);
   const active = useMemo(
     () => sections.find((section) => section.id === activeId) ?? sections[0],
     [activeId, sections],

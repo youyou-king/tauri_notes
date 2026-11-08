@@ -3,12 +3,20 @@ import {
   managedLibraryService,
   type ManagedLibrarySummary,
 } from "../../application/managedLibraryService";
-import { useMobileShellStore } from "../../application/stores/mobileShellStore";
+import {
+  useMobileShellStore,
+  type MobileDropPlacement,
+  type MobileView,
+  type MobileViewKind,
+} from "../../application/stores/mobileShellStore";
+import {
+  resolveDropPlacement,
+} from "../../application/stores/mobileLayout";
 import { useSwipeBack } from "../interaction/useSwipeBack";
 import { useRuntimeServices } from "../../runtime";
 import { runDocumentAction } from "../../app/documentActions";
 import { runLibraryAction } from "../../app/libraryActions";
-import type { MobileTab } from "../../application/stores/mobileShellStore";
+import { documentService } from "../../application/documentService";
 import type { BoardControllerPort } from "../../kernel/panel/boardPort";
 import { getUiRenderer } from "../../kernel/sdk";
 import {
@@ -18,30 +26,35 @@ import {
 } from "../../kernel/action";
 import { useKeymapStore } from "../../application/stores/keymapStore";
 import { runCommandById } from "../../kernel/command";
+import { CORE_TOOLBAR_ITEMS } from "../../app/coreToolbar";
+import { workspaceService } from "../../application/workspaceService";
 import type { PanelContextValue } from "../panels/PanelContext";
 import MindMap from "../../components/MindMap";
 import type { MapView, NodeView, WorkspaceView } from "../../types";
+import { asLibraryPath } from "../../types";
 import { shellActions } from "./shellActions";
+import { Button } from "../design-system/Button";
 import { APP_EVENTS, emitAppEvent, onAppEvent } from "../../kernel/events";
-import { MobileLibraryRow } from "../mobile/MobileLibraryRow";
-import { MobileManagedLibraries } from "../mobile/MobileManagedLibraries";
 import { MobileDocumentPane } from "../mobile/MobileDocumentPane";
 import { MobileDocumentActionSheet } from "../mobile/MobileDocumentActionSheet";
-import { MobileHeader } from "../mobile/MobileHeader";
-import { MobileTabBar } from "../mobile/MobileTabBar";
+import { MobileTopBar } from "../mobile/MobileTopBar";
+import { MobileDock } from "../mobile/MobileDock";
+import { MobileNavDrawer } from "../mobile/MobileNavDrawer";
+import { MobileOutlineView } from "../mobile/MobileOutlineView";
+import { MobileLibraryManager } from "../mobile/MobileLibraryManager";
+import { MobileWorkspace } from "../mobile/MobileWorkspace";
+import { MobileDockDropOverlay } from "../mobile/MobileDockDropOverlay";
+import type { MobileDragPoint } from "../mobile/MobileDock";
 import type { MobileDocumentLink } from "../mobile/types";
 
-function collectDocuments(
-  node: NodeView,
-  mapId: string,
-  output: MobileDocumentLink[],
-): void {
-  if (node.hasDocument) {
-    output.push({ id: `${mapId}/${node.id}`, title: node.title });
+function viewLabel(view: MobileView, mapTitle: string): string {
+  if (view.kind === "map") {
+    return mapTitle;
   }
-  for (const child of node.children) {
-    collectDocuments(child, mapId, output);
+  if (view.kind === "outline") {
+    return "大纲";
   }
+  return "文档";
 }
 
 export function MobileShell({
@@ -62,11 +75,17 @@ export function MobileShell({
   onOpenWorkspacePath?: (path: string) => Promise<void> | void;
 }) {
   const {
-    tab,
-    documentId,
+    views,
+    focused,
+    ratios,
+    axis,
     editing,
     hydrate,
-    setTab: setStoredTab,
+    selectView,
+    dropView,
+    closeSplit,
+    setSplitRatio,
+    focusPane,
     history,
     reset: resetMobile,
     setEditing,
@@ -77,16 +96,44 @@ export function MobileShell({
   const loadKeymap = useKeymapStore((state) => state.load);
   const [menuDocument, setMenuDocument] =
     useState<MobileDocumentLink | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [libraryManagerOpen, setLibraryManagerOpen] = useState(false);
+  const [dockDrag, setDockDrag] = useState<{
+    kind: MobileViewKind;
+    point: MobileDragPoint;
+    placement: MobileDropPlacement;
+  } | null>(null);
   const [managedLibraries, setManagedLibraries] = useState<
     ManagedLibrarySummary[]
   >([]);
+  const [documentTitle, setDocumentTitle] = useState("文档");
   const map = activeMap ?? workspace?.maps[0] ?? null;
-  const currentLibraryId =
-    managedLibraries.find((item) => item.path === workspace?.root)?.id ?? null;
+  const primaryView = views[0];
+  const secondaryView = views[1];
+  const focusedView = views[focused] ?? primaryView;
+  const documentViews = views.filter(
+    (view): view is MobileView & { documentId: string } =>
+      Boolean(view && view.kind === "document" && view.documentId),
+  );
+  const activeDocumentId =
+    focusedView.kind === "document"
+      ? focusedView.documentId
+      : (documentViews[0]?.documentId ?? null);
+  const lastDocumentId =
+    [...history]
+      .reverse()
+      .find(
+        (view): view is MobileView & { documentId: string } =>
+          view.kind === "document" && Boolean(view.documentId),
+      )?.documentId ?? null;
+  const knownDocumentId = activeDocumentId ?? lastDocumentId;
+
+  const goBack = () => {
+    navigation.back();
+  };
+
   const swipeBack = useSwipeBack({
-    onBack: () => {
-      navigation.back();
-    },
+    onBack: goBack,
     edgeOnly: editing,
   });
 
@@ -98,8 +145,8 @@ export function MobileShell({
   }, [loadKeymap]);
 
   useEffect(() => {
-    hydrate(workspace?.root ?? null, currentLibraryId);
-  }, [currentLibraryId, hydrate, workspace?.root]);
+    hydrate(workspace?.id ?? null);
+  }, [hydrate, workspace?.id]);
 
   useEffect(() => {
     return lifecycle.onBackground(() => {
@@ -110,7 +157,7 @@ export function MobileShell({
   }, [lifecycle]);
 
   useEffect(() => {
-    if (tab !== "library") {
+    if (!libraryManagerOpen) {
       return;
     }
     let cancelled = false;
@@ -129,7 +176,38 @@ export function MobileShell({
     return () => {
       cancelled = true;
     };
-  }, [tab, workspace?.root]);
+  }, [libraryManagerOpen, workspace?.root]);
+
+  useEffect(() => {
+    if (!activeDocumentId || !workspace) {
+      setDocumentTitle("文档");
+      return;
+    }
+    let cancelled = false;
+    const load = () => {
+      void documentService
+        .getTitle(workspace.id, activeDocumentId)
+        .then((title) => {
+          if (!cancelled) {
+            setDocumentTitle(title || "文档");
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setDocumentTitle("文档");
+          }
+        });
+    };
+    load();
+    const unsubscribers = [
+      onAppEvent(APP_EVENTS.documentRenamed, load),
+      onAppEvent(APP_EVENTS.documentChanged, load),
+    ];
+    return () => {
+      cancelled = true;
+      unsubscribers.forEach((unsubscribe) => unsubscribe());
+    };
+  }, [activeDocumentId, workspace?.id]);
 
   useEffect(() => {
     return onAppEvent(APP_EVENTS.openBlockDocument, (documentId) => {
@@ -168,23 +246,77 @@ export function MobileShell({
     }
   };
 
-  const switchTab = (next: MobileTab) => {
-    if (next !== tab) {
+  const switchView = (kind: MobileView["kind"]) => {
+    if (focusedView.kind !== kind) {
       requestSave();
     }
-    setStoredTab(next);
+    selectView(kind, kind === "document" ? knownDocumentId : null);
+    setDrawerOpen(false);
+  };
+
+  const updateDockDrag = (kind: MobileViewKind, point: MobileDragPoint) => {
+    setDockDrag({
+      kind,
+      point,
+      placement: resolveDropPlacement(point, {
+        width: window.innerWidth,
+        height: window.innerHeight,
+      }),
+    });
+  };
+
+  const dropDockView = (kind: MobileViewKind, point: MobileDragPoint) => {
+    requestSave();
+    dropView(
+      kind,
+      resolveDropPlacement(point, {
+        width: window.innerWidth,
+        height: window.innerHeight,
+      }),
+      kind === "document" ? knownDocumentId : null,
+    );
+    setDockDrag(null);
   };
 
   const openDocument = (id: string) => {
+    requestSave();
     navigation.openDocument(id);
+    setDrawerOpen(false);
   };
+
+  const backupWorkspace = async () => {
+    try {
+      const path = await workspaceService.backup(
+        workspace.id,
+        workspace.root,
+        /\.note$/i.test(workspace.root),
+      );
+      dialogs.alert(`备份完成：${path}`);
+    } catch (error) {
+      dialogs.alert(String(error));
+    }
+  };
+
+  const runKnowledgeCommand = (id: string | undefined) => {
+    setDrawerOpen(false);
+    if (id === "knowledge.create") {
+      void onCreateKnowledgeBase?.();
+    } else if (id === "knowledge.open") {
+      void onOpenWorkspace?.();
+    } else if (id === "knowledge.backup") {
+      void backupWorkspace();
+    }
+  };
+  const knowledgeItems = CORE_TOOLBAR_ITEMS.filter(
+    (item) => item.menu === "knowledge",
+  );
 
   const shareManagedLibrary = async (item: ManagedLibrarySummary) => {
     try {
       await runLibraryAction("library.share", {
         platform: "mobile",
         library,
-        source: item.path,
+        source: asLibraryPath(item.path),
         share,
       });
     } catch (error) {
@@ -197,7 +329,7 @@ export function MobileShell({
       await runLibraryAction("library.export", {
         platform: "mobile",
         library,
-        source: item.path,
+        source: asLibraryPath(item.path),
         onExported: (path) => dialogs.alert(`已导出到 ${path}`),
       });
     } catch (error) {
@@ -226,7 +358,7 @@ export function MobileShell({
         document: {
           id: document.id,
           title: document.title,
-          workspaceRoot: workspace.root,
+          workspaceId: workspace.id,
         },
         dialogs,
         documentActions,
@@ -236,7 +368,6 @@ export function MobileShell({
     }
   };
 
-
   const renameDocument = async (document: MobileDocumentLink) => {
     try {
       await runDocumentAction("document.rename", {
@@ -244,7 +375,7 @@ export function MobileShell({
         document: {
           id: document.id,
           title: document.title,
-          workspaceRoot: workspace.root,
+          workspaceId: workspace.id,
         },
         dialogs,
         documentActions,
@@ -261,12 +392,12 @@ export function MobileShell({
         document: {
           id: document.id,
           title: document.title,
-          workspaceRoot: workspace.root,
+          workspaceId: workspace.id,
         },
         dialogs,
         documentActions,
         onDeleted: () => {
-          if (documentId === document.id) {
+          if (activeDocumentId === document.id) {
             requestSave();
             if (!navigation.back()) {
               resetMobile();
@@ -318,9 +449,11 @@ export function MobileShell({
     requestSave();
     return actionRouter.triggerSurface(surface, actionRuntime);
   };
+  const runDrawerAction = (surface: string) => {
+    setDrawerOpen(false);
+    runMobileAction(surface);
+  };
 
-  const documents: MobileDocumentLink[] = [];
-  collectDocuments(map.root, map.id, documents);
   const documentMenuActions = listActions().filter(
     (action) => action.category === "document",
   );
@@ -342,86 +475,159 @@ export function MobileShell({
     onRenameWorkspace: () => {},
     onPinBlock: () => {},
     board,
-    lastActiveDocId: documentId,
+    lastActiveDocId: activeDocumentId,
   };
+
+  const renderPane = (view: MobileView) => {
+    if (view.kind === "map") {
+      return (
+        <MindMap
+          libraryId={workspace.id}
+          mapId={map.id}
+          mapTitle={map.title}
+          selectedId={selected?.id ?? null}
+          onOpenDocument={openDocument}
+        />
+      );
+    }
+    if (view.kind === "outline") {
+      return (
+        <MobileOutlineView
+          libraryId={workspace.id}
+          mapId={map.id}
+          mapTitle={map.title}
+          activeDocumentId={knownDocumentId}
+          onOpenDocument={openDocument}
+          onDocumentMenu={(documentId, title) =>
+            setMenuDocument({ id: documentId, title })
+          }
+        />
+      );
+    }
+    return view.documentId ? (
+      <MobileDocumentPane
+        workspaceRoot={workspace.root}
+        libraryId={workspace.id}
+        documentId={view.documentId}
+        editing={editing}
+        panelContext={panelContext}
+        DocumentView={DocumentView}
+        swipeHandlers={swipeBack}
+      />
+    ) : (
+      <div className="mobile-shell-empty">
+        <p>从导图或大纲打开一篇文档。</p>
+      </div>
+    );
+  };
+
+  const title =
+    focusedView.kind === "document"
+      ? documentTitle
+      : viewLabel(focusedView, map.title);
+  const subtitle = secondaryView
+    ? `${workspace.title} · 分屏`
+    : focusedView.kind === "map" && map.title === workspace.title
+      ? undefined
+      : workspace.title;
+  const canGoBack = Boolean(secondaryView || history.length > 0);
+  const presentKinds = views
+    .filter((view): view is MobileView => Boolean(view))
+    .map((view) => view.kind);
 
   return (
     <div className="mobile-shell">
-      <MobileHeader
-        tab={tab}
-        mapTitle={map.title}
-        workspaceTitle={workspace.title}
-        canGoBack={history.length > 0}
-        onBack={() => navigation.back()}
-        onSearch={() => runMobileAction("search.open")}
-        onHelp={() => runMobileAction("help.open")}
-        onBoard={() => runMobileAction("board.open")}
+      <MobileTopBar
+        title={title}
+        subtitle={subtitle}
+        canGoBack={canGoBack}
+        onBack={goBack}
+        onMenu={() => setDrawerOpen(true)}
+        actions={
+          focusedView.kind === "document" ? (
+            editing ? (
+              <>
+                <Button onClick={() => emitAppEvent(APP_EVENTS.saveNow)}>
+                  保存
+                </Button>
+                <Button
+                  onClick={() => {
+                    emitAppEvent(APP_EVENTS.saveNow);
+                    setEditing(false);
+                  }}
+                >
+                  完成
+                </Button>
+              </>
+            ) : (
+              <Button onClick={() => setEditing(true)}>编辑</Button>
+            )
+          ) : undefined
+        }
       />
 
       <div className="mobile-shell-content">
-        {tab === "map" ? (
-          <MindMap
-            workspaceRoot={workspace.root}
-            mapId={map.id}
-            mapTitle={map.title}
-            selectedId={selected?.id ?? null}
-            onOpenDocument={openDocument}
-          />
-        ) : tab === "library" ? (
-          <div className="mobile-library-view">
-            <MobileManagedLibraries
-              libraries={managedLibraries}
-              workspaceRoot={workspace.root}
-              onOpen={(path) => void onOpenWorkspacePath?.(path)}
-              onImport={() => void importManagedLibrary()}
-              onShare={(item) => void shareManagedLibrary(item)}
-              onExport={(item) => void exportManagedLibrary(item)}
-            />
-            {documents.length > 0 ? (
-              <div className="mobile-library">
-                {documents.map((document) => (
-                  <MobileLibraryRow
-                    key={document.id}
-                    document={document}
-                    onOpen={openDocument}
-                    onMenu={setMenuDocument}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="mobile-shell-empty">
-                <p>当前导图还没有文档。</p>
-              </div>
-            )}
-          </div>
-        ) : documentId ? (
-          <MobileDocumentPane
-            workspaceRoot={workspace.root}
-            documentId={documentId}
-            editing={editing}
-            panelContext={panelContext}
-            DocumentView={DocumentView}
-            swipeHandlers={swipeBack}
-            onSave={() => emitAppEvent(APP_EVENTS.saveNow)}
-            onDone={() => {
-              emitAppEvent(APP_EVENTS.saveNow);
-              setEditing(false);
-            }}
-            onEdit={() => setEditing(true)}
-          />
-        ) : (
-          <div className="mobile-shell-empty">
-            <p>从导图或目录打开一篇文档。</p>
-          </div>
-        )}
+        <MobileWorkspace
+          views={views}
+          focused={focused}
+          ratios={ratios}
+          axis={axis}
+          onFocus={focusPane}
+          onRatio={setSplitRatio}
+          onCloseSplit={closeSplit}
+          renderView={renderPane}
+          labelFor={(view) => viewLabel(view, map.title)}
+        />
+        <MobileDockDropOverlay
+          active={Boolean(dockDrag)}
+          label={
+            dockDrag
+              ? viewLabel(
+                  { kind: dockDrag.kind, documentId: null },
+                  map.title,
+                )
+              : ""
+          }
+          point={dockDrag?.point ?? null}
+          placement={dockDrag?.placement ?? null}
+        />
       </div>
 
-      <MobileTabBar
-        tab={tab}
-        documentId={documentId}
-        onSwitchTab={switchTab}
-        onSettings={() => runMobileAction("settings.open")}
+      <MobileDock
+        view={focusedView.kind}
+        hasDocument={Boolean(knownDocumentId)}
+        presentKinds={presentKinds}
+        onSelect={switchView}
+        onDragMove={updateDockDrag}
+        onDrop={dropDockView}
+        onDragCancel={() => setDockDrag(null)}
       />
+
+      <MobileNavDrawer
+        open={drawerOpen}
+        workspaceTitle={workspace.title}
+        knowledgeItems={knowledgeItems}
+        onKnowledgeCommand={runKnowledgeCommand}
+        onManageLibraries={() => {
+          setDrawerOpen(false);
+          setLibraryManagerOpen(true);
+        }}
+        onClose={() => setDrawerOpen(false)}
+        onHelp={() => runDrawerAction("help.open")}
+        onSettings={() => runDrawerAction("settings.open")}
+      />
+
+      {libraryManagerOpen && (
+        <MobileLibraryManager
+          libraries={managedLibraries}
+          workspaceId={workspace.id}
+          onOpen={(path) => void onOpenWorkspacePath?.(path)}
+          onImport={() => void importManagedLibrary()}
+          onShare={(item) => void shareManagedLibrary(item)}
+          onExport={(item) => void exportManagedLibrary(item)}
+          onClose={() => setLibraryManagerOpen(false)}
+        />
+      )}
 
       {menuDocument && (
         <MobileDocumentActionSheet

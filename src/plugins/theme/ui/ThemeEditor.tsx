@@ -1,6 +1,10 @@
 import { useState } from "react";
 import {
+  Button,
   Dialog,
+  Field,
+  Select,
+  TextInput,
   useTheme,
   type ThemeManifest,
 } from "../../../ui/sdk";
@@ -118,28 +122,24 @@ export function ThemeEditor({
       className="theme-editor-dialog"
       footer={
         <>
-          <button type="button" onClick={onClose}>
-            取消
-          </button>
-          <button type="button" className="primary" onClick={save}>
+          <Button onClick={onClose}>取消</Button>
+          <Button variant="primary" onClick={save}>
             保存并应用
-          </button>
+          </Button>
         </>
       }
     >
       <div className="theme-editor-body">
         <div className="theme-editor-fields">
-          <label>
-            主题名称
-            <input
+          <Field label="主题名称">
+            <TextInput
               data-autofocus
               value={name}
               onChange={(event) => setName(event.target.value)}
             />
-          </label>
-          <label>
-            基础模式
-            <select
+          </Field>
+          <Field label="基础模式">
+            <Select
               value={base}
               onChange={(event) => {
                 const next = event.target.value as "dark" | "light";
@@ -151,19 +151,18 @@ export function ThemeEditor({
             >
               <option value="dark">深色</option>
               <option value="light">浅色</option>
-            </select>
-          </label>
+            </Select>
+          </Field>
           {FIELDS.map((field) => (
-            <label key={field.key} className="theme-color-field">
-              {field.label}
-              <input
+            <Field key={field.key} label={field.label} className="theme-color-field">
+              <TextInput
                 type="color"
                 value={toHex(
                   tokens[field.key] ?? defaultsFor(base)[field.key],
                 )}
                 onChange={(event) => update(field.key, event.target.value)}
               />
-            </label>
+            </Field>
           ))}
           {error && <div className="theme-error">{error}</div>}
         </div>

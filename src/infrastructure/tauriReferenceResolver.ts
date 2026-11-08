@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { ReferenceResolver } from "../application/ports";
+import type { LibraryId } from "../types";
 import {
   asBlockId,
   type BlockId,
@@ -27,7 +28,7 @@ export type IndexedBlock = {
 export class TauriReferenceResolver implements ReferenceResolver {
   private indexPromise: Promise<Map<BlockId, IndexedBlock>> | null = null;
 
-  constructor(private readonly workspaceRoot: string) {}
+  constructor(private readonly libraryId: LibraryId) {}
 
   reload(): void {
     this.indexPromise = null;
@@ -85,7 +86,7 @@ export class TauriReferenceResolver implements ReferenceResolver {
 
   private load(): Promise<Map<BlockId, IndexedBlock>> {
     this.indexPromise ??= invoke<IndexedBlock[]>("index_blocks_db", {
-      workspace: this.workspaceRoot,
+      libraryId: this.libraryId,
     }).then(
       (blocks) =>
         new Map(

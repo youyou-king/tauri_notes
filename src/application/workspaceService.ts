@@ -1,5 +1,11 @@
 import { command } from "../infrastructure/tauri/client";
-import type { WorkspaceView } from "../types";
+import type { LibraryId, LibraryPath, WorkspaceView } from "../types";
+
+/**
+ * 书库生命周期/文件命令边界：
+ * - create/backup/close 使用 LibraryPath；
+ * - 文档树/文档列表由 documentService 或本模块按 LibraryId 查询。
+ */
 
 export type DatabaseTreeNode = {
   mapId: string;
@@ -10,39 +16,36 @@ export type DatabaseTreeNode = {
 };
 
 export const workspaceService = {
-  open(path: string): Promise<WorkspaceView> {
-    return command(
-      /\.note$/i.test(path) ? "open_note_workspace" : "open_workspace",
-      { path },
-    );
-  },
-
-  createNoteFile(path: string, title: string): Promise<WorkspaceView> {
+  createNoteFile(path: LibraryPath, title: string): Promise<WorkspaceView> {
     return command("create_note_file", { path, title });
   },
 
   listDocuments(
-    workspace: string,
+    libraryId: LibraryId,
   ): Promise<Array<{ id: string; title: string }>> {
-    return command("list_imported_documents", { workspace });
+    return command("list_imported_documents", { libraryId });
   },
 
-  loadDocumentTree(workspace: string): Promise<DatabaseTreeNode[]> {
-    return command("load_document_tree", { workspace });
+  loadDocumentTree(libraryId: LibraryId): Promise<DatabaseTreeNode[]> {
+    return command("load_document_tree", { libraryId });
   },
 
-  closeDatabase(workspace: string): Promise<void> {
-    return command("close_workspace_database", { workspace });
+  closeDatabase(libraryId: LibraryId): Promise<void> {
+    return command("close_workspace_database", { libraryId });
   },
 
-  verifyDatabase(workspace: string): Promise<void> {
-    return command("verify_database", { workspace });
+  verifyDatabase(libraryId: LibraryId): Promise<void> {
+    return command("verify_database", { libraryId });
   },
 
-  backup(workspace: string, noteFile: boolean): Promise<string> {
+  backup(
+    libraryId: LibraryId,
+    path: LibraryPath,
+    noteFile: boolean,
+  ): Promise<string> {
     return command(
       noteFile ? "save_note_file" : "backup_database",
-      noteFile ? { path: workspace } : { workspace },
+      noteFile ? { path } : { libraryId },
     );
   },
 
@@ -52,13 +55,5 @@ export const workspaceService = {
 
   helpPath(): Promise<string> {
     return command("help_note_path");
-  },
-
-  registerNoteAssociation(): Promise<void> {
-    return command("register_note_association");
-  },
-
-  unregisterNoteAssociation(): Promise<void> {
-    return command("unregister_note_association");
   },
 };

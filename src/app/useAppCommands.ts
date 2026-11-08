@@ -10,33 +10,28 @@ import { useKeymapStore } from "../application/stores/keymapStore";
 import { APP_EVENTS, onAppEvent } from "../kernel/events";
 import { getCommand, runCommand } from "../kernel/command";
 import { recordConsoleEvent } from "../application/consoleLogStore";
-import { workspaceService } from "../application/workspaceService";
 import type { DockWorkspaceHandle } from "../components/DockWorkspace";
 import { openSettings } from "../ui/settings/settingsEvents";
 import { shellActions } from "../ui/shell/shellActions";
 
 type CommandRunnerDeps = {
   busy: boolean;
-  workspaceRoot: string | null;
+  hasWorkspace: boolean;
   dockRef: RefObject<DockWorkspaceHandle | null>;
-  setBackend: (value: string) => void;
   setError: (value: string | null) => void;
   createKnowledgeBase: () => Promise<unknown> | void;
   openWorkspace: () => Promise<unknown> | void;
-  openHelp: () => Promise<unknown> | void;
   backupLibrary: () => Promise<unknown> | void;
   confirmDiscard: () => Promise<boolean>;
 };
 
 export function useAppCommandRunner({
   busy,
-  workspaceRoot,
+  hasWorkspace,
   dockRef,
-  setBackend,
   setError,
   createKnowledgeBase,
   openWorkspace,
-  openHelp,
   backupLibrary,
   confirmDiscard,
 }: CommandRunnerDeps): (id: string) => void {
@@ -49,29 +44,16 @@ export function useAppCommandRunner({
       recordConsoleEvent("command", command.label, id);
       void runCommand(command, {
         busy,
-        hasWorkspace: Boolean(workspaceRoot),
+        hasWorkspace,
         createKnowledge: () => void createKnowledgeBase(),
         openKnowledge: () => void openWorkspace(),
-        openHelp: () => void openHelp(),
         backup: () => void backupLibrary(),
-        setAssociation: () => {
-          void workspaceService
-            .registerNoteAssociation()
-            .then(() => setBackend("已设置 .note 文件关联"))
-            .catch((reason) => setError(String(reason)));
-        },
-        clearAssociation: () => {
-          void workspaceService
-            .unregisterNoteAssociation()
-            .then(() => setBackend("已清除 .note 文件关联"))
-            .catch((reason) => setError(String(reason)));
-        },
         toggleOutline: () => dockRef.current?.togglePanel("outline"),
         toggleConsole: () => dockRef.current?.togglePanel("console"),
-        resetLayout: () => {
+        clearLayout: () => {
           void confirmDiscard().then((confirmed) => {
             if (confirmed) {
-              dockRef.current?.resetLayout();
+              dockRef.current?.clearLayout();
             }
           });
         },
@@ -92,25 +74,23 @@ export function useAppCommandRunner({
       busy,
       createKnowledgeBase,
       dockRef,
-      openHelp,
       openWorkspace,
       confirmDiscard,
-      setBackend,
       setError,
-      workspaceRoot,
+      hasWorkspace,
     ],
   );
 }
 
 type HotkeyDeps = {
-  workspaceRoot: string | null;
+  hasWorkspace: boolean;
   board: BoardControllerPort;
   dockRef: RefObject<DockWorkspaceHandle | null>;
   setError: (value: string | null) => void;
 };
 
 export function useAppHotkeys({
-  workspaceRoot,
+  hasWorkspace,
   board,
   dockRef,
   setError,
@@ -130,7 +110,7 @@ export function useAppHotkeys({
       return;
     }
     const context = {
-      hasWorkspace: Boolean(workspaceRoot),
+      hasWorkspace,
       openBoard: () => {
         board.openBoard();
         dockRef.current?.openBoard();
@@ -145,7 +125,7 @@ export function useAppHotkeys({
     });
     function onKeyDown(event: KeyboardEvent) {
       router.handleKeyDown(event, {
-        hasWorkspace: Boolean(workspaceRoot),
+        hasWorkspace,
         runCommand: (id) => {
           const command = getCommand(id);
           if (!command) {
@@ -167,5 +147,5 @@ export function useAppHotkeys({
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [board.openBoard, dockRef, keymap, setError, workspaceRoot]);
+  }, [board.openBoard, dockRef, keymap, setError, hasWorkspace]);
 }

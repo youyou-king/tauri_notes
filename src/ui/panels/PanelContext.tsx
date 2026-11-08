@@ -4,6 +4,7 @@ import type {
   PinBlockInput,
 } from "../../kernel/panel/boardPort";
 import type {
+  LibraryId,
   MapView,
   NodeView,
   WorkspaceView,
@@ -19,14 +20,14 @@ export type PanelContextValue = {
   openBlockDocument: (
     documentId: string,
     title?: string,
-    workspaceRoot?: string,
+    libraryId?: LibraryId,
   ) => void;
   setPanelDirty: (panelId: string, dirty: boolean) => void;
   onSelectNode: (node: NodeView, newPanel: boolean) => void;
-  onSwitchMap: (map: MapView, workspaceRoot?: string) => void;
-  onActivateWorkspace: (root: string) => void;
-  onUnloadWorkspace: (root: string) => void;
-  onRenameWorkspace: (root: string, title: string) => void;
+  onSwitchMap: (map: MapView, libraryId?: LibraryId) => void;
+  onActivateWorkspace: (libraryId: LibraryId) => void;
+  onUnloadWorkspace: (libraryId: LibraryId) => void;
+  onRenameWorkspace: (libraryId: LibraryId, title: string) => void;
   onPinBlock: (input: PinBlockInput) => void | Promise<void>;
   board: BoardControllerPort;
   lastActiveDocId: string | null;

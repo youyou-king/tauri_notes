@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { APP_EVENTS, emitAppEvent, onAppEvent } from "../kernel/events";
 import { mapService } from "../application/mapService";
-import { confirmDialog } from "../ui/dialog/confirmDialog";
+import { confirmDialog, promptDialog } from "../ui/dialog/appDialog";
+import { StateView } from "../ui/design-system/StateView";
 import {
   Background,
   Controls,
@@ -12,10 +13,15 @@ import {
   type NodeMouseHandler,
   type OnNodeDrag,
 } from "@xyflow/react";
-import type { MindMapNode, MindMapView } from "../types";
+import type { LibraryId, MindMapNode, MindMapView } from "../types";
 import { buildMindMap, flattenMindMap } from "../lib/mindMap";
 import MindMapNodeView from "./MindMapNode";
 import { useMindMapFlow } from "./useMindMapFlow";
+import { ContextMenu, type ContextMenuItem } from "../ui/menu/ContextMenu";
+import {
+  readMapViewport,
+  writeMapViewport,
+} from "../application/stores/mapViewportStore";
 
 const nodeTypes = { mindMap: MindMapNodeView };
 
@@ -25,51 +31,53 @@ type ContextMenuState = {
   node: MindMapNode;
 };
 
-function replacePosition(
+function replacePositions(
   node: MindMapNode,
-  id: string,
-  x: number,
-  y: number,
+  positions: Map<string, { x: number; y: number }>,
 ): MindMapNode {
+  const position = positions.get(node.id);
   return {
     ...node,
-    positionX: node.id === id ? x : node.positionX,
-    positionY: node.id === id ? y : node.positionY,
+    positionX: position?.x ?? node.positionX,
+    positionY: position?.y ?? node.positionY,
+    positionSaved: position ? true : node.positionSaved,
     children: node.children.map((child) =>
-      replacePosition(child, id, x, y),
+      replacePositions(child, positions),
     ),
   };
 }
 
 function MindMapInner({
-  workspaceRoot,
+  libraryId,
   mapId,
   mapTitle,
   selectedId,
   onOpenDocument,
 }: {
-  workspaceRoot: string;
+  libraryId: LibraryId;
   mapId: string;
   mapTitle: string;
   selectedId: string | null;
   onOpenDocument: (documentId: string) => void;
 }) {
-  const { fitView } = useReactFlow();
+  const { fitView, setViewport } = useReactFlow();
   const [map, setMap] = useState<MindMapView | null>(null);
   const [activeId, setActiveId] = useState<string | null>(selectedId);
   const [menu, setMenu] = useState<ContextMenuState | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [arranging, setArranging] = useState(false);
+  const [layoutRevision, setLayoutRevision] = useState(0);
   const mapRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     try {
-      const view = await mapService.loadMap(workspaceRoot, mapId);
+      const view = await mapService.loadMap(libraryId, mapId);
       setMap(view);
       setError(null);
     } catch (reason) {
       setError(String(reason));
     }
-  }, [workspaceRoot, mapId]);
+  }, [libraryId, mapId]);
 
   useEffect(() => {
     void load();
@@ -89,16 +97,6 @@ function MindMapInner({
   }, [load]);
 
   useEffect(() => {
-    const handler = (event: MouseEvent) => {
-      if (!(event.target as Element).closest(".mind-map-menu")) {
-        setMenu(null);
-      }
-    };
-    window.addEventListener("mousedown", handler);
-    return () => window.removeEventListener("mousedown", handler);
-  }, []);
-
-  useEffect(() => {
     const handler = (event: Event) => {
       const detail = (
         event as CustomEvent<{ documentId?: string }>
@@ -116,11 +114,16 @@ function MindMapInner({
     if (!map) {
       return;
     }
+    const saved = readMapViewport(libraryId, mapId);
     const timer = window.setTimeout(() => {
-      void fitView({ padding: 0.25, duration: 220 });
-    }, 350);
+      if (saved) {
+        void setViewport(saved);
+      } else {
+        void fitView({ padding: 0.25, duration: 220 });
+      }
+    }, 300);
     return () => window.clearTimeout(timer);
-  }, [map?.root.id, fitView]);
+  }, [map?.root.id, fitView, libraryId, mapId, setViewport]);
 
   useEffect(() => {
     const element = mapRef.current;
@@ -130,7 +133,11 @@ function MindMapInner({
     let lastWidth = 0;
     const observer = new ResizeObserver((entries) => {
       const width = entries[0]?.contentRect.width ?? 0;
-      if (width > 80 && width !== lastWidth) {
+      if (
+        width > 80 &&
+        width !== lastWidth &&
+        !readMapViewport(libraryId, mapId)
+      ) {
         lastWidth = width;
         requestAnimationFrame(() => {
           void fitView({ padding: 0.25 });
@@ -139,50 +146,48 @@ function MindMapInner({
     });
     observer.observe(element);
     return () => observer.disconnect();
-  }, [fitView]);
+  }, [fitView, libraryId, mapId]);
 
   const graph = useMemo(
-    () => buildMindMap(      map?.root ?? {
-        id: `map:${mapId}`,
-        title: mapTitle,
-        hasDocument: false,
-        documentId: null,
-        headingBlockId: null,
-        positionX: 0,
-        positionY: 0,
-        children: [],
-      },
-      activeId,
-      (nodeId, title) => {
-        if (nodeId.startsWith("map:")) {
-          void mapService
-            .renameMap(workspaceRoot, mapId, title)
-            .then(() => {
-            emitAppEvent(APP_EVENTS.mapRenamed, { mapId, title });
-            emitAppEvent(APP_EVENTS.mapsChanged);
-            void load();
-          });
-          return;
-        }
-        void mapService
-          .renameNode(workspaceRoot, nodeId, title)
-          .then(() => {
-          const documentId = map
-            ? flattenMindMap(map.root).find((node) => node.id === nodeId)
-                ?.documentId
-            : null;
-          if (documentId) {
-            emitAppEvent(APP_EVENTS.documentRenamed, {
-              documentId,
-              title,
-            });
+    () => {
+      if (!map) {
+        return { nodes: [], edges: [] };
+      }
+      return buildMindMap(
+        map.root,
+        activeId,
+        (nodeId, title) => {
+          if (nodeId.startsWith("map:")) {
+            void mapService
+              .renameMap(libraryId, mapId, title)
+              .then(() => {
+                emitAppEvent(APP_EVENTS.mapRenamed, { mapId, title });
+                emitAppEvent(APP_EVENTS.mapsChanged);
+                void load();
+              });
+            return;
           }
-          emitAppEvent(APP_EVENTS.mapsChanged);
-          void load();
-        });
-      },
-    ),
-    [map, mapId, mapTitle, activeId, workspaceRoot, load],
+          void mapService
+            .renameNode(libraryId, nodeId, title)
+            .then(() => {
+              const documentId = map
+                ? flattenMindMap(map.root).find(
+                    (node) => node.id === nodeId,
+                  )?.documentId
+                : null;
+              if (documentId) {
+                emitAppEvent(APP_EVENTS.documentRenamed, {
+                  documentId,
+                  title,
+                });
+              }
+              emitAppEvent(APP_EVENTS.mapsChanged);
+              void load();
+            });
+        },
+      );
+    },
+    [map, mapId, activeId, libraryId, load],
   );
 
   const byId = useMemo(
@@ -193,7 +198,53 @@ function MindMapInner({
     [map],
   );
 
-  const { nodes: flowNodes, onNodesChange } = useMindMapFlow(graph.nodes);
+  const { nodes: flowNodes, onNodesChange } = useMindMapFlow(
+    graph.nodes,
+    layoutRevision,
+  );
+
+  const arrangeLayout = async () => {
+    if (!map || arranging) {
+      return;
+    }
+    setArranging(true);
+    setError(null);
+    const laidOut = buildMindMap(
+      map.root,
+      activeId,
+      () => undefined,
+      { ignoreManual: true },
+    );
+    const positions = new Map(
+      laidOut.nodes.map((node) => [node.id, node.position]),
+    );
+    try {
+      await mapService.setNodePositions(
+        libraryId,
+        [...positions].map(([nodeId, position]) => ({
+          nodeId,
+          x: position.x,
+          y: position.y,
+        })),
+      );
+      setMap((current) =>
+        current
+          ? {
+              ...current,
+              root: replacePositions(current.root, positions),
+            }
+          : current,
+      );
+      setLayoutRevision((current) => current + 1);
+      window.setTimeout(() => {
+        void fitView({ padding: 0.25, duration: 260 });
+      }, 0);
+    } catch (reason) {
+      setError(String(reason));
+    } finally {
+      setArranging(false);
+    }
+  };
 
   const onNodeClick: NodeMouseHandler = (_, node) => {
     const target = byId.get(node.id);
@@ -214,25 +265,29 @@ function MindMapInner({
   };
 
   const onNodeDragStop: OnNodeDrag = (_, node) => {
+    const positions = new Map(
+      flowNodes.map((item) => [item.id, item.position] as const),
+    );
+    positions.set(node.id, node.position);
     setMap((current) =>
       current
         ? {
             ...current,
-            root: replacePosition(
-              current.root,
-              node.id,
-              node.position.x,
-              node.position.y,
-            ),
+            root: replacePositions(current.root, positions),
           }
         : current,
     );
+    // Persist the whole visible layout, not only the dragged node. Otherwise
+    // every untouched node falls back to auto-layout on the next open and the
+    // manually arranged map appears to "jump" again.
     void mapService
-      .setNodePosition(
-        workspaceRoot,
-        node.id,
-        node.position.x,
-        node.position.y,
+      .setNodePositions(
+        libraryId,
+        [...positions].map(([nodeId, position]) => ({
+          nodeId,
+          x: position.x,
+          y: position.y,
+        })),
       )
       .catch((reason) => setError(String(reason)));
   };
@@ -265,7 +320,7 @@ function MindMapInner({
       return;
     }
     try {
-      await mapService.deleteNode(workspaceRoot, node.id);
+      await mapService.deleteNode(libraryId, node.id);
       emitAppEvent(APP_EVENTS.mapsChanged);
       await load();
     } catch (reason) {
@@ -277,7 +332,7 @@ function MindMapInner({
     setMenu(null);
     try {
       const documentId = await mapService.createDocumentForRoot(
-        workspaceRoot,
+        libraryId,
         mapId,
       );
       await load();
@@ -291,14 +346,14 @@ function MindMapInner({
     if (!menu) {
       return;
     }
-    const title = window.prompt("新节点名称");
+    const title = await promptDialog({ title: "新节点名称" });
     setMenu(null);
     if (!title?.trim()) {
       return;
     }
     try {
       await mapService.createNode({
-        workspace: workspaceRoot,
+        libraryId,
         mapId,
         parentId: menu.node.id.startsWith("map:") ? null : menu.node.id,
         title: title.trim(),
@@ -317,7 +372,7 @@ function MindMapInner({
     setMenu(null);
     try {
       const updated = await mapService.createDocumentForNode(
-        workspaceRoot,
+        libraryId,
         node.id,
       );
       await load();
@@ -329,12 +384,79 @@ function MindMapInner({
     }
   };
 
+  const menuItems: ContextMenuItem[] = menu
+    ? [
+        ...(menu.node.id.startsWith("map:")
+          ? menu.node.hasDocument && menu.node.documentId
+            ? [
+                {
+                  id: "open-document",
+                  label: "打开文档",
+                  onSelect: () => {
+                    if (menu.node.documentId) {
+                      onOpenDocument(menu.node.documentId);
+                    }
+                  },
+                },
+              ]
+            : [
+                {
+                  id: "create-root-document",
+                  label: "插入文档",
+                  onSelect: () => void createRootDocument(),
+                },
+              ]
+          : menu.node.documentId
+            ? [
+                {
+                  id: "open-document",
+                  label: "打开文档",
+                  onSelect: () => {
+                    if (menu.node.documentId) {
+                      onOpenDocument(menu.node.documentId);
+                    }
+                  },
+                },
+              ]
+            : [
+                {
+                  id: "create-document",
+                  label: "创建文档",
+                  onSelect: () => void createDocument(),
+                },
+              ]),
+        {
+          id: "create-child",
+          label: "新建子节点",
+          onSelect: () => void createChild(),
+        },
+        {
+          id: "rename-node",
+          label: "重命名",
+          onSelect: renameNodeInline,
+        },
+        ...(!menu.node.id.startsWith("map:")
+          ? [
+              {
+                id: "delete-node",
+                label: "删除节点…",
+                danger: true,
+                separatorBefore: true,
+                onSelect: () => void deleteNode(),
+              },
+            ]
+          : []),
+      ]
+    : [];
+
   if (!map) {
     return (
       <div className="mind-map">
-        <div className="mind-map-empty">
-          {error ? `导图加载失败：${error}` : "加载导图…"}
-        </div>
+        <StateView
+          className="mind-map-empty"
+          tone={error ? "error" : "loading"}
+          detail={error ? `导图加载失败：${error}` : `加载 ${mapTitle}…`}
+        />
       </div>
     );
   }
@@ -342,17 +464,28 @@ function MindMapInner({
   return (
     <div className="mind-map" ref={mapRef}>
       {error && <div className="mind-map-error">{error}</div>}
+      <button
+        type="button"
+        className="mind-map-arrange"
+        aria-label="整理导图布局"
+        title="整理导图布局"
+        disabled={arranging}
+        onClick={() => void arrangeLayout()}
+      >
+        <svg viewBox="0 0 20 20" aria-hidden="true">
+          <rect x="2" y="7.5" width="5" height="5" rx="1.2" />
+          <rect x="13" y="2" width="5" height="5" rx="1.2" />
+          <rect x="13" y="13" width="5" height="5" rx="1.2" />
+          <path d="M7 10h3M10 4.5v11M10 4.5h3M10 15.5h3" />
+        </svg>
+      </button>
       <ReactFlow
         nodes={flowNodes}
         edges={graph.edges}
         nodeTypes={nodeTypes}
         onNodesChange={onNodesChange}
-        fitView
-        fitViewOptions={{ padding: 0.25 }}
-        onInit={(instance) => {
-          window.setTimeout(() => {
-            void instance.fitView({ padding: 0.25, duration: 200 });
-          }, 300);
+        onMoveEnd={(_, viewport) => {
+          writeMapViewport(libraryId, mapId, viewport);
         }}
         onNodeContextMenu={onNodeContextMenu}
         onNodeClick={onNodeClick}
@@ -375,73 +508,25 @@ function MindMapInner({
         />
       </ReactFlow>
       {menu && (
-        <div
-          className="mind-map-menu"
-          style={{ left: menu.x, top: menu.y }}
-          onMouseDown={(event) => event.stopPropagation()}
-        >
-          {!menu.node.id.startsWith("map:") &&
-            (menu.node.documentId ? (
-              <button
-                type="button"
-                onClick={() => {
-                  onOpenDocument(menu.node.documentId!);
-                  setMenu(null);
-                }}
-              >
-                打开文档
-              </button>
-            ) : (
-              <button type="button" onClick={() => void createDocument()}>
-                创建文档
-              </button>
-            ))}
-          {menu.node.id.startsWith("map:") &&
-            (menu.node.hasDocument && menu.node.documentId ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setMenu(null);
-                  if (menu.node.documentId) {
-                    onOpenDocument(menu.node.documentId);
-                  }
-                }}
-              >
-                打开文档
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => void createRootDocument()}
-              >
-                插入文档
-              </button>
-            ))}
-          <button type="button" onClick={() => void createChild()}>
-            新建子节点
-          </button>
-          <button type="button" onClick={renameNodeInline}>
-            重命名
-          </button>
-          {!menu.node.id.startsWith("map:") && (
-            <button type="button" onClick={() => void deleteNode()}>
-              删除节点…
-            </button>
-          )}
-        </div>
+        <ContextMenu
+          position={{ x: menu.x, y: menu.y }}
+          items={menuItems}
+          onClose={() => setMenu(null)}
+          label="节点菜单"
+        />
       )}
     </div>
   );
 }
 
 export default function MindMap({
-  workspaceRoot,
+  libraryId,
   mapId,
   mapTitle,
   selectedId,
   onOpenDocument,
 }: {
-  workspaceRoot: string;
+  libraryId: LibraryId;
   mapId: string;
   mapTitle: string;
   selectedId: string | null;
@@ -451,7 +536,7 @@ export default function MindMap({
     <div className="mind-map">
       <ReactFlowProvider>
         <MindMapInner
-          workspaceRoot={workspaceRoot}
+          libraryId={libraryId}
           mapId={mapId}
           mapTitle={mapTitle}
           selectedId={selectedId}

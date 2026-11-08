@@ -1,4 +1,12 @@
+export { Button, IconButton } from "../design-system/Button";
+export { Field, Select, TextInput } from "../design-system/Field";
+export { Icon } from "../design-system/Icon";
+export { PanelIcon } from "../design-system/PanelIcon";
+export { StateView } from "../design-system/StateView";
+export { PanelHeader, PanelShell } from "../design-system/PanelShell";
+export { SurfaceHeader } from "../design-system/SurfaceHeader";
 export { Dialog } from "../dialog/Dialog";
-export { confirmDialog } from "../dialog/confirmDialog";
+export { ModalSurface } from "../dialog/ModalSurface";
+export { confirmDialog } from "../dialog/appDialog";
 export { usePanelContext } from "../panels/PanelContext";
 export { renderMarkdownHtml } from "../markdown/renderMarkdown";

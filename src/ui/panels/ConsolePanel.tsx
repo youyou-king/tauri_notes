@@ -3,7 +3,10 @@ import {
   useConsoleLogStore,
   type ConsoleCategory,
 } from "../../application/consoleLogStore";
-import { PanelShell } from "./PanelShell";
+import { Button } from "../design-system/Button";
+import { Icon } from "../design-system/Icon";
+import { StateView } from "../design-system/StateView";
+import { PanelShell } from "../design-system/PanelShell";
 
 const CATEGORY_LABELS: Record<ConsoleCategory, string> = {
   command: "命令",
@@ -51,24 +54,25 @@ export function ConsolePanel() {
       className="console-panel"
       bodyClassName="console-body"
       title="控制台"
-      icon="⌨"
+      icon={<Icon name="console" />}
       status={`${events.length} 条记录`}
       toolbar={
         <>
-          <button type="button" onClick={copy} disabled={events.length === 0}>
+          <Button onClick={copy} disabled={events.length === 0}>
             复制
-          </button>
-          <button type="button" onClick={clear} disabled={events.length === 0}>
+          </Button>
+          <Button onClick={clear} disabled={events.length === 0}>
             清空
-          </button>
+          </Button>
         </>
       }
     >
       <div className="console-events" aria-live="polite">
         {events.length === 0 ? (
-          <div className="console-empty">
-            暂无操作记录。打开知识库、切换面板、执行命令和修改主题都会记录在这里。
-          </div>
+          <StateView
+            className="console-empty"
+            detail="暂无操作记录。打开知识库、切换面板、执行命令和修改主题都会记录在这里。"
+          />
         ) : (
           events.map((event) => (
             <div

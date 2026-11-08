@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useNodesState, type Node } from "@xyflow/react";
 import type { MindMapNodeData } from "./MindMapNode";
 
@@ -8,6 +8,8 @@ import type { MindMapNodeData } from "./MindMapNode";
  * Layout is a one-time placement hint: existing nodes keep their live
  * positions, while new nodes get the layout position. Drag updates are owned
  * by React Flow and never write back to the domain model until drag stop.
+ * An explicit `revision` reset is used by the arrange action, which must
+ * override live positions with a freshly computed layout.
  */
 export function reconcileFlowNodes(
   current: Node<MindMapNodeData>[],
@@ -29,13 +31,22 @@ export function reconcileFlowNodes(
   });
 }
 
-export function useMindMapFlow(layout: Node<MindMapNodeData>[]) {
+export function useMindMapFlow(
+  layout: Node<MindMapNodeData>[],
+  revision = 0,
+) {
   const [nodes, setNodes, onNodesChange] =
     useNodesState<Node<MindMapNodeData>>(layout);
+  const previousRevision = useRef(revision);
 
   useEffect(() => {
+    if (previousRevision.current !== revision) {
+      previousRevision.current = revision;
+      setNodes(layout);
+      return;
+    }
     setNodes((current) => reconcileFlowNodes(current, layout));
-  }, [layout, setNodes]);
+  }, [layout, revision, setNodes]);
 
   return { nodes, onNodesChange };
 }

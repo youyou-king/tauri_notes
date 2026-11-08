@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import {
+  Button,
+  Icon,
+  IconButton,
   useTheme,
   type ThemeManifest,
 } from "../../../ui/sdk";
@@ -15,10 +18,6 @@ import {
 import type { AppearancePackManifest } from "../appearancePack";
 import { AppearancePreview } from "./AppearancePreview";
 import { themeAppearancePackBytes } from "../exportPack";
-import {
-  trustPublisher,
-  type AppearancePublisher,
-} from "../publisher";
 import { ThemeEditor } from "./ThemeEditor";
 
 const BUILT_INS: Array<[ "dark" | "light" | "system", string]> = [
@@ -31,12 +30,10 @@ export function ThemeMenu({
   onClose,
   inline = false,
   embedded = false,
-  onOpenSettings,
 }: {
   onClose: () => void;
   inline?: boolean;
   embedded?: boolean;
-  onOpenSettings?: () => void;
 }) {
   const {
     mode,
@@ -57,9 +54,6 @@ export function ThemeMenu({
   const [pendingPack, setPendingPack] =
     useState<AppearancePackManifest | null>(null);
   const [pendingBuffer, setPendingBuffer] = useState<ArrayBuffer | null>(
-    null,
-  );
-  const [publisher, setPublisher] = useState<AppearancePublisher | null>(
     null,
   );
   const [previewWallpaperUrl, setPreviewWallpaperUrl] = useState<
@@ -169,12 +163,10 @@ export function ThemeMenu({
       setError(result.error ?? "导入外观包失败");
       setPackStatus(null);
       setPackWarnings([]);
-      setPublisher(null);
       return;
     }
     setError(null);
     setPackWarnings(result.warnings ?? []);
-    setPublisher(result.publisher ?? null);
     setPendingPack(result.pack);
     setPendingBuffer(buffer);
     setPackStatus(
@@ -184,7 +176,7 @@ export function ThemeMenu({
 
   async function applyPack() {
     const pack = pendingPack;
-    if (!pack || !pendingBuffer || (publisher && !publisher.trusted)) {
+    if (!pack || !pendingBuffer) {
       return;
     }
     try {
@@ -245,7 +237,7 @@ export function ThemeMenu({
       }
     >
       {BUILT_INS.map(([value, label]) => (
-        <button
+        <Button
           key={value}
           type="button"
           className={mode === value ? "active" : ""}
@@ -255,7 +247,7 @@ export function ThemeMenu({
           }}
         >
           {label}
-        </button>
+        </Button>
       ))}
 
       {customThemes.length > 0 && (
@@ -263,7 +255,7 @@ export function ThemeMenu({
       )}
       {customThemes.map((theme) => (
         <div className="theme-row" key={theme.id}>
-          <button
+          <Button
             type="button"
             className={mode === `custom:${theme.id}` ? "active" : ""}
             onClick={() => {
@@ -272,52 +264,44 @@ export function ThemeMenu({
             }}
           >
             {theme.name}
-          </button>
-          <button
-            type="button"
+          </Button>
+          <IconButton
+            label="编辑主题"
             className="theme-delete"
-            title="编辑主题"
             onClick={() => {
               setEditing(theme);
               setEditorOpen(true);
             }}
           >
-            ✎
-          </button>
-          <button
-            type="button"
+            <Icon name="edit" />
+          </IconButton>
+          <IconButton
+            label="导出主题"
             className="theme-delete"
-            title="导出主题"
             onClick={() => downloadTheme(theme.id)}
           >
-            ↓
-          </button>
-          <button
-            type="button"
+            <Icon name="download" />
+          </IconButton>
+          <IconButton
+            label="导出外观包"
             className="theme-delete"
-            title="导出外观包"
             onClick={() => downloadPack(theme)}
           >
-            ⤓
-          </button>
-          <button
-            type="button"
+            <Icon name="archive" />
+          </IconButton>
+          <IconButton
+            label="删除主题"
             className="theme-delete"
-            title="删除主题"
             onClick={() => removeTheme(theme.id)}
           >
-            ×
-          </button>
+            <Icon name="close" />
+          </IconButton>
         </div>
       ))}
 
-      {onOpenSettings && (
-        <button type="button" onClick={onOpenSettings}>
-          外观设置…
-        </button>
-      )}
+
       <div className="theme-divider" />
-      <button
+      <Button
         type="button"
         onClick={() => {
           setEditing(undefined);
@@ -325,13 +309,13 @@ export function ThemeMenu({
         }}
       >
         新建主题…
-      </button>
-      <button type="button" onClick={() => fileRef.current?.click()}>
+      </Button>
+      <Button type="button" onClick={() => fileRef.current?.click()}>
         导入主题…
-      </button>
-      <button type="button" onClick={() => packRef.current?.click()}>
+      </Button>
+      <Button type="button" onClick={() => packRef.current?.click()}>
         导入外观包…
-      </button>
+      </Button>
       <input
         ref={fileRef}
         className="theme-file-input"
@@ -365,50 +349,21 @@ export function ThemeMenu({
           ))}
         </ul>
       )}
-      {publisher && (
-        <div
-          className={
-            publisher.trusted
-              ? "theme-publisher trusted"
-              : "theme-publisher"
-          }
-          role="status"
-        >
-          <span>
-            发布者：{publisher.name ?? "未命名"} ·{" "}
-            {publisher.fingerprint}
-          </span>
-          {publisher.trusted ? (
-            <span>已信任</span>
-          ) : (
-            <button
-              type="button"
-              onClick={() => {
-                trustPublisher(publisher.fingerprint);
-                setPublisher({ ...publisher, trusted: true });
-              }}
-            >
-              信任发布者
-            </button>
-          )}
-        </div>
-      )}
       {(pendingPack || appliedAppearancePackId()) && (
         <div className="theme-pack-actions">
           {pendingPack && (
-            <button
+            <Button
               type="button"
               className="primary"
-              disabled={Boolean(publisher && !publisher.trusted)}
               onClick={applyPack}
             >
               应用外观
-            </button>
+            </Button>
           )}
           {appliedAppearancePackId() && (
-            <button type="button" onClick={rollbackPack}>
+            <Button type="button" onClick={rollbackPack}>
               回退外观
-            </button>
+            </Button>
           )}
         </div>
       )}

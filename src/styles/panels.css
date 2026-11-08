@@ -205,14 +205,6 @@
   color: var(--heading);
 }
 
-:root[data-theme="light"] .backend {
-  color: var(--muted);
-}
-
-:root[data-theme="light"] .backend.online {
-  color: var(--success);
-}
-
 :root[data-theme="light"] .tree-row {
   color: var(--muted);
 }

@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useState, type KeyboardEvent } from "react";
 import { searchService } from "./searchService";
 import type { SearchHit, WorkspaceView } from "../../types";
+import { ModalSurface } from "../../ui/sdk";
 
 export default function SearchPalette({
   workspace,
@@ -16,11 +17,6 @@ export default function SearchPalette({
   const [loading, setLoading] = useState(false);
   const [active, setActive] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
 
   useEffect(() => {
     const text = query.trim();
@@ -34,7 +30,7 @@ export default function SearchPalette({
     setLoading(true);
     const timer = window.setTimeout(() => {
       searchService
-        .search(workspace.root, text, 30)
+        .search(workspace.id, text, 30)
         .then((result) => {
           if (!cancelled) {
             setHits(result);
@@ -62,10 +58,7 @@ export default function SearchPalette({
   }, [query, workspace.root]);
 
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (event.key === "Escape") {
-      event.preventDefault();
-      onClose();
-    } else if (event.key === "ArrowDown") {
+    if (event.key === "ArrowDown") {
       event.preventDefault();
       setActive((index) => Math.min(hits.length - 1, index + 1));
     } else if (event.key === "ArrowUp") {
@@ -78,12 +71,16 @@ export default function SearchPalette({
   }
 
   return (
-    <div className="palette-backdrop" onMouseDown={onClose}>
-      <div className="palette" onMouseDown={(event) => event.stopPropagation()}>
+    <ModalSurface
+      className="palette-backdrop"
+      panelClassName="palette"
+      ariaLabel="搜索"
+      onClose={onClose}
+    >
         <div className="palette-input-row">
           <span className="palette-icon">⌕</span>
           <input
-            ref={inputRef}
+            data-autofocus
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={onKeyDown}
@@ -118,7 +115,6 @@ export default function SearchPalette({
             </button>
           ))}
         </div>
-      </div>
-    </div>
+    </ModalSurface>
   );
 }

@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { openSettings, ToolbarMenu, useTheme } from "../../ui/sdk";
+import { ToolbarMenu, useTheme } from "../../ui/sdk";
 import { APP_EVENTS } from "../../kernel/sdk";
 import { restoreAppliedAppearance } from "./appearanceApplier";
 import {
@@ -36,19 +36,12 @@ export function ThemeToolbarItem() {
   return (
     <ToolbarMenu
       id="theme"
-      label="主题"
+      label="外观"
       openEvent={APP_EVENTS.themeOpen}
       closeOnSelect={false}
     >
       {(close) => (
-        <ThemeMenu
-          embedded
-          onClose={close}
-          onOpenSettings={() => {
-            close();
-            openSettings();
-          }}
-        />
+        <ThemeMenu embedded onClose={close} />
       )}
     </ToolbarMenu>
   );

@@ -2,14 +2,15 @@ import type { ActionRuntime, InputPlatform } from "../kernel/action";
 import { getAction, registerAction } from "../kernel/action";
 import type { LibraryPort } from "../application/ports/libraryPort";
 import type { SharePort } from "../application/ports/sharePort";
+import type { LibraryPath } from "../types";
 
 export type LibraryActionContext = {
   platform: InputPlatform;
   library: LibraryPort;
-  source?: string;
+  source?: LibraryPath;
   share?: SharePort;
-  onImported?: (path: string) => void;
-  onExported?: (path: string) => void;
+  onImported?: (path: LibraryPath) => void;
+  onExported?: (path: LibraryPath) => void;
 };
 
 function readContext(runtime: ActionRuntime): LibraryActionContext | null {

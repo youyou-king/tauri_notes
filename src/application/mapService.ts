@@ -1,33 +1,34 @@
 import { command } from "../infrastructure/tauri/client";
-import type {
-  MindMapNode,
-  MindMapView,
-  OutlineView,
-} from "../types";
+import type { LibraryId, MindMapNode, MindMapView, OutlineView } from "../types";
 
+/** 导图服务：只接收 LibraryId；后端从 registry 解析路径。 */
 export const mapService = {
-  loadOutline(workspace: string): Promise<OutlineView> {
-    return command("load_outline", { workspace });
+  loadOutline(libraryId: LibraryId): Promise<OutlineView> {
+    return command("load_outline", { libraryId });
   },
 
-  loadMap(workspace: string, mapId: string): Promise<MindMapView> {
-    return command("load_mind_map", { workspace, mapId });
+  loadMap(libraryId: LibraryId, mapId: string): Promise<MindMapView> {
+    return command("load_mind_map", { libraryId, mapId });
   },
 
-  createMap(workspace: string, title: string): Promise<string> {
-    return command("create_mind_map", { workspace, title });
+  createMap(libraryId: LibraryId, title: string): Promise<string> {
+    return command("create_mind_map", { libraryId, title });
   },
 
-  renameMap(workspace: string, mapId: string, title: string): Promise<void> {
-    return command("rename_mind_map", { workspace, mapId, title });
+  renameMap(
+    libraryId: LibraryId,
+    mapId: string,
+    title: string,
+  ): Promise<void> {
+    return command("rename_mind_map", { libraryId, mapId, title });
   },
 
-  deleteMap(workspace: string, mapId: string): Promise<void> {
-    return command("delete_mind_map", { workspace, mapId });
+  deleteMap(libraryId: LibraryId, mapId: string): Promise<void> {
+    return command("delete_mind_map", { libraryId, mapId });
   },
 
   createNode(input: {
-    workspace: string;
+    libraryId: LibraryId;
     mapId: string;
     parentId: string | null;
     title: string;
@@ -35,44 +36,46 @@ export const mapService = {
     return command("create_map_node", input);
   },
 
-  renameNode(workspace: string, nodeId: string, title: string): Promise<void> {
-    return command("rename_map_node", { workspace, nodeId, title });
-  },
-
-  deleteNode(workspace: string, nodeId: string): Promise<void> {
-    return command("delete_map_node", { workspace, nodeId });
-  },
-
-  setNodePosition(
-    workspace: string,
+  renameNode(
+    libraryId: LibraryId,
     nodeId: string,
-    x: number,
-    y: number,
+    title: string,
   ): Promise<void> {
-    return command("set_map_node_position", { workspace, nodeId, x, y });
+    return command("rename_map_node", { libraryId, nodeId, title });
+  },
+
+  deleteNode(libraryId: LibraryId, nodeId: string): Promise<void> {
+    return command("delete_map_node", { libraryId, nodeId });
+  },
+
+  setNodePositions(
+    libraryId: LibraryId,
+    positions: Array<{ nodeId: string; x: number; y: number }>,
+  ): Promise<void> {
+    return command("set_map_node_positions", { libraryId, positions });
   },
 
   createDocumentForNode(
-    workspace: string,
+    libraryId: LibraryId,
     nodeId: string,
   ): Promise<MindMapNode> {
-    return command("create_document_for_map_node", { workspace, nodeId });
+    return command("create_document_for_map_node", { libraryId, nodeId });
   },
 
   createDocumentForRoot(
-    workspace: string,
+    libraryId: LibraryId,
     mapId: string,
   ): Promise<string> {
-    return command("create_document_for_map_root", { workspace, mapId });
+    return command("create_document_for_map_root", { libraryId, mapId });
   },
 
   bindDocument(
-    workspace: string,
+    libraryId: LibraryId,
     nodeId: string,
     documentId: string,
   ): Promise<void> {
     return command("bind_document_to_map_node", {
-      workspace,
+      libraryId,
       nodeId,
       documentId,
     });

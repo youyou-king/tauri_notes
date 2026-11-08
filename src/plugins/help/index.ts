@@ -9,7 +9,7 @@ export const helpPlugin: PluginModule = {
   activate: (context) => {
     const command: CommandContribution = {
       id: "help.open",
-      label: "使用帮助",
+      label: "帮助",
       run: () => {
         shellActions.openHelp();
       },

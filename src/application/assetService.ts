@@ -1,8 +1,9 @@
 import { command } from "../infrastructure/tauri/client";
+import type { LibraryId } from "../types";
 
 export const assetService = {
   saveImage(input: {
-    workspace: string;
+    libraryId: LibraryId;
     documentId: string;
     fileName: string;
     bytes: number[];
@@ -11,7 +12,7 @@ export const assetService = {
     return command(
       input.noteFile ? "save_note_image_asset" : "save_image_asset",
       {
-        workspace: input.workspace,
+        libraryId: input.libraryId,
         documentId: input.documentId,
         fileName: input.fileName,
         bytes: input.bytes,

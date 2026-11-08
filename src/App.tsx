@@ -12,7 +12,7 @@ import {
 } from "./application/stores/workspaceStore";
 import { usePanelStore } from "./application/stores/panelStore";
 import { recordConsoleEvent } from "./application/consoleLogStore";
-import { ConfirmDialogHost } from "./ui/dialog/confirmDialog";
+import { AppDialogHost } from "./ui/dialog/appDialog";
 import "./app/navCommands";
 import "./app/actions";
 import { useAppShell } from "./app/useAppShell";
@@ -33,6 +33,7 @@ import {
 } from "./app/useAppCommands";
 import type { BlockId, DocId } from "./domain/ids";
 import type { MapView, WorkspaceView } from "./types";
+import { MissingLibrariesNotice } from "./ui/library/MissingLibrariesNotice";
 import { APP_EVENTS, onAppEvent } from "./kernel/events";
 import { requestClose } from "./app/requestClose";
 import type { OpenRequest } from "./app/openRequest";
@@ -61,13 +62,19 @@ function App() {
     (state) => state.setActiveWorkspace,
   );
   const workspaces = useWorkspaceStore((state) => state.workspaces);
+  const missingLibraries = useWorkspaceStore(
+    (state) => state.missingLibraries,
+  );
+  const setMissingLibraries = useWorkspaceStore(
+    (state) => state.setMissingLibraries,
+  );
   const setWorkspaces = useWorkspaceStore(
     (state) => state.setWorkspaces,
   );
 
   const rememberWorkspace = useCallback((view: WorkspaceView) => {
     setWorkspaces((current) => {
-      const index = current.findIndex((item) => item.root === view.root);
+      const index = current.findIndex((item) => item.id === view.id);
       if (index < 0) {
         return [...current, view];
       }
@@ -77,7 +84,6 @@ function App() {
     });
     setWorkspace(view);
   }, []);
-  const [backend, setBackend] = useState("未连接");
 
   useAppShell();
 
@@ -86,7 +92,7 @@ function App() {
   const [activePanelId, setActivePanelId] = useState<string | null>(null);
   const dirtyPanels = usePanelStore((state) => state.dirtyPanels);
   const setPanelDirty = usePanelStore((state) => state.setPanelDirty);
-  const board = useBoardController(workspace?.root ?? null);
+  const board = useBoardController(workspace?.id ?? null);
   const dockRef = useRef<DockWorkspaceHandle>(null);
   const dirtyRef = useRef(0);
   const sessionReady = useRef(false);
@@ -109,12 +115,17 @@ function App() {
 
   useMapsChangedRefresh(workspace, setWorkspaces, setWorkspace, setError);
 
-  useLibraryBootstrap(workspace?.root ?? null, appendLog);
+  useLibraryBootstrap(
+    workspace?.id ?? null,
+    workspace?.root ?? null,
+    appendLog,
+  );
 
   useSessionPersistence({
     sessionReady,
     workspaces,
-    workspaceRoot: workspace?.root ?? null,
+    missingLibraries,
+    activeId: workspace?.id ?? null,
     activeMapId,
     selectedNodeId: selected?.id ?? null,
     activePanelId,
@@ -133,15 +144,15 @@ function App() {
   );
 
   const handleActiveMapPanel = useCallback(
-    (mapId: string, workspaceRoot?: string) => {
+    (mapId: string, libraryId?: string) => {
       const target =
-        workspaces.find((item) => item.root === workspaceRoot) ??
+        workspaces.find((item) => item.id === libraryId) ??
         workspace;
       const map = target?.maps.find((item) => item.id === mapId);
       if (!target || !map) {
         return;
       }
-      if (workspace?.root !== target.root) {
+      if (workspace?.id !== target.id) {
         setWorkspace(target);
       }
       select(map.id, map.root);
@@ -193,17 +204,18 @@ function App() {
     openHelp,
     restoreSession,
     openOnlyWorkspace,
+    relocateMissing,
+    forgetMissing,
   } = useWorkspaceOpen({
     workspace,
     workspaces,
     rememberWorkspace,
     setWorkspace,
     setWorkspaces,
+    setMissingLibraries,
     select,
-    renameWorkspaceDisplay,
     setBusy,
     setError,
-    setBackend,
     appendLog,
     confirmDiscard,
     dialogs: runtime.services.dialogs,
@@ -235,7 +247,7 @@ function App() {
   }, [board.openBoard, workspace]);
 
   useDocumentEvents({
-    workspaceRoot: workspace?.root ?? null,
+    workspaceId: workspace?.id ?? null,
     setWorkspace,
     appendLog,
     dockRef,
@@ -243,13 +255,11 @@ function App() {
 
   const runNavCommand = useAppCommandRunner({
     busy,
-    workspaceRoot: workspace?.root ?? null,
+    hasWorkspace: workspace !== null,
     dockRef,
-    setBackend,
     setError,
     createKnowledgeBase,
     openWorkspace,
-    openHelp,
     backupLibrary,
     confirmDiscard,
   });
@@ -259,7 +269,7 @@ function App() {
   useWindowCloseGuard(dirtyRef);
 
   useAppHotkeys({
-    workspaceRoot: workspace?.root ?? null,
+    hasWorkspace: workspace !== null,
     board,
     dockRef,
     setError,
@@ -284,7 +294,6 @@ function App() {
       >
       <Shell
         pluginReady={pluginReady}
-        backend={backend}
         busy={busy}
         error={error}
         runCommand={runNavCommand}
@@ -319,7 +328,12 @@ function App() {
 
       <PluginOverlays />
       <SettingsHost />
-        <ConfirmDialogHost />
+      <AppDialogHost />
+        <MissingLibrariesNotice
+          items={missingLibraries}
+          onRelocate={(item) => void relocateMissing(item)}
+          onForget={(item) => void forgetMissing(item)}
+        />
       </div>
     </RuntimeProvider>
   );

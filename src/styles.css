@@ -1,4 +1,6 @@
+@import "./styles/primitives.css";
 @import "./styles/shell-base.css";
+@import "./styles/context-menu.css";
 @import "./styles/editor-code.css";
 @import "./styles/board.css";
 @import "./styles/block-editor.css";

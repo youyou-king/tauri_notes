@@ -89,11 +89,6 @@ export function validateContribution(
         errors.push("右键菜单项缺少 target");
       }
       break;
-    case "migrations":
-      if (!number(contribution.version)) {
-        errors.push("迁移缺少 version");
-      }
-      break;
   }
   return errors;
 }

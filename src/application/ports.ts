@@ -1,12 +1,13 @@
 import type { Board, BoardSummary } from "../domain/board";
 import type { BoardId } from "../domain/ids";
+import type { LibraryId } from "../types";
 import type { BlockReference, ReferenceState, ResolvedBlock } from "../domain/reference";
 
 export type BoardRepository = {
-  list(workspaceRoot: string): Promise<BoardSummary[]>;
-  read(workspaceRoot: string, boardId: BoardId): Promise<Board>;
-  save(workspaceRoot: string, board: Board): Promise<void>;
-  remove(workspaceRoot: string, boardId: BoardId): Promise<void>;
+  list(libraryId: LibraryId): Promise<BoardSummary[]>;
+  read(libraryId: LibraryId, boardId: BoardId): Promise<Board>;
+  save(libraryId: LibraryId, board: Board): Promise<void>;
+  remove(libraryId: LibraryId, boardId: BoardId): Promise<void>;
 };
 
 export type ReferenceResolver = {

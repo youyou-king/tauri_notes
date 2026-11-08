@@ -9,8 +9,8 @@
   --muted: #8b93a3;
   --accent: #7aa2ff;
   --accent-soft: rgba(122, 162, 255, 0.14);
-  --brand-mark-bg: linear-gradient(135deg, #7aa2ff, #b18cff);
-  --brand-mark-text: #0d1016;
+  --brand-mark-bg: #2f6bff;
+  --brand-mark-text: #ffffff;
   --code-font: "JetBrains Mono", "Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   --code-size: 13.5px;
   --code-line-height: 1.7;
@@ -45,7 +45,7 @@
   --muted: #74746d;
   --accent: #4d6bfe;
   --accent-soft: #eef1ff;
-  --brand-mark-bg: #171715;
+  --brand-mark-bg: #2f6bff;
   --brand-mark-text: #ffffff;
   --code-bg: #f6f6f2;
   --code-border: rgba(24, 24, 20, 0.08);
@@ -102,13 +102,55 @@ button {
   gap: 16px;
   height: var(--pane-header-height);
   min-height: var(--pane-header-height);
-  padding: 0 14px;
+  padding: 0 0 0 14px;
   overflow: visible;
   position: relative;
   z-index: 100;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--surface-toolbar-border);
   background: var(--bg-panel);
   white-space: nowrap;
+}
+
+.toolbar-spacer {
+  flex: 1 1 auto;
+  min-width: 8px;
+  align-self: stretch;
+}
+
+.window-controls {
+  display: flex;
+  align-self: stretch;
+  flex: 0 0 auto;
+}
+
+.window-control {
+  display: grid;
+  width: 46px;
+  place-items: center;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.window-control:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.window-control.close:hover {
+  background: #c42b1c;
+  color: #ffffff;
+}
+
+.window-control svg {
+  width: 10px;
+  height: 10px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.1;
+  stroke-linecap: square;
 }
 
 .brand {
@@ -125,9 +167,10 @@ button {
   place-items: center;
   width: 24px;
   height: 24px;
-  border-radius: 7px;
+  border-radius: 6px;
   background: var(--brand-mark-bg);
   color: var(--brand-mark-text);
+  font-size: 13px;
   font-weight: 800;
 }
 
@@ -157,33 +200,15 @@ button {
   cursor: default;
 }
 
-.backend {
-  margin-left: auto;
-  max-width: 380px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.backend.online {
-  color: #8fd6a8;
-}
-
 @media (max-width: 1100px) {
   .toolbar {
     gap: 8px;
-    padding: 0 10px;
+    padding: 0 0 0 10px;
   }
 
   .toolbar-actions button {
     padding: 6px 8px;
     font-size: 13px;
-  }
-
-  .backend {
-    display: none;
   }
 }
 
@@ -306,6 +331,41 @@ button {
   color: #f0b4b4;
   font-size: 12px;
   white-space: pre-wrap;
+}
+
+.missing-libraries {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 40;
+  margin: 0;
+  white-space: normal;
+}
+
+.missing-libraries ul {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 4px;
+}
+
+.missing-libraries li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.missing-libraries li span {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.missing-libraries button {
+  flex: none;
 }
 
 .dock-workspace {

@@ -1,12 +1,16 @@
 import { useEffect } from "react";
 import type { IDockviewPanelProps } from "dockview-react";
 import MindMap from "../../components/MindMap";
+import { PanelIcon } from "../design-system/PanelIcon";
+import { StateView } from "../design-system/StateView";
 import { usePanelContext } from "./PanelContext";
 import { APP_EVENTS, onAppEvent } from "../../kernel/events";
 
+import type { LibraryId } from "../../types";
+
 export type MapParams = {
   mapId?: string;
-  workspaceRoot?: string;
+  libraryId?: LibraryId;
 };
 
 export function MapPanel(props: IDockviewPanelProps<MapParams>) {
@@ -14,9 +18,9 @@ export function MapPanel(props: IDockviewPanelProps<MapParams>) {
   if (!context) {
     return null;
   }
-  const requestedRoot = props.params?.workspaceRoot;
+  const requestedId = props.params?.libraryId;
   const mapWorkspace =
-    context.workspaces.find((item) => item.root === requestedRoot) ??
+    context.workspaces.find((item) => item.id === requestedId) ??
     context.workspace;
   const paramMap = props.params?.mapId
     ? mapWorkspace?.maps.find((item) => item.id === props.params?.mapId)
@@ -41,20 +45,21 @@ export function MapPanel(props: IDockviewPanelProps<MapParams>) {
   if (map && mapWorkspace) {
     return (
       <MindMap
-        workspaceRoot={mapWorkspace.root}
+        libraryId={mapWorkspace.id}
         mapId={map.id}
         mapTitle={map.title}
         selectedId={context.selected?.id ?? null}
         onOpenDocument={(documentId) =>
-          context.openBlockDocument(documentId, undefined, mapWorkspace.root)
+          context.openBlockDocument(documentId, undefined, mapWorkspace.id)
         }
       />
     );
   }
   return (
-    <div className="map-placeholder">
-      <span>▦</span>
-      <p>打开一个 `.notes` 知识库</p>
-    </div>
+    <StateView
+      className="map-placeholder"
+      icon={<PanelIcon icon="▦" />}
+      detail="打开一个 `.notes` 知识库"
+    />
   );
 }

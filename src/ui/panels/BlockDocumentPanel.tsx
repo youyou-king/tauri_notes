@@ -6,9 +6,11 @@ import { getUiRenderer } from "../../kernel/ui";
 import { usePanelContext } from "./PanelContext";
 import { APP_EVENTS, onAppEvent } from "../../kernel/events";
 
+import type { LibraryId } from "../../types";
+
 export type BlockDocParams = {
   documentId?: string;
-  workspaceRoot?: string;
+  libraryId?: LibraryId;
 };
 
 export function BlockDocumentPanel(
@@ -16,19 +18,21 @@ export function BlockDocumentPanel(
 ) {
   const context = usePanelContext();
   const documentId = props.params.documentId;
-  const workspaceRoot =
-    props.params.workspaceRoot ?? context?.workspace?.root ?? "";
+  const libraryId: LibraryId | null =
+    props.params.libraryId ?? context?.workspace?.id ?? null;
   const documentWorkspace = context?.workspaces.find(
-    (item) => item.root === workspaceRoot,
+    (item) => item.id === libraryId,
   );
+  const workspaceRoot =
+    documentWorkspace?.root ?? context?.workspace?.root ?? "";
 
   useEffect(() => {
-    if (!workspaceRoot || !documentId) {
+    if (!libraryId || !documentId) {
       return;
     }
     const refresh = () => {
       void documentService
-        .getTitle(workspaceRoot, documentId)
+        .getTitle(libraryId, documentId)
         .then((title) => props.api.setTitle(title))
         .catch(() => {});
     };
@@ -40,7 +44,7 @@ export function BlockDocumentPanel(
     return () => {
       unsubscribers.forEach((unsubscribe) => unsubscribe());
     };
-  }, [workspaceRoot, documentId, props.api]);
+  }, [libraryId, documentId, props.api]);
 
   useEffect(() => {
     if (!documentWorkspace || !documentId) {
@@ -62,7 +66,7 @@ export function BlockDocumentPanel(
     });
   }, [documentId, props.api]);
 
-  if (!workspaceRoot || !documentId) {
+  if (!workspaceRoot || !libraryId || !documentId) {
     return null;
   }
   const ImportedPreviewPane = getUiRenderer("document.importedView");
@@ -75,6 +79,7 @@ export function BlockDocumentPanel(
     <Suspense fallback={<div className="panel-loading">加载编辑器…</div>}>
       <ImportedPreviewPane
         workspaceRoot={workspaceRoot}
+        libraryId={libraryId}
         documentId={documentId}
         panelId={props.api.id}
       />

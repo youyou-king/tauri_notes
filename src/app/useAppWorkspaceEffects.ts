@@ -1,9 +1,11 @@
 import { useEffect } from "react";
-import { workspaceService } from "../application/workspaceService";
+import { libraryService } from "../application/libraryService";
 import { writeSession } from "../application/sessionService";
-import { ensureLibrary } from "../infrastructure/libraryBootstrapper";
+import { loadLibraryStatus } from "../infrastructure/libraryStatus";
 import { APP_EVENTS, onAppEvent } from "../kernel/events";
-import type { WorkspaceView } from "../types";
+import type { LibraryId, WorkspaceView } from "../types";
+import { asLibraryPath } from "../types";
+import type { MissingLibrary } from "../application/stores/workspaceStore";
 
 type WorkspaceSetter = (
   value:
@@ -25,41 +27,42 @@ export function useMapsChangedRefresh(
   setError: (message: string) => void,
 ): void {
   const root = workspace?.root;
+  const id = workspace?.id;
   useEffect(() => {
-    if (!root) {
+    if (!root || !id) {
       return;
     }
     return onAppEvent(APP_EVENTS.mapsChanged, (detail) => {
       const targetRoot = detail?.root ?? root;
-      void workspaceService
-        .open(targetRoot)
-        .then((view) => {
-          setWorkspaces((current) =>
-            current.map((item) =>
-              item.root === view.root ? view : item,
-            ),
-          );
-          setWorkspace((current) =>
-            current && current.root === view.root
-              ? { ...current, maps: view.maps, title: view.title }
-              : current,
-          );
-        })
-        .catch((reason) => setError(String(reason)));
+      void (async () => {
+        const view =
+          targetRoot === root
+            ? await libraryService.open(id)
+            : await libraryService.register(targetRoot);
+        setWorkspaces((current) =>
+          current.map((item) => (item.id === view.id ? view : item)),
+        );
+        setWorkspace((current) =>
+          current && current.id === view.id
+            ? { ...current, maps: view.maps, title: view.title }
+            : current,
+        );
+      })().catch((reason) => setError(String(reason)));
     });
-  }, [root, setError, setWorkspace, setWorkspaces]);
+  }, [id, root, setError, setWorkspace, setWorkspaces]);
 }
 
 export function useLibraryBootstrap(
+  libraryId: LibraryId | null,
   workspaceRoot: string | null,
   appendLog: (line: string) => void,
 ): void {
   useEffect(() => {
     window.__TAURI_WORKSPACE_ROOT__ = workspaceRoot ?? "";
-    if (!workspaceRoot || /\.note$/i.test(workspaceRoot)) {
+    if (!libraryId || !workspaceRoot || /\.note$/i.test(workspaceRoot)) {
       return;
     }
-    void ensureLibrary(workspaceRoot)
+    void loadLibraryStatus(libraryId)
       .then((status) => {
         appendLog(
           `正式库就绪：${status.documents} 文档 / ${status.blocks} 块 / ${status.references} 引用`,
@@ -68,13 +71,14 @@ export function useLibraryBootstrap(
       .catch((error) => {
         appendLog(`正式库初始化失败：${String(error)}`);
       });
-  }, [appendLog, workspaceRoot]);
+  }, [appendLog, libraryId, workspaceRoot]);
 }
 
 export function useSessionPersistence(input: {
   sessionReady: { current: boolean };
   workspaces: WorkspaceView[];
-  workspaceRoot: string | null;
+  missingLibraries: MissingLibrary[];
+  activeId: string | null;
   activeMapId: string | null;
   selectedNodeId: string | null;
   activePanelId: string | null;
@@ -82,7 +86,8 @@ export function useSessionPersistence(input: {
   const {
     sessionReady,
     workspaces,
-    workspaceRoot,
+    missingLibraries,
+    activeId,
     activeMapId,
     selectedNodeId,
     activePanelId,
@@ -92,16 +97,26 @@ export function useSessionPersistence(input: {
       return;
     }
     writeSession(
-      workspaces.map((item) => item.root),
-      workspaceRoot,
+      workspaces
+        .filter(
+          (item): item is WorkspaceView & { id: string } =>
+            typeof item.id === "string" && item.id.length > 0,
+        )
+        .map((item) => ({ id: item.id, path: item.root })),
+      activeId,
       { activeMapId, selectedNodeId, activePanelId },
+      missingLibraries.map((item) => ({
+        id: item.id,
+        path: asLibraryPath(item.path),
+      })),
     );
   }, [
+    activeId,
     activeMapId,
     activePanelId,
     selectedNodeId,
     sessionReady,
     workspaces,
-    workspaceRoot,
+    missingLibraries,
   ]);
 }

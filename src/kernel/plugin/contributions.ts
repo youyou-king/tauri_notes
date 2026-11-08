@@ -77,9 +77,3 @@ export type MapNodeTypeContribution = {
   nodeType: string;
   schemaVersion: number;
 };
-
-export type MigrationContribution = {
-  id: string;
-  version: number;
-  description?: string;
-};

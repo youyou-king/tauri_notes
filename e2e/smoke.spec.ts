@@ -53,7 +53,7 @@ test("loads the demo workspace and switches theme", async ({ page }) => {
     "rgb(15, 18, 24)",
   );
 
-  await page.getByRole("button", { name: /主题/ }).click();
+  await page.getByRole("button", { name: /外观/ }).click();
   await page.getByRole("button", { name: "浅色" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await expect(page.locator(".mind-map-flow")).toHaveCSS(
@@ -61,7 +61,7 @@ test("loads the demo workspace and switches theme", async ({ page }) => {
     "rgb(248, 248, 245)",
   );
 
-  await page.getByRole("button", { name: /主题/ }).click();
+  await page.getByRole("button", { name: /外观/ }).click();
   await page.getByRole("button", { name: "深色" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 });
@@ -200,7 +200,7 @@ test("selects multiple paragraphs for a view", async ({ page }) => {
   await expect(page.getByText(/拖入/)).toHaveCount(0);
   await page.getByRole("button", { name: "选择内容", exact: true }).click();
   await expect(
-    page.getByRole("dialog", { name: "选择引用内容" }),
+    page.getByRole("complementary", { name: "选择引用内容" }),
   ).toBeVisible();
   const blockNodes = page.locator(
     ".viewport-selection-document [data-block-id]",
@@ -243,7 +243,7 @@ test("selects multiple paragraphs for a view", async ({ page }) => {
 
   await page.getByRole("button", { name: "添加内容" }).click();
   await expect(
-    page.getByRole("dialog", { name: "选择引用内容" }),
+    page.getByRole("complementary", { name: "选择引用内容" }),
   ).toBeVisible();
 });
 
@@ -276,7 +276,7 @@ test("drags a map node without resetting its position", async ({ page }) => {
       page.evaluate(() =>
         (
           window as Window & { __E2E_CALLS__?: string[] }
-        ).__E2E_CALLS__?.includes("set_map_node_position"),
+        ).__E2E_CALLS__?.includes("set_map_node_positions"),
       ),
     )
     .toBe(true);
@@ -308,79 +308,39 @@ test("opens the heading document with Ctrl + left click", async ({ page }) => {
     .toBe(true);
 });
 
-test("opens the plugin-provided appearance settings", async ({ page }) => {
+test("opens settings without removed plugin sections", async ({ page }) => {
   await page.goto("/e2e/fixtures/e2e.html");
   await expect(page.getByText(/演示知识库/).first()).toBeVisible();
-  await page.getByRole("button", { name: /主题/ }).click();
-  await page.getByRole("button", { name: "外观设置…" }).click();
+  await page.getByRole("button", { name: "设置", exact: true }).click();
   await expect(page.getByRole("dialog", { name: "设置" })).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "外观", exact: true }),
-  ).toBeVisible();
+    page
+      .getByRole("dialog", { name: "设置" })
+      .getByRole("button", { name: "外观", exact: true }),
+  ).toHaveCount(0);
   await expect(
-    page.getByRole("button", { name: "引用", exact: true }),
+    page
+      .getByRole("dialog", { name: "设置" })
+      .getByRole("button", { name: "数据", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page
+      .getByRole("dialog", { name: "设置" })
+      .getByRole("button", { name: "引用", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page
+      .getByRole("dialog", { name: "设置" })
+      .getByRole("button", { name: "插件", exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "完成" }).click();
   await expect(page.getByRole("dialog", { name: "设置" })).toBeHidden();
 });
 
-test("requires trust for a signed appearance pack", async ({ page }) => {
-  await page.goto("/e2e/fixtures/e2e.html");
-  await expect(page.getByText(/演示知识库/).first()).toBeVisible();
-  await page.getByRole("button", { name: /主题/ }).click();
-  await page.getByRole("button", { name: "导入外观包…" }).click();
-
-  const manifest = `{
-    "schema": 1,
-    "id": "signed-e2e",
-    "name": "Signed E2E",
-    "version": "1.0.0",
-    "modes": ["dark"],
-    "variants": {
-      "dark": {
-        "theme": {
-          "colors": {
-            "canvas": "#101010",
-            "panel": "#181818",
-            "text": "#ffffff",
-            "textMuted": "#bbbbbb",
-            "accent": "#ff5ecb"
-          }
-        }
-      }
-    },
-    "signature": {
-      "algorithm": "ecdsa-p256-sha256",
-      "publicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEmpkHkt32d1AJZSPXShSRRqVU6lNrGZeVNCRCP4c8Wm2v42VBJRLLtrwtQF9hOCD4UbTtJ-91ed2KEAPH09onPg",
-      "signature": "XmGwdk29XQfNBwTIGF3hfriwjq3gGqmULA0JSP0pqKyA_STQ9iq5yn4fW2ZYmJ4npLGirzz1OGRxuWN4DUPHFw",
-      "publisher": "E2E Publisher"
-    }
-  }`;
-  const buffer = storedZip([["appearance.json", manifest]]);
-  await page
-    .locator('input[accept=".tnlook,.zip"]')
-    .setInputFiles({
-      name: "signed.tnlook",
-      mimeType: "application/zip",
-      buffer,
-    });
-
-  await expect(page.getByText(/发布者：E2E Publisher/)).toBeVisible();
-  const apply = page.getByRole("button", { name: "应用外观" });
-  await expect(apply).toBeDisabled();
-  await page.getByRole("button", { name: "信任发布者" }).click();
-  await expect(apply).toBeEnabled();
-  await apply.click();
-  await expect(page.locator("html")).toHaveAttribute(
-    "data-appearance-pack",
-    "signed-e2e",
-  );
-});
-
 test("warns about low contrast appearance packs", async ({ page }) => {
   await page.goto("/e2e/fixtures/e2e.html");
   await expect(page.getByText(/演示知识库/).first()).toBeVisible();
-  await page.getByRole("button", { name: /主题/ }).click();
+  await page.getByRole("button", { name: /外观/ }).click();
   await page.getByRole("button", { name: "导入外观包…" }).click();
 
   const manifest = JSON.stringify({
@@ -417,8 +377,7 @@ test("warns about low contrast appearance packs", async ({ page }) => {
 test("disables a plugin from the plugin manager", async ({ page }) => {
   await page.goto("/e2e/fixtures/e2e.html");
   await expect(page.getByText(/演示知识库/).first()).toBeVisible();
-  await page.getByRole("button", { name: /主题/ }).click();
-  await page.getByRole("button", { name: "外观设置…" }).click();
+  await page.getByRole("button", { name: "设置", exact: true }).click();
   await page.getByRole("button", { name: "插件", exact: true }).click();
   await expect(page.locator(".plugin-health")).toBeVisible();
 
@@ -470,7 +429,7 @@ test("keeps settings available when the theme plugin is disabled", async ({
 test("imports and validates an appearance pack", async ({ page }) => {
   await page.goto("/e2e/fixtures/e2e.html");
   await expect(page.getByText(/演示知识库/).first()).toBeVisible();
-  await page.getByRole("button", { name: /主题/ }).click();
+  await page.getByRole("button", { name: /外观/ }).click();
   await page.getByRole("button", { name: "导入外观包…" }).click();
 
   const manifest = JSON.stringify({
@@ -603,7 +562,7 @@ test("imports and validates an appearance pack", async ({ page }) => {
     )
     .toBe("20px");
 
-  await page.getByRole("button", { name: /主题/ }).click();
+  await page.getByRole("button", { name: /外观/ }).click();
   await expect(page.getByText("已应用外观包")).toBeVisible();
   await page.getByRole("button", { name: "回退外观" }).click();
   await expect(page.locator("html")).not.toHaveAttribute(
@@ -617,7 +576,7 @@ test("switches appearance pack variants with the theme mode", async ({
 }) => {
   await page.goto("/e2e/fixtures/e2e.html");
   await expect(page.getByText(/演示知识库/).first()).toBeVisible();
-  await page.getByRole("button", { name: "主题", exact: true }).click();
+  await page.getByRole("button", { name: "外观", exact: true }).click();
   await page.getByRole("button", { name: "导入外观包…" }).click();
 
   const manifest = JSON.stringify({
@@ -699,7 +658,7 @@ test("switches appearance pack variants with the theme mode", async ({
     "light",
   );
 
-  await page.getByRole("button", { name: "主题", exact: true }).click();
+  await page.getByRole("button", { name: "外观", exact: true }).click();
   await page.getByRole("button", { name: "深色" }).click();
   await expect
     .poll(() =>
@@ -714,7 +673,7 @@ test("hides appearance decorations on narrow windows", async ({ page }) => {
   await page.setViewportSize({ width: 1400, height: 900 });
   await page.goto("/e2e/fixtures/e2e.html");
   await expect(page.getByText(/演示知识库/).first()).toBeVisible();
-  await page.getByRole("button", { name: /主题/ }).click();
+  await page.getByRole("button", { name: /外观/ }).click();
   await page.getByRole("button", { name: "导入外观包…" }).click();
 
   const manifest = JSON.stringify({
@@ -775,14 +734,16 @@ test("renders the mobile shell and opens documents", async ({ page }) => {
   await page.setViewportSize({ width: 600, height: 800 });
   await page.goto("/e2e/fixtures/e2e.html");
   await expect(page.locator(".mobile-shell")).toBeVisible();
-  await expect(page.getByRole("button", { name: "导图" })).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "导图" }),
+    page.getByRole("button", { name: "导图", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "导图", exact: true }),
   ).toHaveAttribute("aria-current", "page");
 
-  await page.getByRole("button", { name: "目录", exact: true }).click();
+  await page.getByRole("button", { name: "大纲", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: "目录", exact: true }),
+    page.getByRole("button", { name: "大纲", exact: true }),
   ).toHaveAttribute("aria-current", "page");
   await expect(page.getByText("测试想法").first()).toBeVisible();
   await page
@@ -796,21 +757,51 @@ test("renders the mobile shell and opens documents", async ({ page }) => {
 
   await page.getByRole("button", { name: "编辑", exact: true }).click();
   await expect(page.locator(".ProseMirror")).toBeVisible();
+  await expect(page.locator(".mobile-document-shell")).toHaveClass(/is-editing/);
   await page.locator(".ProseMirror").click();
   await page.keyboard.type("移动端编辑");
+
+  const toolbar = page.locator(".block-toolbar-stack");
+  const toolbarBefore = await toolbar.boundingBox();
+  const scrollTop = await page
+    .locator(".imported-preview-surface")
+    .evaluate((element) => {
+      const spacer = document.createElement("div");
+      spacer.style.height = "1600px";
+      element.append(spacer);
+      element.scrollTop = 1200;
+      return element.scrollTop;
+    });
+  expect(scrollTop).toBeGreaterThan(1000);
+  const toolbarAfter = await toolbar.boundingBox();
+  expect(toolbarBefore).not.toBeNull();
+  expect(toolbarAfter).not.toBeNull();
+  expect(Math.abs((toolbarAfter?.y ?? 0) - (toolbarBefore?.y ?? 0))).toBeLessThan(8);
   await page
-    .locator(".mobile-document-actions")
+    .locator(".mobile-topbar-actions")
     .getByRole("button", { name: "保存", exact: true })
     .click();
   await expect(page.getByText("已保存")).toBeVisible();
   await page
-    .locator(".mobile-document-actions")
+    .locator(".mobile-topbar-actions")
     .getByRole("button", { name: "完成", exact: true })
     .click();
   await expect(page.getByRole("button", { name: "编辑", exact: true })).toBeVisible();
 
   await page
-    .getByLabel("移动导航")
+    .getByRole("button", { name: "打开导航", exact: true })
+    .click();
+  await expect(page.getByRole("dialog", { name: "导航" })).toHaveCSS(
+    "width",
+    "300px",
+  );
+  await expect(
+    page
+      .getByRole("dialog", { name: "导航" })
+      .getByRole("button", { name: "视图", exact: true }),
+  ).toHaveCount(0);
+  await page
+    .getByRole("dialog", { name: "导航" })
     .getByRole("button", { name: "设置", exact: true })
     .click();
   await expect(page.getByRole("dialog", { name: "设置" })).toBeVisible();
@@ -819,7 +810,7 @@ test("renders the mobile shell and opens documents", async ({ page }) => {
 test("creates and applies a custom theme", async ({ page }) => {
   await page.goto("/e2e/fixtures/e2e.html");
   await expect(page.getByText(/演示知识库/).first()).toBeVisible();
-  await page.getByRole("button", { name: /主题/ }).click();
+  await page.getByRole("button", { name: /外观/ }).click();
   await page.getByRole("button", { name: "新建主题…" }).click();
   await expect(page.getByRole("heading", { name: "新建主题" })).toBeVisible();
 
@@ -831,7 +822,7 @@ test("creates and applies a custom theme", async ({ page }) => {
     /^custom:/,
   );
 
-  await page.getByRole("button", { name: /主题/ }).click();
+  await page.getByRole("button", { name: /外观/ }).click();
   const downloadPromise = page.waitForEvent("download");
   await page.getByTitle("导出外观包").click();
   const download = await downloadPromise;
@@ -878,9 +869,9 @@ test("opens the knowledge menu", async ({ page }) => {
   await expect(page.getByText(/演示知识库/).first()).toBeVisible();
 
   await page.getByRole("button", { name: "知识库", exact: true }).click();
-  await expect(page.getByRole("button", { name: "新建知识库…" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "打开知识库…" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "保存" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /新建知识库/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /打开知识库/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /备份知识库/ })).toBeVisible();
 });
 
 test("closes the knowledge menu on outside click", async ({ page }) => {
@@ -888,11 +879,11 @@ test("closes the knowledge menu on outside click", async ({ page }) => {
   await expect(page.getByText(/演示知识库/).first()).toBeVisible();
 
   await page.getByRole("button", { name: "知识库", exact: true }).click();
-  await expect(page.getByRole("button", { name: "新建知识库…" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /新建知识库/ })).toBeVisible();
 
   await page.locator(".dock-fill").click({ position: { x: 40, y: 40 } });
   await expect(
-    page.getByRole("button", { name: "新建知识库…" }),
+    page.getByRole("button", { name: /新建知识库/ }),
   ).toHaveCount(0);
 });
 
@@ -902,7 +893,7 @@ test("closes the theme menu on outside click and Escape", async ({
   await page.goto("/e2e/fixtures/e2e.html");
   await expect(page.getByText(/演示知识库/).first()).toBeVisible();
 
-  await page.getByRole("button", { name: "主题", exact: true }).click();
+  await page.getByRole("button", { name: "外观", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "新建主题…" }),
   ).toBeVisible();
@@ -911,7 +902,7 @@ test("closes the theme menu on outside click and Escape", async ({
     page.getByRole("button", { name: "新建主题…" }),
   ).toHaveCount(0);
 
-  await page.getByRole("button", { name: "主题", exact: true }).click();
+  await page.getByRole("button", { name: "外观", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "新建主题…" }),
   ).toBeVisible();
@@ -983,9 +974,9 @@ test("opens the mobile document action sheet from contextmenu", async ({
 }) => {
   await page.setViewportSize({ width: 600, height: 800 });
   await page.goto("/e2e/fixtures/e2e.html");
-  await page.getByRole("button", { name: "目录", exact: true }).click();
-  const row = page.locator(".mobile-library button").first();
-  await row.dispatchEvent("contextmenu", { clientX: 24, clientY: 120 });
+  await page.getByRole("button", { name: "大纲", exact: true }).click();
+  const row = page.locator(".mobile-outline-tree .outline-node").first();
+  await row.getByRole("button", { name: /文档操作/ }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
   await expect(
     page.getByRole("button", { name: "移到回收站" }),
@@ -999,7 +990,7 @@ test("keeps mobile and tablet shells usable at narrow widths", async ({
     await page.setViewportSize({ width, height: 800 });
     await page.goto("/e2e/fixtures/e2e.html");
     await expect(page.locator(".mobile-shell")).toBeVisible();
-    await expect(page.locator(".mobile-tabbar")).toBeVisible();
+    await expect(page.locator(".mobile-dock")).toBeVisible();
     await expect(page.locator(".app")).toHaveAttribute(
       "data-shell",
       "mobile",

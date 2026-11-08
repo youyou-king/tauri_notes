@@ -119,6 +119,7 @@ export const ViewportBlock = Node.create({
   addOptions() {
     return {
       workspaceRoot: "",
+      libraryId: "",
       onPickViewport: undefined as
         | ((request: ViewportPickRequest) => void)
         | undefined,
@@ -165,6 +166,7 @@ export const ViewportBlock = Node.create({
   addNodeView() {
     return ({ node, editor, getPos }) => {
       const workspaceRoot = this.options.workspaceRoot;
+      const libraryId = this.options.libraryId;
       const onPickViewport = this.options.onPickViewport;
       const ownBlockId = String(node.attrs.blockId ?? "");
       let targetBlockIds: string[] = Array.isArray(node.attrs.targetBlockIds)
@@ -257,7 +259,7 @@ export const ViewportBlock = Node.create({
 
       const openPicker = () => {
         void referenceService
-          .listTargets(workspaceRoot)
+          .listTargets(libraryId)
           .then((targets) => {
             body.replaceChildren();
             if (targets.length === 0) {
@@ -285,7 +287,7 @@ export const ViewportBlock = Node.create({
               }
               void referenceService
                 .relink(
-                  workspaceRoot,
+                  libraryId,
                   currentReference,
                   target.documentId,
                   target.blockId,
@@ -318,12 +320,12 @@ export const ViewportBlock = Node.create({
       const load = (referenceId: string) => {
         previewEditor?.destroy();
         previewEditor = null;
-        if (!workspaceRoot || !referenceId) {
+        if (!workspaceRoot || !libraryId || !referenceId) {
           body.textContent = "未绑定引用";
           return;
         }
         void referenceService
-          .preview(workspaceRoot, referenceId)
+          .preview(libraryId, referenceId)
           .then((preview) => {
             body.classList.remove("proto-viewport-empty");
             targetBlockId = preview.blockId;
@@ -397,12 +399,12 @@ export const ViewportBlock = Node.create({
       const loadMany = (blockIds: string[]) => {
         const ownBlockId = String(node.attrs.blockId ?? "");
         blockIds = blockIds.filter((id) => id !== ownBlockId);
-        if (!workspaceRoot || blockIds.length === 0) {
+        if (!workspaceRoot || !libraryId || blockIds.length === 0) {
           showEmpty();
           return;
         }
         void documentService
-          .loadBlocksPreview(workspaceRoot, blockIds)
+          .loadBlocksPreview(libraryId, blockIds)
           .then(async (previews) => {
             if (previews.length === 0) {
               body.textContent = "选中的块不存在";
@@ -417,7 +419,7 @@ export const ViewportBlock = Node.create({
             const { createDocumentPreview } = await import(
               "../editor/previewEditor"
             );
-            previewEditor = createDocumentPreview(workspaceRoot, body);
+            previewEditor = createDocumentPreview(workspaceRoot, body, libraryId);
             previewEditor.commands.setContent(
               importedBlocksToDocument(
                 previews.map((preview, index) => ({

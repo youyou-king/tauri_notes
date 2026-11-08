@@ -5,14 +5,18 @@ import { documentService } from "../../application/documentService";
 import { listActions, resolveInputPlatform } from "../../kernel/action";
 import { runDocumentAction } from "../../app/documentActions";
 import { useRuntimeServices } from "../../runtime";
-import { PanelShell } from "../panels/PanelShell";
+import { PanelShell } from "../design-system/PanelShell";
+import { Button } from "../design-system/Button";
+import { PanelIcon } from "../design-system/PanelIcon";
+import { ContextMenu } from "../menu/ContextMenu";
 import type { ImportedDocumentSummary } from "../../domain/importedDocument";
+import type { LibraryId } from "../../types";
 
 export default function DocumentLibraryPane({
-  workspaceRoot,
+  libraryId,
   mapId,
 }: {
-  workspaceRoot: string;
+  libraryId: LibraryId;
   mapId: string;
 }) {
   const [documents, setDocuments] = useState<ImportedDocumentSummary[]>([]);
@@ -32,19 +36,26 @@ export default function DocumentLibraryPane({
   const menuActions = listActions().filter(
     (action) => action.category === "document",
   );
-
-  useEffect(() => {
-    if (!menu) {
-      return;
-    }
-    const close = () => setMenu(null);
-    window.addEventListener("click", close);
-    return () => window.removeEventListener("click", close);
-  }, [menu]);
+  const menuItems = menu
+    ? menuActions.map((action) => ({
+        id: action.id,
+        label: action.title,
+        danger: action.id === "document.delete",
+        onSelect: () => {
+          if (action.id === "document.open") {
+            void openDocument(menu.document);
+          } else if (action.id === "document.rename") {
+            void renameDocument(menu.document);
+          } else if (action.id === "document.delete") {
+            void deleteDocument(menu.document);
+          }
+        },
+      }))
+    : [];
 
   useEffect(() => {
     let cancelled = false;
-    const repository = new TauriImportedDocumentRepository(workspaceRoot);
+    const repository = new TauriImportedDocumentRepository(libraryId);
     void repository
       .list()
       .then((list) => {
@@ -61,14 +72,14 @@ export default function DocumentLibraryPane({
     return () => {
       cancelled = true;
     };
-  }, [reload, workspaceRoot]);
+  }, [reload, libraryId]);
 
   async function undoDelete() {
     if (!lastDeleted) {
       return;
     }
     try {
-      await documentService.restore(workspaceRoot, lastDeleted.id);
+      await documentService.restore(libraryId, lastDeleted.id);
       setStatus(`已恢复 ${lastDeleted.title}`);
       setLastDeleted(null);
       setReload((current) => current + 1);
@@ -85,7 +96,7 @@ export default function DocumentLibraryPane({
     }
     try {
       const created = await documentService.create(
-        workspaceRoot,
+        libraryId,
         mapId,
         title.trim(),
       );
@@ -103,7 +114,7 @@ export default function DocumentLibraryPane({
       document: {
         id: document.id,
         title: document.title,
-        workspaceRoot,
+        workspaceId: libraryId,
       },
       dialogs,
       documentActions,
@@ -127,7 +138,7 @@ export default function DocumentLibraryPane({
         document: {
           id: document.id,
           title: document.title,
-          workspaceRoot,
+          workspaceId: libraryId,
         },
         dialogs,
         documentActions,
@@ -146,7 +157,7 @@ export default function DocumentLibraryPane({
         document: {
           id: document.id,
           title: document.title,
-          workspaceRoot,
+          workspaceId: libraryId,
         },
         dialogs,
         documentActions,
@@ -165,23 +176,18 @@ export default function DocumentLibraryPane({
       className="document-library-panel"
       bodyClassName="document-library"
       title="文档库"
-      icon="📚"
+      icon={<PanelIcon icon="📚" />}
       status={status}
       toolbar={
         <>
-          <button type="button" onClick={() => void createDocument()}>
+          <Button onClick={() => void createDocument()}>
             新建文档
-          </button>
-          <button
-            type="button"
-            onClick={() => setReload((current) => current + 1)}
-          >
+          </Button>
+          <Button onClick={() => setReload((current) => current + 1)}>
             刷新
-          </button>
+          </Button>
           {lastDeleted && (
-            <button type="button" onClick={() => void undoDelete()}>
-              撤销删除
-            </button>
+            <Button onClick={() => void undoDelete()}>撤销删除</Button>
           )}
         </>
       }
@@ -217,47 +223,23 @@ export default function DocumentLibraryPane({
               </small>
             </button>
             <div className="document-library-actions">
-              <button
-                type="button"
-                onClick={() => void renameDocument(document)}
-              >
+              <Button onClick={() => void renameDocument(document)}>
                 重命名
-              </button>
-              <button
-                type="button"
-                onClick={() => void deleteDocument(document)}
-              >
+              </Button>
+              <Button onClick={() => void deleteDocument(document)}>
                 删除
-              </button>
+              </Button>
             </div>
           </div>
         ))}
       </div>
-      {menu && menuActions.length > 0 && (
-        <div
-          className="document-library-menu"
-          role="menu"
-          style={{ left: menu.x, top: menu.y }}
-        >
-          {menuActions.map((action) => (
-            <button
-              key={action.id}
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                if (action.id === "document.open") {
-                  void openDocument(menu.document);
-                } else if (action.id === "document.rename") {
-                  void renameDocument(menu.document);
-                } else if (action.id === "document.delete") {
-                  void deleteDocument(menu.document);
-                }
-              }}
-            >
-              {action.title}
-            </button>
-          ))}
-        </div>
+      {menu && menuItems.length > 0 && (
+        <ContextMenu
+          position={{ x: menu.x, y: menu.y }}
+          items={menuItems}
+          onClose={() => setMenu(null)}
+          label="文档菜单"
+        />
       )}
     </PanelShell>
   );

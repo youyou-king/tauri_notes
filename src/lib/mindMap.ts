@@ -2,8 +2,10 @@ import type { Edge, Node } from "@xyflow/react";
 import type { MindMapNode } from "../types";
 import type { MindMapNodeData } from "../components/MindMapNode";
 
-const X_GAP = 48;
-const Y_GAP = 132;
+const X_GAP = 64;
+const Y_GAP = 20;
+const NODE_HEIGHT = 44;
+const ROOT_HEIGHT = 52;
 const MIN_WIDTH = 110;
 
 function nodeWidth(node: MindMapNode, isRoot: boolean): number {
@@ -18,48 +20,45 @@ function nodeWidth(node: MindMapNode, isRoot: boolean): number {
   );
 }
 
+/**
+ * Left-to-right mind-map layout. Leaves advance the vertical cursor; a parent
+ * sits at the midpoint of its first and last child. Saved positions remain
+ * manual unless `ignoreManual` is requested by the arrange action.
+ */
 export function buildMindMap(
   root: MindMapNode,
   selectedId: string | null,
   onRename: (nodeId: string, title: string) => void,
+  options: { ignoreManual?: boolean } = {},
 ): { nodes: Node<MindMapNodeData>[]; edges: Edge[] } {
   const nodes: Node<MindMapNodeData>[] = [];
   const edges: Edge[] = [];
-  let cursor = 0;
+  let cursorY = 0;
 
-  function place(node: MindMapNode, depth: number, isRoot = false): number {
+  function place(node: MindMapNode, x: number, isRoot = false): number {
     const width = nodeWidth(node, isRoot);
-    const childCenters = node.children.map((child) => place(child, depth + 1));
-    const manual = node.positionX !== 0 || node.positionY !== 0;
+    const height = isRoot ? ROOT_HEIGHT : NODE_HEIGHT;
+    let centerY: number;
 
-    let center: number;
-    let x: number;
-    if (node.children.length > 0) {
-      center =
-        (childCenters[0] + childCenters[childCenters.length - 1]) / 2;
-      x = center - width / 2;
+    if (node.children.length === 0) {
+      centerY = cursorY + height / 2;
+      cursorY += height + Y_GAP;
     } else {
-      x = cursor;
-      cursor += width + X_GAP;
-      center = x + width / 2;
+      const childX = x + width + X_GAP;
+      const childCenters = node.children.map((child) =>
+        place(child, childX),
+      );
+      centerY =
+        (childCenters[0] + childCenters[childCenters.length - 1]) / 2;
     }
 
-    if (manual) {
-      x = node.positionX;
-      center = x + width / 2;
-    }
-    if (isRoot && !manual) {
-      center =
-        childCenters.length > 0
-          ? (childCenters[0] + childCenters[childCenters.length - 1]) / 2
-          : 0;
-      x = center - width / 2;
-    }
-    const y = manual ? node.positionY : isRoot ? 0 : depth * Y_GAP;
+    const manual = !options.ignoreManual && node.positionSaved;
+    const nodeX = manual ? node.positionX : x;
+    const nodeY = manual ? node.positionY : centerY - height / 2;
 
     nodes.push({
       id: node.id,
-      position: { x, y },
+      position: { x: nodeX, y: nodeY },
       data: {
         label: node.title,
         hasDocument: node.hasDocument,
@@ -74,6 +73,8 @@ export function buildMindMap(
       draggable: true,
       style: {
         width,
+        height,
+        boxSizing: "border-box",
         padding: "10px 12px",
         borderRadius: 10,
         border: `1px solid ${
@@ -106,7 +107,7 @@ export function buildMindMap(
       });
     }
 
-    return center;
+    return centerY;
   }
 
   place(root, 0, true);

@@ -12,6 +12,7 @@ import {
 } from "../domain/board";
 import { blockFingerprint } from "../domain/block";
 import type { BoardItemId } from "../domain/ids";
+import type { LibraryId } from "../types";
 import type { ReferenceState, ResolvedBlock } from "../domain/reference";
 import {
   type BoardControllerPort,
@@ -25,20 +26,20 @@ export type BoardController = BoardControllerPort;
 export type { PinBlockInput };
 
 export function useBoardController(
-  workspaceRoot: string | null,
+  libraryId: LibraryId | null,
 ): BoardController {
   const service = useMemo(() => {
-    if (!workspaceRoot) {
+    if (!libraryId) {
       return null;
     }
     return new BoardService(
-      workspaceRoot,
+      libraryId,
       new TauriBoardRepository(),
-      new TauriReferenceResolver(workspaceRoot),
+      new TauriReferenceResolver(libraryId),
       browserIds,
       systemClock,
     );
-  }, [workspaceRoot]);
+  }, [libraryId]);
 
   const [board, setBoard] = useState<Board | null>(null);
   const [states, setStates] = useState<Record<string, ReferenceState>>({});

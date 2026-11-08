@@ -1,25 +1,26 @@
 import { Suspense, type ComponentType, type PointerEvent } from "react";
 import { PanelContext, type PanelContextValue } from "../panels/PanelContext";
 import { MobileDocumentView } from "./MobileDocumentView";
+import type { LibraryId } from "../../types";
 
 type DocumentViewComponent = ComponentType<{
   workspaceRoot: string;
+  libraryId: LibraryId;
   documentId?: string;
   panelId?: string;
 }>;
 
 export function MobileDocumentPane({
   workspaceRoot,
+  libraryId,
   documentId,
   editing,
   panelContext,
   DocumentView,
   swipeHandlers,
-  onSave,
-  onDone,
-  onEdit,
 }: {
   workspaceRoot: string;
+  libraryId: LibraryId;
   documentId: string;
   editing: boolean;
   panelContext: PanelContextValue;
@@ -30,40 +31,25 @@ export function MobileDocumentPane({
     onPointerCancel: () => void;
     onPointerLeave: () => void;
   };
-  onSave: () => void;
-  onDone: () => void;
-  onEdit: () => void;
 }) {
   return (
-    <div className="mobile-document-shell" {...swipeHandlers}>
-      <div className="mobile-document-actions">
-        {editing ? (
-          <>
-            <button type="button" onClick={onSave}>
-              保存
-            </button>
-            <button type="button" onClick={onDone}>
-              完成
-            </button>
-          </>
-        ) : (
-          <button type="button" onClick={onEdit}>
-            编辑
-          </button>
-        )}
-      </div>
+    <div
+      className={`mobile-document-shell${editing ? " is-editing" : ""}`}
+      {...swipeHandlers}
+    >
       {editing && DocumentView ? (
         <PanelContext.Provider value={panelContext}>
           <Suspense fallback={<div className="panel-loading">加载编辑器…</div>}>
             <DocumentView
               workspaceRoot={workspaceRoot}
+              libraryId={libraryId}
               documentId={documentId}
             />
           </Suspense>
         </PanelContext.Provider>
       ) : (
         <MobileDocumentView
-          workspaceRoot={workspaceRoot}
+          libraryId={libraryId}
           documentId={documentId}
         />
       )}

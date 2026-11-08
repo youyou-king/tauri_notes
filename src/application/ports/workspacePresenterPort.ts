@@ -8,7 +8,6 @@ import type { WorkspaceView } from "../../types";
 export type WorkspacePresenterHandlers = {
   present(view: WorkspaceView, isNote: boolean): void;
   resetLayout(): void;
-  closeWorkspace(root: string, view?: WorkspaceView | null): void;
   activatePanel(panelId: string): void;
 };
 
@@ -16,6 +15,5 @@ export type WorkspacePresenter = {
   bind(handlers: WorkspacePresenterHandlers | null): void;
   present(view: WorkspaceView, isNote: boolean): void;
   resetLayout(): void;
-  closeWorkspace(root: string, view?: WorkspaceView | null): void;
   activatePanel(panelId: string): void;
 };

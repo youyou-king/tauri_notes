@@ -4,6 +4,7 @@ import { getCommand } from "../kernel/command";
 import type { ActionDefinition } from "../kernel/action/types";
 import { registerDocumentActions } from "./documentActions";
 import { registerLibraryActions } from "./libraryActions";
+import { COMMAND_LABELS } from "./commandLabels";
 
 function commandAction(
   id: string,
@@ -26,21 +27,35 @@ function commandAction(
 
 // Shell and feature actions. Command implementations stay in the command
 // registry; this table owns titles and bindings.
-commandAction("settings.open", "设置", "shell");
+commandAction("settings.open", COMMAND_LABELS["settings.open"], "shell");
 commandAction("search.open", "搜索", "navigation");
-commandAction("help.open", "使用帮助", "navigation");
+commandAction("help.open", COMMAND_LABELS["help.open"], "navigation");
 commandAction("board.open", "对照板", "navigation");
-commandAction("theme.open", "外观设置", "appearance");
+commandAction("theme.open", "外观", "appearance");
 commandAction("viewport.pick", "选择视图内容", "editor");
 
-commandAction("knowledge.create", "新建知识库", "knowledge");
-commandAction("knowledge.open", "打开知识库", "knowledge");
-commandAction("knowledge.backup", "备份知识库", "knowledge");
-commandAction("association.set", "设置 .note 文件关联", "knowledge");
-commandAction("association.clear", "清除 .note 文件关联", "knowledge");
-commandAction("view.outline", "大纲", "navigation");
-commandAction("view.console", "控制台", "navigation");
-commandAction("view.reset-layout", "重置布局", "navigation");
+commandAction(
+  "knowledge.create",
+  COMMAND_LABELS["knowledge.create"],
+  "knowledge",
+);
+commandAction(
+  "knowledge.open",
+  COMMAND_LABELS["knowledge.open"],
+  "knowledge",
+);
+commandAction(
+  "knowledge.backup",
+  COMMAND_LABELS["knowledge.backup"],
+  "knowledge",
+);
+commandAction("view.outline", COMMAND_LABELS["view.outline"], "navigation");
+commandAction("view.console", COMMAND_LABELS["view.console"], "navigation");
+commandAction(
+  "view.clear-layout",
+  COMMAND_LABELS["view.clear-layout"],
+  "navigation",
+);
 
 registerDocumentActions();
 

@@ -10,6 +10,7 @@ import {
   type BoardViewport,
 } from "../domain/board";
 import type { BoardId, BoardItemId } from "../domain/ids";
+import type { LibraryId } from "../types";
 import type { BlockReference, ReferenceState, ResolvedBlock } from "../domain/reference";
 import type {
   BoardRepository,
@@ -18,9 +19,12 @@ import type {
   ReferenceResolver,
 } from "./ports";
 
+/**
+ * 白板服务：只接收 LibraryId；后端从 registry 解析当前路径。
+ */
 export class BoardService {
   constructor(
-    private readonly workspaceRoot: string,
+    private readonly libraryId: LibraryId,
     private readonly boards: BoardRepository,
     private readonly resolver: ReferenceResolver,
     private readonly ids: IdGenerator,
@@ -28,20 +32,20 @@ export class BoardService {
   ) {}
 
   list(): Promise<BoardSummary[]> {
-    return this.boards.list(this.workspaceRoot);
+    return this.boards.list(this.libraryId);
   }
 
   load(boardId: BoardId): Promise<Board> {
-    return this.boards.read(this.workspaceRoot, boardId);
+    return this.boards.read(this.libraryId, boardId);
   }
 
   save(board: Board): Promise<void> {
-    return this.boards.save(this.workspaceRoot, board);
+    return this.boards.save(this.libraryId, board);
   }
 
   async create(title: string): Promise<Board> {
     const board = createBoard(this.ids.boardId(), title);
-    await this.boards.save(this.workspaceRoot, board);
+    await this.boards.save(this.libraryId, board);
     return board;
   }
 

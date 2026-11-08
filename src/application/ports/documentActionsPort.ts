@@ -3,11 +3,13 @@
  * implementation may call documentService today and a sync-aware repository
  * later; callers do not depend on either.
  */
+import type { LibraryId } from "../../types";
+
 export type DocumentActionsPort = {
   rename(
-    workspaceRoot: string,
+    libraryId: LibraryId,
     documentId: string,
     title: string,
   ): Promise<void>;
-  moveToTrash(workspaceRoot: string, documentId: string): Promise<void>;
+  moveToTrash(libraryId: LibraryId, documentId: string): Promise<void>;
 };

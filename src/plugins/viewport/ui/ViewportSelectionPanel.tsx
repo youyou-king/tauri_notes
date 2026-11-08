@@ -6,8 +6,10 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
+import { PanelIcon, StateView, SurfaceHeader } from "../../../ui/sdk";
 import { createPluginServices } from "../../../application/pluginServices";
 import { viewportFeature } from "../manifest";
+import type { LibraryId } from "../../../types";
 import {
   createDocumentPreview,
 } from "../../../editor/previewEditor";
@@ -65,6 +67,15 @@ export function ViewportSelectionPanel({
   onClose,
 }: Props) {
   const context = usePanelContext();
+  const libraryId: LibraryId = (() => {
+    const id =
+      context?.workspaces.find((item) => item.root === workspaceRoot)?.id ??
+      context?.workspace?.id;
+    if (!id) {
+      throw new Error("书库上下文缺失");
+    }
+    return id;
+  })();
   const documents = useMemo(() => {
     const output: DocumentOption[] = [];
     for (const workspace of context?.workspaces ?? []) {
@@ -116,7 +127,7 @@ export function ViewportSelectionPanel({
     setError(null);
     setBlocks([]);
     void pluginServices.document
-      .loadBlocks(workspaceRoot, sourceId)
+      .loadBlocks(libraryId, sourceId)
       .then((loaded) => {
         if (cancelled) {
           return;
@@ -143,7 +154,7 @@ export function ViewportSelectionPanel({
     return () => {
       cancelled = true;
     };
-  }, [request.excludeBlockId, sourceId, workspaceRoot]);
+  }, [request.excludeBlockId, sourceId, libraryId]);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -159,7 +170,7 @@ export function ViewportSelectionPanel({
     if (blocks.length === 0) {
       return;
     }
-    const editor = createDocumentPreview(workspaceRoot, host);
+    const editor = createDocumentPreview(workspaceRoot, host, libraryId);
     editor.view.dom.classList.add(
       "block-prototype-prosemirror",
       "imported-preview",
@@ -187,7 +198,7 @@ export function ViewportSelectionPanel({
         previewRef.current = null;
       }
     };
-  }, [blocks, error, loading, workspaceRoot]);
+  }, [blocks, error, loading, workspaceRoot, libraryId]);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -291,7 +302,7 @@ export function ViewportSelectionPanel({
             {node.children.length > 0 ? (expanded ? "▾" : "▸") : "·"}
           </button>
           <span className="outline-icon">
-            {node.hasDocument ? "📄" : "💡"}
+            <PanelIcon icon={node.hasDocument ? "📄" : "💡"} />
           </span>
           <button
             type="button"
@@ -320,23 +331,18 @@ export function ViewportSelectionPanel({
     <div className="viewport-selection-root">
       <aside
         className="viewport-selection-panel"
-        role="dialog"
+        role="complementary"
         aria-label="选择引用内容"
       >
-        <header className="viewport-selection-header">
-          <div>
-            <span className="viewport-selection-eyebrow">引用选择</span>
-            <h2>选择要引用的内容</h2>
-          </div>
-          <button
-            type="button"
-            className="viewport-selection-close"
-            aria-label="关闭引用选择"
-            onClick={onClose}
-          >
-            ×
-          </button>
-        </header>
+        <SurfaceHeader
+          className="viewport-selection-header"
+          eyebrow="引用选择"
+          title="选择要引用的内容"
+          titleAs="h2"
+          onClose={onClose}
+          closeLabel="关闭引用选择"
+          closeClassName="viewport-selection-close"
+        />
 
         <div className="viewport-selection-body">
           <nav className="viewport-selection-outline" aria-label="文档大纲">
@@ -392,15 +398,24 @@ export function ViewportSelectionPanel({
             >
               <div ref={hostRef} />
               {loading && (
-                <div className="viewport-selection-empty">正在读取内容…</div>
+                <StateView
+                  className="viewport-selection-empty"
+                  tone="loading"
+                  detail="正在读取内容…"
+                />
               )}
               {!loading && error && (
-                <div className="viewport-selection-error">{error}</div>
+                <StateView
+                  className="viewport-selection-error"
+                  tone="error"
+                  detail={error}
+                />
               )}
               {!loading && !error && blocks.length === 0 && (
-                <div className="viewport-selection-empty">
-                  这个文档没有可引用的内容。
-                </div>
+                <StateView
+                  className="viewport-selection-empty"
+                  detail="这个文档没有可引用的内容。"
+                />
               )}
             </div>
           </section>

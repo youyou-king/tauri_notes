@@ -37,7 +37,6 @@ export const CONTRIBUTION_KINDS = [
   "blockTypes",
   "mapNodeTypes",
   "appearancePacks",
-  "migrations",
 ] as const;
 
 export type ContributionKind = (typeof CONTRIBUTION_KINDS)[number];
@@ -99,7 +98,6 @@ const CONTRIBUTION_CAPABILITIES: Partial<
   appearancePacks: "appearance.read",
   blockTypes: "document.write",
   mapNodeTypes: "document.write",
-  migrations: "document.write",
 };
 
 const PLUGIN_ID = /^[a-z0-9][a-z0-9-]{0,40}$/;

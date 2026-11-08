@@ -6,11 +6,12 @@ import { getAction, registerAction } from "../kernel/action";
 import { APP_EVENTS, emitAppEvent } from "../kernel/events";
 import type { DialogPort } from "../application/ports/dialogPort";
 import type { DocumentActionsPort } from "../application/ports/documentActionsPort";
+import type { LibraryId } from "../types";
 
 export type DocumentActionTarget = {
   id: string;
   title: string;
-  workspaceRoot: string;
+  workspaceId: LibraryId;
 };
 
 export type DocumentActionContext = {
@@ -85,7 +86,7 @@ export function registerDocumentActions(): void {
         return;
       }
       await context.documentActions.rename(
-        context.document.workspaceRoot,
+        context.document.workspaceId,
         context.document.id,
         next,
       );
@@ -120,12 +121,12 @@ export function registerDocumentActions(): void {
         return;
       }
       await context.documentActions.moveToTrash(
-        context.document.workspaceRoot,
+        context.document.workspaceId,
         context.document.id,
       );
       emitAppEvent(APP_EVENTS.documentDeleted, {
         documentId: context.document.id,
-        root: context.document.workspaceRoot,
+        libraryId: context.document.workspaceId,
       });
       emitAppEvent(APP_EVENTS.documentChanged);
       context.onDeleted?.();

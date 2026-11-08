@@ -3,14 +3,10 @@ import {
   type AppearancePackManifest,
 } from "./appearancePack";
 import { sha256Base64 } from "./integrity";
-import {
-  verifyPublisherSignature,
-  type AppearancePublisher,
-} from "./publisher";
 
-const EOCD_SIGNATURE = 0x06054b50;
-const CENTRAL_SIGNATURE = 0x02014b50;
-const LOCAL_SIGNATURE = 0x04034b50;
+const EOCD_MARKER = 0x06054b50;
+const CENTRAL_MARKER = 0x02014b50;
+const LOCAL_MARKER = 0x04034b50;
 const MAX_ENTRIES = 256;
 const MAX_MANIFEST_BYTES = 256 * 1024;
 const MAX_TOTAL_BYTES = 16 * 1024 * 1024;
@@ -28,7 +24,6 @@ export type AppearancePackReadResult = {
   pack?: AppearancePackManifest;
   assets?: string[];
   warnings?: string[];
-  publisher?: AppearancePublisher;
   error?: string;
 };
 
@@ -53,7 +48,7 @@ export function readZipEntries(buffer: ArrayBuffer): AppearanceZipEntry[] {
   const minimum = Math.max(0, buffer.byteLength - 65557);
   let eocd = -1;
   for (let offset = buffer.byteLength - 22; offset >= minimum; offset -= 1) {
-    if (view.getUint32(offset, true) === EOCD_SIGNATURE) {
+    if (view.getUint32(offset, true) === EOCD_MARKER) {
       eocd = offset;
       break;
     }
@@ -86,7 +81,7 @@ export function readZipEntries(buffer: ArrayBuffer): AppearanceZipEntry[] {
   for (let index = 0; index < count; index += 1) {
     if (
       offset + 46 > buffer.byteLength ||
-      view.getUint32(offset, true) !== CENTRAL_SIGNATURE
+      view.getUint32(offset, true) !== CENTRAL_MARKER
     ) {
       fail("ZIP 中央目录损坏");
     }
@@ -125,7 +120,7 @@ export function readZipEntries(buffer: ArrayBuffer): AppearanceZipEntry[] {
     }
     if (
       localOffset + 30 > buffer.byteLength ||
-      view.getUint32(localOffset, true) !== LOCAL_SIGNATURE
+      view.getUint32(localOffset, true) !== LOCAL_MARKER
     ) {
       fail("ZIP 本地文件头损坏");
     }
@@ -219,10 +214,6 @@ export async function readAppearancePack(
     if (!result.pack) {
       fail(result.error ?? "外观包不合法");
     }
-    const signature = await verifyPublisherSignature(result.pack);
-    if (signature.error) {
-      fail(signature.error);
-    }
     for (const [path, expected] of Object.entries(
       result.pack.integrity ?? {},
     )) {
@@ -245,9 +236,9 @@ export async function readAppearancePack(
         .map((entry) => entry.path)
         .filter((path) => path !== "appearance.json"),
       warnings: result.warnings,
-      publisher: signature.publisher,
     };
   } catch (error) {
     return { error: error instanceof Error ? error.message : String(error) };
   }
 }
+

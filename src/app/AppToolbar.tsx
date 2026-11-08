@@ -1,10 +1,13 @@
 import type { ToolbarItemContribution } from "../kernel/plugin";
+import { getCommand } from "../kernel/command";
 import { usePluginContributions } from "../ui/plugins/PluginProvider";
 import {
   ToolbarButton,
   ToolbarMenu,
 } from "../ui/toolbar/ToolbarMenu";
 import { CORE_TOOLBAR_ITEMS } from "./coreToolbar";
+import { WindowControls } from "../ui/shell/WindowControls";
+import { useWindowTitleBarDoubleClick } from "../ui/shell/useWindowTitleBar";
 import {
   applyKeymap,
   listActions,
@@ -14,7 +17,6 @@ import {
 import { useKeymapStore } from "../application/stores/keymapStore";
 
 type Props = {
-  backend: string;
   busy: boolean;
   hasWorkspace: boolean;
   runCommand: (id: string) => void;
@@ -28,7 +30,6 @@ type MenuGroup = {
 };
 
 export function AppToolbar({
-  backend,
   busy,
   hasWorkspace,
   runCommand,
@@ -40,6 +41,7 @@ export function AppToolbar({
     (left, right) => (left.order ?? 0) - (right.order ?? 0),
   );
   const keymap = useKeymapStore((state) => state.document);
+  const onTitleBarDoubleClick = useWindowTitleBarDoubleClick();
   const platform = resolveInputPlatform();
   const actions = applyKeymap(listActions(), keymap);
   const shortcut = (commandId: string | undefined) =>
@@ -47,6 +49,10 @@ export function AppToolbar({
       actions.find((action) => action.id === commandId),
       platform,
     );
+  const labelFor = (item: ToolbarItemContribution) =>
+    item.commandId
+      ? (getCommand(item.commandId)?.label ?? item.label)
+      : item.label;
 
   const groups = new Map<string, MenuGroup>();
   const directItems: ToolbarItemContribution[] = [];
@@ -70,8 +76,12 @@ export function AppToolbar({
   );
 
   return (
-    <header className="toolbar">
-      <div className="brand">
+    <header
+      className="toolbar"
+      data-tauri-drag-region
+      onDoubleClick={onTitleBarDoubleClick}
+    >
+      <div className="brand" data-tauri-drag-region>
         <span className="brand-mark">N</span>
         <span>Notes</span>
       </div>
@@ -92,7 +102,7 @@ export function AppToolbar({
                 }
                 title={
                   shortcut(item.commandId)
-                    ? `${item.label} (${shortcut(item.commandId)})`
+                    ? `${labelFor(item)} (${shortcut(item.commandId)})`
                     : undefined
                 }
                 onClick={() => {
@@ -101,7 +111,7 @@ export function AppToolbar({
                   }
                 }}
               >
-                {item.label}
+                {labelFor(item)}
               </button>
             ))}
           </ToolbarMenu>
@@ -118,7 +128,7 @@ export function AppToolbar({
           return (
             <ToolbarButton
               key={item.id}
-              label={item.label}
+              label={labelFor(item)}
               shortcut={shortcut(item.commandId)}
               disabled={busy && item.requiresIdle}
               onClick={() => {
@@ -130,13 +140,8 @@ export function AppToolbar({
           );
         })}
       </div>
-      <div
-        className={`backend ${
-          backend.startsWith("未") ? "offline" : "online"
-        }`}
-      >
-        {backend}
-      </div>
+      <div className="toolbar-spacer" data-tauri-drag-region />
+      <WindowControls />
     </header>
   );
 }

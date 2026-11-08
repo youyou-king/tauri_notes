@@ -16,6 +16,7 @@ import { CodeHighlight } from "./codeHighlight";
 export function createDocumentPreview(
   workspaceRoot: string,
   element: HTMLElement,
+  libraryId: string,
 ) {
   return new Editor({
     element,
@@ -26,7 +27,7 @@ export function createDocumentPreview(
       CodeHighlight,
       BlockLayout,
       BlockGroup,
-      ViewportBlock.configure({ workspaceRoot }),
+      ViewportBlock.configure({ workspaceRoot, libraryId }),
       RawMarkdownBlock,
       TableBlock,
       ImageInline,

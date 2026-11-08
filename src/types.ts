@@ -19,6 +19,7 @@ export type MindMapNode = {
   headingBlockId: string | null;
   positionX: number;
   positionY: number;
+  positionSaved: boolean;
   children: MindMapNode[];
 };
 
@@ -34,8 +35,23 @@ export type OutlineView = {
   unfiled: Array<{ documentId: string; title: string }>;
 };
 
+/** 书库稳定身份；与文件位置无关。 */
+export type LibraryId = `lib_${string}`;
+
+/** 书库当前所在的文件系统位置；只用于文件 I/O。 */
+declare const libraryPathBrand: unique symbol;
+export type LibraryPath = string & {
+  readonly [libraryPathBrand]: true;
+};
+
+export function asLibraryPath(value: string): LibraryPath {
+  return value as LibraryPath;
+}
+
 export type WorkspaceView = {
-  root: string;
+  /** 稳定身份，由后端书库 metadata 提供。 */
+  id: LibraryId;
+  root: LibraryPath;
   title: string;
   maps: MapView[];
 };

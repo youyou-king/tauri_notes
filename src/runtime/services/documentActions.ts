@@ -3,11 +3,11 @@ import type { DocumentActionsPort } from "../../application/ports/documentAction
 
 function createDocumentActions(): DocumentActionsPort {
   return {
-    rename(workspaceRoot, documentId, title) {
-      return documentService.rename(workspaceRoot, documentId, title);
+    rename(libraryId, documentId, title) {
+      return documentService.rename(libraryId, documentId, title);
     },
-    moveToTrash(workspaceRoot, documentId) {
-      return documentService.delete(workspaceRoot, documentId);
+    moveToTrash(libraryId, documentId) {
+      return documentService.delete(libraryId, documentId);
     },
   };
 }

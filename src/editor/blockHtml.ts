@@ -20,7 +20,7 @@ function getPreviewSchema() {
     StarterKit.configure({ codeBlock: false }),
     CodeBlockView,
     BlockLayout,
-    ViewportBlock.configure({ workspaceRoot: "" }),
+    ViewportBlock.configure({ workspaceRoot: "", libraryId: "" }),
     RawMarkdownBlock,
     TableBlock,
     ImageInline,

@@ -6,6 +6,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { Popover } from "../design-system/Popover";
 
 const MENU_OPEN_EVENT = "toolbar:menu-open";
 
@@ -30,33 +31,6 @@ export function useToolbarPopover(
       show();
     }
   }, [close, open, show]);
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    const onPointerDown = (event: PointerEvent) => {
-      const target = event.target as Element;
-      if (target.closest(".app-dialog-backdrop")) {
-        return;
-      }
-      if (!ref.current?.contains(target)) {
-        close();
-      }
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        close();
-      }
-    };
-    document.addEventListener("pointerdown", onPointerDown);
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown);
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [close, open]);
 
   useEffect(() => {
     const handler = (event: Event) => {
@@ -127,15 +101,17 @@ export function ToolbarMenu({
           ▾
         </span>
       </button>
-      {open && (
-        <div
-          id={panelId}
-          className="toolbar-popover"
-          onClick={closeOnSelect ? close : undefined}
-        >
-          {content}
-        </div>
-      )}
+      <Popover
+        open={open}
+        anchor={{ kind: "element", element: ref.current }}
+        onClose={close}
+        className="toolbar-popover"
+        id={panelId}
+        ariaLabel={`${label}菜单`}
+        onClick={closeOnSelect ? close : undefined}
+      >
+        {content}
+      </Popover>
     </div>
   );
 }

@@ -1,5 +1,7 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
+import { IconButton } from "../ui/design-system/Button";
+import { Icon } from "../ui/design-system/Icon";
 
 export type MindMapNodeData = {
   label: string;
@@ -88,8 +90,8 @@ function MindMapNode({ data }: NodeProps<MindMapFlowNode>) {
           }}
           onDoubleClick={(event) => event.stopPropagation()}
         />
-        <Handle type="target" position={Position.Top} />
-        <Handle type="source" position={Position.Bottom} />
+        <Handle type="target" position={Position.Left} />
+        <Handle type="source" position={Position.Right} />
       </div>
     );
   }
@@ -106,9 +108,10 @@ function MindMapNode({ data }: NodeProps<MindMapFlowNode>) {
       title="双击重命名"
     >
       {data.hasDocument && (
-        <span
+        <IconButton
+          label="打开文档"
           className="mind-map-node-doc"
-          title="打开文档"
+          onMouseDown={(event) => event.stopPropagation()}
           onClick={(event) => {
             event.stopPropagation();
             if (data.documentId) {
@@ -120,12 +123,12 @@ function MindMapNode({ data }: NodeProps<MindMapFlowNode>) {
             }
           }}
         >
-          📄
-        </span>
+          <Icon name="document" size={13} />
+        </IconButton>
       )}
       <span className="mind-map-node-label">{data.label}</span>
-      <Handle type="target" position={Position.Top} />
-      <Handle type="source" position={Position.Bottom} />
+      <Handle type="target" position={Position.Left} />
+      <Handle type="source" position={Position.Right} />
     </div>
   );
 }

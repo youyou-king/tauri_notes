@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { APP_EVENTS, emitAppEvent } from "../../../kernel/sdk";
+import { Icon, IconButton, Select, StateView } from "../../../ui/sdk";
 import {
   ZOOM_LEVELS,
   type BoardViewport,
@@ -166,7 +167,7 @@ function ViewportCard({
         {state?.status === "missing" ? (
           <div className="board-card-missing">
             <p>来源已失效：{item.reference.lastDocId}</p>
-            <select
+            <Select
               value={selectedSource}
               onChange={(event) => setSelectedSource(event.target.value)}
             >
@@ -176,7 +177,7 @@ function ViewportCard({
                   {source.docTitle} / {source.blockTitle}
                 </option>
               ))}
-            </select>
+            </Select>
             <button
               type="button"
               onClick={() => {
@@ -288,7 +289,7 @@ export default function BoardView({
             </p>
           </div>
           <div className="board-header-actions">
-            <select
+            <Select
               className="board-source-picker"
               value={pickedSource}
               onChange={(event) => setPickedSource(event.target.value)}
@@ -300,7 +301,7 @@ export default function BoardView({
                   {source.docTitle} / {source.blockTitle}
                 </option>
               ))}
-            </select>
+            </Select>
             <button
               type="button"
               className="board-add-source"
@@ -317,19 +318,28 @@ export default function BoardView({
             >
               + 添加引用
             </button>
-            <button type="button" className="board-close" onClick={onClose}>
-              关闭
-            </button>
+            <IconButton label="关闭" className="board-close" onClick={onClose}>
+              <Icon name="close" />
+            </IconButton>
           </div>
         </header>
 
         <div className="board-body">
-          {controller.error && <div className="error-banner">{controller.error}</div>}
-          {controller.loading && <div className="board-empty">加载中…</div>}
+          {controller.error && (
+            <StateView
+              className="error-banner"
+              tone="error"
+              detail={controller.error}
+            />
+          )}
+          {controller.loading && (
+            <StateView className="board-empty" tone="loading" detail="加载中…" />
+          )}
           {!controller.loading && items.length === 0 && (
-            <div className="board-empty">
-              在文档中选中内容，点击“固定到对照板”。
-            </div>
+            <StateView
+              className="board-empty"
+              detail="在文档中选中内容，点击“固定到对照板”。"
+            />
           )}
 
           <div ref={cardsRef} className="board-cards">

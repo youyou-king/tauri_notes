@@ -9,12 +9,10 @@ export type PluginStoragePort = {
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
 const PLUGIN_PREFIX = "tauri-notes.plugin.";
-const LEGACY_PREFIX = "tauri-notes.";
 
 /**
  * Plugin-local key/value storage. Plugins must not reach into
- * `window.localStorage` directly; this port owns the namespace and migrates
- * legacy unprefixed keys on first access.
+ * `window.localStorage` directly; this port owns the namespace.
  */
 export function createPluginStorage(
   pluginId: string,
@@ -22,32 +20,14 @@ export function createPluginStorage(
 ): PluginStoragePort {
   const prefix = `${PLUGIN_PREFIX}${pluginId}.`;
   const scoped = (key: string) => `${prefix}${key}`;
-  const legacy = (key: string) => `${LEGACY_PREFIX}${key}`;
 
   return {
-    get: (key) => {
-      const current = backend.getItem(scoped(key));
-      if (current !== null) {
-        return current;
-      }
-      const previous = backend.getItem(legacy(key));
-      if (previous !== null) {
-        backend.setItem(scoped(key), previous);
-        backend.removeItem(legacy(key));
-      }
-      return previous;
-    },
-    set: (key, value) => {
-      backend.setItem(scoped(key), value);
-      backend.removeItem(legacy(key));
-    },
-    remove: (key) => {
-      backend.removeItem(scoped(key));
-      backend.removeItem(legacy(key));
-    },
+    get: (key) => backend.getItem(scoped(key)),
+    set: (key, value) => backend.setItem(scoped(key), value),
+    remove: (key) => backend.removeItem(scoped(key)),
     getJSON: <T>(key: string, fallback: T): T => {
       try {
-        const raw = backend.getItem(scoped(key)) ?? backend.getItem(legacy(key));
+        const raw = backend.getItem(scoped(key));
         if (raw === null) {
           return fallback;
         }
@@ -58,7 +38,6 @@ export function createPluginStorage(
     },
     setJSON: (key, value) => {
       backend.setItem(scoped(key), JSON.stringify(value));
-      backend.removeItem(legacy(key));
     },
   };
 }

@@ -1,4 +1,5 @@
 import { registerCommand } from "../kernel/command";
+import { COMMAND_LABELS } from "./commandLabels";
 
 export type NavCommandContext = {
   busy: boolean;
@@ -6,74 +7,53 @@ export type NavCommandContext = {
   createKnowledge: () => void;
   openKnowledge: () => void;
   backup: () => void;
-  setAssociation: () => void;
-  clearAssociation: () => void;
   toggleOutline: () => void;
   toggleConsole: () => void;
-  resetLayout: () => void;
+  clearLayout: () => void;
   openSettings: () => void;
-  openHelp: () => void;
 };
 
 registerCommand<NavCommandContext>({
   id: "knowledge.create",
-  label: "新建知识库…",
+  label: COMMAND_LABELS["knowledge.create"],
   enabled: (context) => !context.busy,
   run: (context) => context.createKnowledge(),
 });
 
 registerCommand<NavCommandContext>({
   id: "knowledge.open",
-  label: "打开知识库…",
+  label: COMMAND_LABELS["knowledge.open"],
   enabled: (context) => !context.busy,
   run: (context) => context.openKnowledge(),
 });
 
 registerCommand<NavCommandContext>({
   id: "knowledge.backup",
-  label: "保存",
+  label: COMMAND_LABELS["knowledge.backup"],
   enabled: (context) => !context.busy && context.hasWorkspace,
   run: (context) => context.backup(),
 });
 
 registerCommand<NavCommandContext>({
-  id: "association.set",
-  label: "设置 .note 文件关联",
-  run: (context) => context.setAssociation(),
-});
-
-registerCommand<NavCommandContext>({
-  id: "association.clear",
-  label: "清除 .note 文件关联",
-  run: (context) => context.clearAssociation(),
-});
-
-registerCommand<NavCommandContext>({
   id: "view.outline",
-  label: "大纲",
+  label: COMMAND_LABELS["view.outline"],
   run: (context) => context.toggleOutline(),
 });
 
 registerCommand<NavCommandContext>({
   id: "view.console",
-  label: "控制台",
+  label: COMMAND_LABELS["view.console"],
   run: (context) => context.toggleConsole(),
 });
 
 registerCommand<NavCommandContext>({
-  id: "view.reset-layout",
-  label: "重置布局",
-  run: (context) => context.resetLayout(),
-});
-
-registerCommand<NavCommandContext>({
-  id: "help.open",
-  label: "使用帮助",
-  run: (context) => context.openHelp(),
+  id: "view.clear-layout",
+  label: COMMAND_LABELS["view.clear-layout"],
+  run: (context) => context.clearLayout(),
 });
 
 registerCommand<NavCommandContext>({
   id: "settings.open",
-  label: "设置",
+  label: COMMAND_LABELS["settings.open"],
   run: (context) => context.openSettings(),
 });

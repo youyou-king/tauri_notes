@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { documentService } from "../../application/documentService";
 import type { StoredBlock } from "../../domain/importedDocument";
+import type { LibraryId } from "../../types";
 import { renderMarkdownHtml } from "../sdk";
 
 export function MobileDocumentView({
-  workspaceRoot,
+  libraryId,
   documentId,
 }: {
-  workspaceRoot: string;
+  libraryId: LibraryId;
   documentId: string;
 }) {
   const [title, setTitle] = useState("");
@@ -17,8 +18,8 @@ export function MobileDocumentView({
   useEffect(() => {
     let cancelled = false;
     void Promise.all([
-      documentService.getTitle(workspaceRoot, documentId),
-      documentService.loadBlocks(workspaceRoot, documentId),
+      documentService.getTitle(libraryId, documentId),
+      documentService.loadBlocks(libraryId, documentId),
     ])
       .then(([nextTitle, nextBlocks]) => {
         if (cancelled) {
@@ -36,7 +37,7 @@ export function MobileDocumentView({
     return () => {
       cancelled = true;
     };
-  }, [documentId, workspaceRoot]);
+  }, [documentId, libraryId]);
 
   return (
     <article className="mobile-document">

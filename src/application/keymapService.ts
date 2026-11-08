@@ -35,9 +35,11 @@ export const keymapService = {
             .map(normalizeRecord)
             .filter((record): record is KeymapRecord => record !== null)
         : [];
+      if (typeof document?.version !== "number") {
+        return EMPTY_KEYMAP;
+      }
       return {
-        version:
-          typeof document?.version === "number" ? document.version : 2,
+        version: document.version,
         bindings,
         defaults,
       };

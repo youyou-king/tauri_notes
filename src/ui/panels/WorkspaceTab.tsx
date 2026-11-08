@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import type { IDockviewPanelHeaderProps } from "dockview-react";
 import { usePanelStore } from "../../application/stores/panelStore";
-import { confirmDialog } from "../dialog/confirmDialog";
+import { confirmDialog } from "../dialog/appDialog";
+import { IconButton } from "../design-system/Button";
+import { Icon } from "../design-system/Icon";
+import { PanelIcon } from "../design-system/PanelIcon";
 import { getPanelIcon } from "./registry";
 
 export function WorkspaceTab(props: IDockviewPanelHeaderProps) {
@@ -21,13 +24,16 @@ export function WorkspaceTab(props: IDockviewPanelHeaderProps) {
   return (
     <div className="workspace-tab">
       <span className="workspace-tab-title">
-        {icon && <span className="workspace-tab-icon">{icon}</span>}
+        {icon && (
+          <span className="workspace-tab-icon">
+            <PanelIcon icon={icon} />
+          </span>
+        )}
         {title}
       </span>
-      <button
-        type="button"
+      <IconButton
+        label="关闭面板"
         className="workspace-tab-close"
-        title="关闭面板"
         onMouseDown={(event) => event.stopPropagation()}
         onPointerDown={(event) => event.stopPropagation()}
         onClick={(event) => {
@@ -48,8 +54,8 @@ export function WorkspaceTab(props: IDockviewPanelHeaderProps) {
           });
         }}
       >
-        ×
-      </button>
+        <Icon name="close" size={12} />
+      </IconButton>
     </div>
   );
 }

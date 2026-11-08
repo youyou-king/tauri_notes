@@ -2,18 +2,16 @@ import type { LibraryPort } from "../application/ports/libraryPort";
 import type { WorkspacePresenter } from "../application/ports/workspacePresenterPort";
 import type { DialogPort } from "../application/ports/dialogPort";
 import { findNode } from "../domain/tree";
-import { ensureLibrary } from "../infrastructure/libraryBootstrapper";
+import { loadLibraryStatus } from "../infrastructure/libraryStatus";
+import { libraryService } from "../application/libraryService";
 import { workspaceService } from "../application/workspaceService";
 import {
   buildDatabaseTree,
   mergeDatabaseDocuments,
 } from "../application/workspaceTree";
-import {
-  clearWorkspaceTitle,
-  readSession,
-  readWorkspaceTitle,
-} from "../application/sessionService";
+import { readSession } from "../application/sessionService";
 import type { WorkspaceView } from "../types";
+import type { MissingLibrary } from "../application/stores/workspaceStore";
 
 type WorkspaceUpdater = (
   next:
@@ -34,14 +32,17 @@ type Args = {
   rememberWorkspace: (view: WorkspaceView) => void;
   setWorkspace: WorkspaceUpdater;
   setWorkspaces: WorkspacesUpdater;
+  setMissingLibraries: (
+    next:
+      | MissingLibrary[]
+      | ((current: MissingLibrary[]) => MissingLibrary[]),
+  ) => void;
   select: (
     mapId: string | null,
     node: WorkspaceView["maps"][number]["root"] | null,
   ) => void;
-  renameWorkspaceDisplay: (root: string, title: string) => void;
   setBusy: (busy: boolean) => void;
   setError: (message: string | null) => void;
-  setBackend: (message: string) => void;
   appendLog: (line: string) => void;
   confirmDiscard: () => Promise<boolean>;
   dialogs: DialogPort;
@@ -49,21 +50,16 @@ type Args = {
   workspacePresenter: WorkspacePresenter;
 };
 
-function isDemoRoot(root: string): boolean {
-  return /(^|[\\/])sample\.notes[\\/]*$/i.test(root.trim());
-}
-
 export function useWorkspaceOpen({
   workspace,
   workspaces,
   rememberWorkspace,
   setWorkspace,
   setWorkspaces,
+  setMissingLibraries,
   select,
-  renameWorkspaceDisplay,
   setBusy,
   setError,
-  setBackend,
   appendLog,
   confirmDiscard,
   dialogs,
@@ -77,11 +73,14 @@ export function useWorkspaceOpen({
     setBusy(true);
     try {
       const note = /\.note$/i.test(workspace.root);
-      const path = await workspaceService.backup(workspace.root, note);
-      setBackend(`备份完成：${path}`);
+      const path = await workspaceService.backup(
+        workspace.id,
+        workspace.root,
+        note,
+      );
       appendLog(`数据库备份：${path}`);
     } catch (error) {
-      setBackend(`备份失败：${String(error)}`);
+      setError(`备份失败：${String(error)}`);
     } finally {
       setBusy(false);
     }
@@ -98,30 +97,30 @@ export function useWorkspaceOpen({
     setError(null);
     const isNote = /\.note$/i.test(picked);
     try {
-      const view = await workspaceService.open(picked);
+      const view = await libraryService.register(picked);
+      setMissingLibraries((current) =>
+        current.filter(
+          (item) => item.id !== view.id && item.path !== view.root,
+        ),
+      );
       const map = view.maps[0] ?? null;
       const root = map?.root ?? null;
       if (!isNote && root) {
-        await ensureLibrary(picked);
+        await loadLibraryStatus(view.id);
       }
       if (isNote) {
         rememberWorkspace(view);
       } else {
         const databaseDocuments =
-          await workspaceService.listDocuments(picked);
-        const treeRows = await workspaceService.loadDocumentTree(picked);
+          await workspaceService.listDocuments(view.id);
+        const treeRows = await workspaceService.loadDocumentTree(view.id);
         rememberWorkspace(
           treeRows.length > 0
             ? buildDatabaseTree(view, treeRows)
             : mergeDatabaseDocuments(view, databaseDocuments),
         );
       }
-      const storedTitle = readWorkspaceTitle(view.root);
-      if (storedTitle) {
-        renameWorkspaceDisplay(view.root, storedTitle);
-      }
       select(map?.id ?? null, root);
-      setBackend(`已打开：${view.title}（${view.maps.length} 张导图）`);
       appendLog(`打开知识库：${view.title}`);
       workspacePresenter.present(view, isNote);
     } catch (err) {
@@ -136,7 +135,6 @@ export function useWorkspaceOpen({
       return;
     }
     setError(null);
-    let pickedPath: string | null = null;
     try {
       let title: string | null = null;
       if (library.managed) {
@@ -153,16 +151,12 @@ export function useWorkspaceOpen({
       if (!picked) {
         return;
       }
-      pickedPath = picked;
-      clearWorkspaceTitle(picked);
       const replacing = workspaces.some((item) => item.root === picked);
       setWorkspaces((current) =>
         current.filter((item) => item.root !== picked),
       );
       if (replacing) {
         workspacePresenter.resetLayout();
-      } else {
-        workspacePresenter.closeWorkspace(picked);
       }
       const view = await workspaceService.createNoteFile(
         picked,
@@ -178,14 +172,7 @@ export function useWorkspaceOpen({
       await openWorkspacePath(view.root, { skipDiscardCheck: true });
     } catch (error) {
       window.localStorage.removeItem("tauri-notes.last-note-directory");
-      const raw = String(error);
-      const blocked =
-        /拒绝访问|权限|access denied|os error 5|code: 14/i.test(raw);
-      setError(
-        pickedPath && blocked
-          ? `无法写入 ${pickedPath}。当前应用进程没有该目录的写入权限。\n${raw}`
-          : raw,
-      );
+      setError(String(error));
     }
   }
 
@@ -205,29 +192,49 @@ export function useWorkspaceOpen({
     }
   }
 
-  function withStoredTitle(view: WorkspaceView): WorkspaceView {
-    const stored = readWorkspaceTitle(view.root);
-    return stored ? { ...view, title: stored } : view;
-  }
-
   async function restoreSession(): Promise<boolean> {
     const session = readSession();
     if (!session) {
       return false;
     }
-    const { activeRoot } = session;
-    const roots = session.roots.filter((root) => !isDemoRoot(root));
+    const candidates = [
+      ...session.libraries,
+      ...session.missing.map((item) => ({
+        id: item.id,
+        path: item.path,
+      })),
+    ];
+    const seen = new Set<string>();
+    const libraries = candidates.filter((item) => {
+      if (seen.has(item.path)) {
+        return false;
+      }
+      seen.add(item.path);
+      return true;
+    });
     const views: WorkspaceView[] = [];
-    for (const root of roots) {
+    const missing: MissingLibrary[] = [];
+    for (const library of libraries) {
       try {
-        const view = await workspaceService.open(root);
-        views.push(withStoredTitle(view));
-      } catch {
-        // Session entries that no longer exist are ignored.
+        const view = library.id
+          ? await libraryService.open(library.id)
+          : await libraryService.register(library.path);
+        views.push(view);
+      } catch (error) {
+        // ID 失效（移动/复制）时按路径重新登记一次。
+        try {
+          views.push(await libraryService.register(library.path));
+        } catch (fallbackError) {
+          missing.push({
+            id: library.id,
+            path: library.path,
+            reason: String(fallbackError || error),
+          });
+        }
       }
     }
     const active =
-      views.find((view) => view.root === activeRoot) ??
+      views.find((view) => view.id === session.activeId) ??
       views[views.length - 1] ??
       null;
     const restoredMap =
@@ -240,6 +247,7 @@ export function useWorkspaceOpen({
         : null) ??
       restoredMap?.root ??
       null;
+    setMissingLibraries(missing);
     setWorkspaces(views);
     setWorkspace(active);
     select(restoredMap?.id ?? null, restoredNode);
@@ -278,6 +286,46 @@ export function useWorkspaceOpen({
     await openWorkspacePath(path, { skipDiscardCheck: true });
   }
 
+  async function relocateMissing(item: MissingLibrary): Promise<void> {
+    setBusy(true);
+    setError(null);
+    try {
+      const picked = await library.pickExisting();
+      if (!picked) {
+        return;
+      }
+      const view = item.id
+        ? await libraryService.relocate(item.id, picked)
+        : await libraryService.register(picked);
+      rememberWorkspace(view);
+      setWorkspace(view);
+      select(view.maps[0]?.id ?? null, view.maps[0]?.root ?? null);
+      workspacePresenter.present(view, /\.note$/i.test(view.root));
+      setMissingLibraries((current) =>
+        current.filter((entry) => entry.path !== item.path),
+      );
+      appendLog(`重新定位书库：${view.title}`);
+    } catch (error) {
+      setError(String(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function forgetMissing(item: MissingLibrary): Promise<void> {
+    try {
+      if (item.id) {
+        await libraryService.forget(item.id);
+      }
+      setMissingLibraries((current) =>
+        current.filter((entry) => entry.path !== item.path),
+      );
+      appendLog(`移除失效书库：${item.path}`);
+    } catch (error) {
+      setError(String(error));
+    }
+  }
+
   return {
     backupLibrary,
     openWorkspacePath,
@@ -286,5 +334,7 @@ export function useWorkspaceOpen({
     openHelp,
     restoreSession,
     openOnlyWorkspace,
+    relocateMissing,
+    forgetMissing,
   };
 }

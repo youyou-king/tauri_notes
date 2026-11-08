@@ -1,41 +1,22 @@
-import { confirmDialog } from "../../ui/dialog/confirmDialog";
 import {
-  createMobileAlert,
-  createMobileConfirm,
-  createMobilePrompt,
-} from "../../ui/mobile/mobileDialogs";
+  alertDialog,
+  confirmDialog,
+  promptDialog,
+} from "../../ui/dialog/appDialog";
 import type { DialogPort } from "../../application/ports/dialogPort";
 
-function createTauriDialogs(): DialogPort {
+export function createAppDialogs(): DialogPort {
   return {
     confirm(options) {
       return confirmDialog(options);
     },
 
     prompt(options) {
-      return Promise.resolve(
-        window.prompt(options.title, options.defaultValue ?? ""),
-      );
+      return promptDialog(options);
     },
 
     alert(message) {
-      window.alert(message);
+      void alertDialog({ message });
     },
-  };
-}
-
-export function createDesktopDialogs(): DialogPort {
-  return createTauriDialogs();
-}
-
-/**
- * Mobile WebViews do not implement `window.prompt`/`window.confirm`
- * consistently. Use the compact DOM dialog adapter instead.
- */
-export function createMobileDialogs(): DialogPort {
-  return {
-    confirm: createMobileConfirm,
-    prompt: createMobilePrompt,
-    alert: createMobileAlert,
   };
 }

@@ -1,22 +1,26 @@
 import { command } from "../infrastructure/tauri/client";
+import type { LibraryId } from "../types";
 import type { StoredBlock } from "../domain/importedDocument";
 
+/**
+ * 已导入文档服务：只接收 LibraryId；后端从 registry 解析当前路径。
+ */
 export const documentService = {
   list(
-    workspace: string,
+    libraryId: LibraryId,
   ): Promise<Array<{ id: string; title: string }>> {
-    return command("list_imported_documents", { workspace });
+    return command("list_imported_documents", { libraryId });
   },
 
   loadBlocks(
-    workspace: string,
+    libraryId: LibraryId,
     documentId: string,
   ): Promise<StoredBlock[]> {
-    return command("load_document_blocks", { workspace, documentId });
+    return command("load_document_blocks", { libraryId, documentId });
   },
 
   loadBlocksPreview(
-    workspace: string,
+    libraryId: LibraryId,
     blockIds: string[],
   ): Promise<
     Array<{
@@ -28,56 +32,56 @@ export const documentService = {
       contentJson: string;
     }>
   > {
-    return command("load_blocks_preview", { workspace, blockIds });
+    return command("load_blocks_preview", { libraryId, blockIds });
   },
 
   create(
-    workspace: string,
+    libraryId: LibraryId,
     mapId: string,
     title: string,
   ): Promise<{ id: string; title: string }> {
     return command("create_imported_document", {
-      workspace,
+      libraryId,
       mapId,
       title,
     });
   },
 
-  getTitle(workspace: string, documentId: string): Promise<string> {
+  getTitle(libraryId: LibraryId, documentId: string): Promise<string> {
     return command("get_imported_document_title", {
-      workspace,
+      libraryId,
       documentId,
     });
   },
 
   rename(
-    workspace: string,
+    libraryId: LibraryId,
     documentId: string,
     title: string,
   ): Promise<void> {
     return command("rename_imported_document", {
-      workspace,
+      libraryId,
       documentId,
       title,
     });
   },
 
-  delete(workspace: string, documentId: string): Promise<void> {
+  delete(libraryId: LibraryId, documentId: string): Promise<void> {
     return command("delete_imported_document", {
-      workspace,
+      libraryId,
       documentId,
     });
   },
 
   listDeleted(
-    workspace: string,
+    libraryId: LibraryId,
   ): Promise<Array<{ id: string; title: string }>> {
-    return command("list_deleted_documents", { workspace });
+    return command("list_deleted_documents", { libraryId });
   },
 
-  restore(workspace: string, documentId: string): Promise<void> {
+  restore(libraryId: LibraryId, documentId: string): Promise<void> {
     return command("restore_imported_document", {
-      workspace,
+      libraryId,
       documentId,
     });
   },

@@ -5,13 +5,22 @@ import { SettingsDialog } from "./SettingsDialog";
 
 export function SettingsHost() {
   const [open, setOpen] = useState(false);
+  const [sectionId, setSectionId] = useState<string | undefined>();
 
   useEffect(() => {
-    return onAppEvent(SETTINGS_OPEN_EVENT, () => setOpen(true));
+    return onAppEvent(SETTINGS_OPEN_EVENT, (payload) => {
+      setSectionId(payload?.sectionId);
+      setOpen(true);
+    });
   }, []);
 
   if (!open) {
     return null;
   }
-  return <SettingsDialog onClose={() => setOpen(false)} />;
+  return (
+    <SettingsDialog
+      initialSectionId={sectionId}
+      onClose={() => setOpen(false)}
+    />
+  );
 }

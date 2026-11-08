@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Button } from "../design-system/Button";
 import {
   readDisabledPlugins,
   setPluginDisabled,
@@ -98,13 +99,12 @@ export function PluginManagerSection() {
       </ul>
       {dirty && (
         <div className="theme-pack-actions">
-          <button
-            type="button"
-            className="primary"
+          <Button
+            variant="primary"
             onClick={() => window.location.reload()}
           >
             重新加载以应用
-          </button>
+          </Button>
         </div>
       )}
     </div>

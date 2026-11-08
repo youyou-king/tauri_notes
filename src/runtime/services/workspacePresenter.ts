@@ -18,9 +18,6 @@ export function createWorkspacePresenter(): WorkspacePresenter {
     resetLayout() {
       handlers?.resetLayout();
     },
-    closeWorkspace(root, view) {
-      handlers?.closeWorkspace(root, view);
-    },
     activatePanel(panelId) {
       handlers?.activatePanel(panelId);
     },

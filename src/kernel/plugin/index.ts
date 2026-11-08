@@ -4,7 +4,6 @@ export type {
   CommandContribution,
   ContextMenuItemContribution,
   MapNodeTypeContribution,
-  MigrationContribution,
   OverlayContribution,
   PanelContribution,
   PluginCommandContext,

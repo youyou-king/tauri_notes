@@ -2,196 +2,14 @@ import { useContext, useEffect, useRef, useState } from "react";
 import { APP_EVENTS, emitAppEvent, onAppEvent } from "../../kernel/events";
 import { mapService } from "../../application/mapService";
 import { documentService } from "../../application/documentService";
-import { crossPanelBus, PANEL_DRAG_MIME } from "../../kernel/event";
-import { confirmDialog } from "../dialog/confirmDialog";
+import { crossPanelBus } from "../../kernel/event";
+import { confirmDialog } from "../dialog/appDialog";
 import { Dialog } from "../dialog/Dialog";
-import type { MindMapNode, OutlineView } from "../../types";
+import type { LibraryId, MindMapNode, OutlineView } from "../../types";
+import { ContextMenu, type ContextMenuItem } from "../menu/ContextMenu";
 import { PanelContext } from "./PanelContext";
-
-export function OutlineTreeNode({
-  node,
-  depth,
-  expanded,
-  onToggle,
-  onOpenDocument,
-  onDropDocument,
-  onRenameDocument,
-  activeDocumentId,
-}: {
-  node: MindMapNode;
-  depth: number;
-  expanded: Set<string>;
-  onToggle: (id: string) => void;
-  onOpenDocument: (documentId: string) => void;
-  onDropDocument: (
-    nodeId: string,
-    sourceRoot: string,
-    documentId: string,
-  ) => void;
-  onRenameDocument: (node: MindMapNode, title: string) => void;
-  activeDocumentId: string | null;
-}) {
-  const [dropActive, setDropActive] = useState(false);
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(node.title);
-  const openTimer = useRef<number | null>(null);
-  useEffect(() => {
-    return () => {
-      if (openTimer.current !== null) {
-        window.clearTimeout(openTimer.current);
-      }
-    };
-  }, []);
-  const hasChildren = node.children.length > 0;
-  const open = expanded.has(node.id) || !hasChildren;
-  const commit = () => {
-    setEditing(false);
-    const next = draft.trim();
-    if (next && next !== node.title) {
-      onRenameDocument(node, next);
-    } else {
-      setDraft(node.title);
-    }
-  };
-  return (
-    <div className="outline-branch">
-      <div
-        className={`tree-row outline-node ${
-          node.hasDocument ? "document" : "idea"
-        } ${node.documentId === activeDocumentId ? "selected" : ""} ${
-          dropActive ? "drop-target" : ""
-        }`}
-        style={{ paddingLeft: `${8 + depth * 14}px` }}
-        onDragOver={(event) => {
-          if (
-            event.dataTransfer.types.includes("application/x-note-document") ||
-            event.dataTransfer.types.includes(PANEL_DRAG_MIME)
-          ) {
-            event.preventDefault();
-            setDropActive(true);
-          }
-        }}
-        onDragLeave={() => setDropActive(false)}
-        onDrop={(event) => {
-          event.preventDefault();
-          setDropActive(false);
-          const panelPayload = crossPanelBus.read(event.dataTransfer);
-          if (panelPayload?.kind === "document") {
-            onDropDocument(
-              node.id,
-              panelPayload.root,
-              panelPayload.documentId,
-            );
-            crossPanelBus.endDrag();
-            return;
-          }
-          const raw = event.dataTransfer.getData(
-            "application/x-note-document",
-          );
-          if (!raw) {
-            return;
-          }
-          try {
-            const payload = JSON.parse(raw) as {
-              root?: string;
-              documentId?: string;
-            };
-            if (payload.documentId) {
-              onDropDocument(
-                node.id,
-                payload.root ?? "",
-                payload.documentId,
-              );
-            }
-          } catch {
-            // ignore invalid drag payload
-          }
-        }}
-      >
-        <button
-          type="button"
-          className="tree-caret-button"
-          onClick={(event) => {
-            event.stopPropagation();
-            if (hasChildren) {
-              onToggle(node.id);
-            }
-          }}
-          aria-label={open ? "收起" : "展开"}
-        >
-          {hasChildren ? (open ? "▾" : "▸") : "·"}
-        </button>
-        <span className="outline-icon">
-          {node.hasDocument ? "📄" : "💡"}
-        </span>
-        {editing ? (
-          <input
-            autoFocus
-            className="tree-label-input"
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            onBlur={commit}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                commit();
-              } else if (event.key === "Escape") {
-                setDraft(node.title);
-                setEditing(false);
-              }
-            }}
-          />
-        ) : (
-          <button
-            type="button"
-            className="tree-label"
-            title={node.hasDocument ? "打开文档" : "纯想法节点"}
-            onClick={() => {
-              if (node.hasDocument && node.documentId) {
-                if (openTimer.current !== null) {
-                  window.clearTimeout(openTimer.current);
-                }
-                const documentId = node.documentId;
-                openTimer.current = window.setTimeout(() => {
-                  openTimer.current = null;
-                  onOpenDocument(documentId);
-                }, 220);
-              } else if (hasChildren) {
-                onToggle(node.id);
-              }
-            }}
-            onDoubleClick={() => {
-              if (openTimer.current !== null) {
-                window.clearTimeout(openTimer.current);
-                openTimer.current = null;
-              }
-              setDraft(node.title);
-              setEditing(true);
-            }}
-          >
-            {node.title}
-          </button>
-        )}
-      </div>
-      {hasChildren && open && (
-        <div className="tree-children">
-          {node.children.map((child) => (
-            <OutlineTreeNode
-              key={child.id}
-              node={child}
-              depth={depth + 1}
-              expanded={expanded}
-              onToggle={onToggle}
-              onOpenDocument={onOpenDocument}
-              onDropDocument={onDropDocument}
-              onRenameDocument={onRenameDocument}
-              activeDocumentId={activeDocumentId}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
+import { OutlineTreeNode } from "../outline/OutlineTreeNode";
+import { createOutlineDragDrop } from "../outline/outlineDragDrop";
 
 export function MultiOutlinePanel() {
   const context = useContext(PanelContext);
@@ -227,17 +45,16 @@ export function MultiOutlinePanel() {
   const initialized = useRef(false);
   const unfiledTimer = useRef<number | null>(null);
 
-  useEffect(() => {
-    const handler = (event: MouseEvent) => {
-      if (!(event.target as Element).closest(".mind-map-menu")) {
-        setMenu(null);
-      }
-    };
-    window.addEventListener("mousedown", handler);
-    return () => window.removeEventListener("mousedown", handler);
-  }, []);
-
   const roots = (context?.workspaces ?? []).map((item) => item.root);
+  const libraryIdForRoot = (rootPath: string): LibraryId => {
+    const id =
+      context?.workspaces.find((item) => item.root === rootPath)?.id ??
+      context?.workspace?.id;
+    if (!id) {
+      throw new Error("书库上下文缺失");
+    }
+    return id;
+  };
   const unfiledDocs = outlines.flatMap(({ root, view }) =>
     view.unfiled.map((document) => ({ root, ...document })),
   );
@@ -249,7 +66,7 @@ export function MultiOutlinePanel() {
     void Promise.all(
       context.workspaces.map(async (item) => ({
         root: item.root,
-        view: await mapService.loadOutline(item.root),
+        view: await mapService.loadOutline(item.id),
       })),
     )
       .then((next) => {
@@ -321,9 +138,13 @@ export function MultiOutlinePanel() {
     }
     try {
       if (rename.kind === "root") {
-        context.onRenameWorkspace(rename.rootPath, title);
+        context.onRenameWorkspace(libraryIdForRoot(rename.rootPath), title);
       } else if (rename.kind === "map" && rename.mapId) {
-        await mapService.renameMap(rename.rootPath, rename.mapId, title);
+        await mapService.renameMap(
+          libraryIdForRoot(rename.rootPath),
+          rename.mapId,
+          title,
+        );
         notify(rename.rootPath);
       } else if (rename.kind === "doc" && rename.nodeId) {
         const targetDocument = outlines
@@ -334,7 +155,11 @@ export function MultiOutlinePanel() {
             return collect(map.root.children);
           })
           .find((node) => node.id === rename.nodeId)?.documentId;
-        await mapService.renameNode(rename.rootPath, rename.nodeId, title);
+        await mapService.renameNode(
+          libraryIdForRoot(rename.rootPath),
+          rename.nodeId,
+          title,
+        );
         if (targetDocument) {
           emitAppEvent(APP_EVENTS.documentRenamed, {
             documentId: targetDocument,
@@ -344,7 +169,7 @@ export function MultiOutlinePanel() {
         notify(rename.rootPath);
       } else if (rename.kind === "doc" && rename.documentId) {
         await documentService.rename(
-          rename.rootPath,
+          libraryIdForRoot(rename.rootPath),
           rename.documentId,
           title,
         );
@@ -369,9 +194,16 @@ export function MultiOutlinePanel() {
     }
     try {
       if (dialog.mode === "create") {
-        await mapService.createMap(dialog.rootPath, title);
+        await mapService.createMap(
+          libraryIdForRoot(dialog.rootPath),
+          title,
+        );
       } else if (dialog.mapId) {
-        await mapService.renameMap(dialog.rootPath, dialog.mapId, title);
+        await mapService.renameMap(
+          libraryIdForRoot(dialog.rootPath),
+          dialog.mapId,
+          title,
+        );
       }
       setDialog(null);
       notify(dialog.rootPath);
@@ -399,7 +231,7 @@ export function MultiOutlinePanel() {
       return;
     }
     try {
-      await mapService.deleteMap(rootPath, mapId);
+      await mapService.deleteMap(libraryIdForRoot(rootPath), mapId);
       notify(rootPath);
     } catch (reason) {
       setError(String(reason));
@@ -412,7 +244,11 @@ export function MultiOutlinePanel() {
     title: string,
   ) => {
     try {
-      await mapService.renameNode(rootPath, node.id, title);
+      await mapService.renameNode(
+        libraryIdForRoot(rootPath),
+        node.id,
+        title,
+      );
       if (node.documentId) {
         emitAppEvent(APP_EVENTS.documentRenamed, {
           documentId: node.documentId,
@@ -466,12 +302,135 @@ export function MultiOutlinePanel() {
       return;
     }
     try {
-      await mapService.bindDocument(rootPath, nodeId, documentId);
+      await mapService.bindDocument(
+        libraryIdForRoot(rootPath),
+        nodeId,
+        documentId,
+      );
       notify(rootPath);
     } catch (reason) {
       setError(String(reason));
     }
   };
+
+  const menuItems: ContextMenuItem[] = !menu
+    ? []
+    : menu.kind === "root"
+      ? [
+          {
+            id: "create-map",
+            label: "新建导图…",
+            onSelect: () => {
+              setDialog({
+                mode: "create",
+                rootPath: menu.rootPath,
+                value: "未命名导图",
+              });
+            },
+          },
+          {
+            id: "rename-root",
+            label: "重命名知识库…",
+            onSelect: () => {
+              setRename({
+                kind: "root",
+                rootPath: menu.rootPath,
+                value:
+                  context?.workspaces.find(
+                    (item) => item.root === menu.rootPath,
+                  )?.title ?? "",
+              });
+            },
+          },
+          {
+            id: "unload-root",
+            label: "卸载知识库",
+            danger: true,
+            separatorBefore: true,
+            onSelect: () => {
+              const rootPath = menu.rootPath;
+              void confirmDialog({
+                title: "卸载知识库？",
+                message: "卸载这个知识库？不会删除 .note 文件。",
+                confirmLabel: "卸载",
+                tone: "danger",
+              }).then((confirmed) => {
+                if (confirmed) {
+                  context?.onUnloadWorkspace(libraryIdForRoot(rootPath));
+                }
+              });
+            },
+          },
+        ]
+      : menu.kind === "map"
+        ? [
+            {
+              id: "rename-map",
+              label: "重命名导图…",
+              onSelect: () => {
+                setRename({
+                  kind: "map",
+                  rootPath: menu.rootPath,
+                  mapId: menu.mapId,
+                  value: menu.mapTitle ?? "",
+                });
+              },
+            },
+            {
+              id: "delete-map",
+              label: "删除导图…",
+              danger: true,
+              separatorBefore: true,
+              onSelect: () => void deleteMap(),
+            },
+          ]
+        : [
+            {
+              id: "rename-document",
+              label: "重命名文档…",
+              onSelect: () => {
+                setRename({
+                  kind: "doc",
+                  rootPath: menu.rootPath,
+                  documentId: menu.documentId,
+                  value: menu.documentTitle ?? "",
+                });
+              },
+            },
+            {
+              id: "delete-document",
+              label: "删除文档…",
+              danger: true,
+              separatorBefore: true,
+              onSelect: () => {
+                if (!menu.documentId) {
+                  return;
+                }
+                const documentId = menu.documentId;
+                const rootPath = menu.rootPath;
+                void confirmDialog({
+                  title: "删除文档？",
+                  message: "删除这个未归类文档？",
+                  confirmLabel: "删除",
+                  tone: "danger",
+                }).then((confirmed) => {
+                  if (!confirmed) {
+                    return;
+                  }
+                  void documentService
+                    .delete(libraryIdForRoot(rootPath), documentId)
+                    .then(() => {
+                      emitAppEvent(APP_EVENTS.documentDeleted, {
+                        libraryId: libraryIdForRoot(rootPath),
+                        documentId,
+                      });
+                      notify(rootPath);
+                    })
+                    .catch((reason) => setError(String(reason)));
+                });
+              },
+            },
+          ];
 
   return (
     <div className="outline-panel">
@@ -614,7 +573,9 @@ export function MultiOutlinePanel() {
                             type="button"
                             className="tree-label map-label"
                             title="打开导图"
-                            onClick={() => context.onSwitchMap(map, root)}
+                            onClick={() =>
+                              context.onSwitchMap(map, libraryIdForRoot(root))
+                            }
                             onDoubleClick={() =>
                               setRename({
                                 kind: "map",
@@ -637,16 +598,23 @@ export function MultiOutlinePanel() {
                             expanded={expanded}
                             onToggle={toggle}
                             onOpenDocument={(documentId) => {
-                              context.onActivateWorkspace(root);
+                              context.onActivateWorkspace(libraryIdForRoot(root));
                               context.openBlockDocument(
                                 documentId,
                                 undefined,
-                                root,
+                                libraryIdForRoot(root),
                               );
                             }}
-                            onDropDocument={(nodeId, sourceRoot, documentId) =>
-                              bindDocument(root, nodeId, sourceRoot, documentId)
-                            }
+                            dragDrop={createOutlineDragDrop(
+                              node.id,
+                              (nodeId, sourceRoot, documentId) =>
+                                bindDocument(
+                                  root,
+                                  nodeId,
+                                  sourceRoot,
+                                  documentId,
+                                ),
+                            )}
                             onRenameDocument={(node, title) =>
                               void renameDocumentNode(root, node, title)
                             }
@@ -712,11 +680,11 @@ export function MultiOutlinePanel() {
                     const rootPath = document.root;
                     unfiledTimer.current = window.setTimeout(() => {
                       unfiledTimer.current = null;
-                      context.onActivateWorkspace(rootPath);
+                      context.onActivateWorkspace(libraryIdForRoot(rootPath));
                       context.openBlockDocument(
                         documentId,
                         undefined,
-                        rootPath,
+                        libraryIdForRoot(rootPath),
                       );
                     }, 220);
                   }}
@@ -780,134 +748,12 @@ export function MultiOutlinePanel() {
         )}
       </div>
       {menu && (
-        <div
-          className="mind-map-menu"
-          style={{ left: menu.x, top: menu.y }}
-          onMouseDown={(event) => event.stopPropagation()}
-        >
-          {menu.kind === "root" ? (
-            <>
-              <button
-                type="button"
-                onClick={() => {
-                  setMenu(null);
-                  setDialog({
-                    mode: "create",
-                    rootPath: menu.rootPath,
-                    value: "未命名导图",
-                  });
-                }}
-              >
-                新建导图…
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setMenu(null);
-                  setRename({
-                    kind: "root",
-                    rootPath: menu.rootPath,
-                    value:
-                      context.workspaces.find(
-                        (item) => item.root === menu.rootPath,
-                      )?.title ?? "",
-                  });
-                }}
-              >
-                重命名知识库…
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const rootPath = menu.rootPath;
-                  setMenu(null);
-                  void confirmDialog({
-                    title: "卸载知识库？",
-                    message: "卸载这个知识库？不会删除 .note 文件。",
-                    confirmLabel: "卸载",
-                    tone: "danger",
-                  }).then((confirmed) => {
-                    if (confirmed) {
-                      context.onUnloadWorkspace(rootPath);
-                    }
-                  });
-                }}
-              >
-                卸载知识库
-              </button>
-            </>
-          ) : menu.kind === "map" ? (
-            <>
-              <button
-                type="button"
-                onClick={() => {
-                  setMenu(null);
-                  setRename({
-                    kind: "map",
-                    rootPath: menu.rootPath,
-                    mapId: menu.mapId,
-                    value: menu.mapTitle ?? "",
-                  });
-                }}
-              >
-                重命名导图…
-              </button>
-              <button type="button" onClick={() => void deleteMap()}>
-                删除导图…
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={() => {
-                  setMenu(null);
-                  setRename({
-                    kind: "doc",
-                    rootPath: menu.rootPath,
-                    documentId: menu.documentId,
-                    value: menu.documentTitle ?? "",
-                  });
-                }}
-              >
-                重命名文档…
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!menu.documentId) {
-                    return;
-                  }
-                  const documentId = menu.documentId;
-                  const rootPath = menu.rootPath;
-                  setMenu(null);
-                  void confirmDialog({
-                    title: "删除文档？",
-                    message: "删除这个未归类文档？",
-                    confirmLabel: "删除",
-                    tone: "danger",
-                  }).then((confirmed) => {
-                    if (!confirmed) {
-                      return;
-                    }
-                    void documentService
-                      .delete(rootPath, documentId)
-                      .then(() => {
-                        emitAppEvent(APP_EVENTS.documentDeleted, {
-                          root: rootPath,
-                          documentId,
-                        });
-                        notify(rootPath);
-                      })
-                      .catch((reason) => setError(String(reason)));
-                  });
-                }}
-              >
-                删除文档…
-              </button>
-            </>
-          )}
-        </div>
+        <ContextMenu
+          position={{ x: menu.x, y: menu.y }}
+          items={menuItems}
+          onClose={() => setMenu(null)}
+          label="大纲菜单"
+        />
       )}
       {dialog && (
         <Dialog

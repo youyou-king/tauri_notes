@@ -17,7 +17,7 @@ test.describe("visual regression", () => {
   test("light workspace", async ({ page }) => {
     await page.goto("/e2e/fixtures/e2e.html");
     await expect(page.getByText(/演示知识库/).first()).toBeVisible();
-    await page.getByRole("button", { name: /主题/ }).click();
+    await page.getByRole("button", { name: /外观/ }).click();
     await page.getByRole("button", { name: "浅色" }).click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
     await page.waitForTimeout(250);
@@ -29,7 +29,7 @@ test.describe("visual regression", () => {
 
   test("theme editor", async ({ page }) => {
     await page.goto("/e2e/fixtures/e2e.html");
-    await page.getByRole("button", { name: /主题/ }).click();
+    await page.getByRole("button", { name: /外观/ }).click();
     await page.getByRole("button", { name: "新建主题…" }).click();
     await expect(page.getByRole("heading", { name: "新建主题" })).toBeVisible();
     await expect(page).toHaveScreenshot("theme-editor.png", {
@@ -40,7 +40,7 @@ test.describe("visual regression", () => {
 
   test("light document panel", async ({ page }) => {
     await page.goto("/e2e/fixtures/e2e.html");
-    await page.getByRole("button", { name: /主题/ }).click();
+    await page.getByRole("button", { name: /外观/ }).click();
     await page.getByRole("button", { name: "浅色" }).click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
     await page.locator(".mind-map-node-doc").first().click();
@@ -54,9 +54,9 @@ test.describe("visual regression", () => {
 
   test("light theme editor", async ({ page }) => {
     await page.goto("/e2e/fixtures/e2e.html");
-    await page.getByRole("button", { name: /主题/ }).click();
+    await page.getByRole("button", { name: /外观/ }).click();
     await page.getByRole("button", { name: "浅色" }).click();
-    await page.getByRole("button", { name: /主题/ }).click();
+    await page.getByRole("button", { name: /外观/ }).click();
     await page.getByRole("button", { name: "新建主题…" }).click();
     await expect(page.getByRole("heading", { name: "新建主题" })).toBeVisible();
     await expect(page).toHaveScreenshot("theme-editor-light.png", {

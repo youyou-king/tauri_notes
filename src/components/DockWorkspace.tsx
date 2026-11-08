@@ -35,7 +35,7 @@ import type {
   BoardControllerPort,
   PinBlockInput,
 } from "../kernel/panel/boardPort";
-import type { MapView, NodeView, WorkspaceView } from "../types";
+import type { LibraryId, MapView, NodeView, WorkspaceView } from "../types";
 import { findNode } from "../domain/tree";
 import { useTheme } from "../ui/theme/ThemeProvider";
 import { DOCK_LAYOUT_KEY } from "../ui/dockLayout";
@@ -48,22 +48,23 @@ export type DockWorkspaceHandle = {
     mapId: string,
     nodeId: string,
     title?: string,
-    workspaceRoot?: string,
+    libraryId?: LibraryId,
   ) => void;
-  openMap: (mapId: string, workspaceRoot?: string) => void;
+  openMap: (mapId: string, libraryId?: LibraryId) => void;
   openBoard: () => void;
   openBlockDocument: (
     documentId: string,
     title?: string,
-    workspaceRoot?: string,
+    libraryId?: LibraryId,
   ) => void;
   openLibrary: () => void;
   togglePanel: (panelId: string) => void;
   closeWorkspacePanels: (
-    workspaceRoot: string,
+    libraryId: LibraryId,
     workspace?: WorkspaceView | null,
   ) => void;
   resetLayout: () => void;
+  clearLayout: () => void;
   getActivePanelId: () => string | null;
   activatePanel: (panelId: string) => void;
 };
@@ -112,14 +113,14 @@ export default forwardRef<
     activeMap: MapView | null;
     selected: NodeView | null;
     onActiveNode: (node: NodeView) => void;
-    onActiveMap: (mapId: string, workspaceRoot?: string) => void;
+    onActiveMap: (mapId: string, libraryId?: LibraryId) => void;
     onPanelDirty: (panelId: string, dirty: boolean) => void;
     onPanelActive?: (panelId: string | null) => void;
     onSelectNode: (node: NodeView, newPanel: boolean) => void;
-    onSwitchMap: (map: MapView, workspaceRoot?: string) => void;
-    onActivateWorkspace: (root: string) => void;
-    onUnloadWorkspace: (root: string) => void;
-    onRenameWorkspace: (root: string, title: string) => void;
+    onSwitchMap: (map: MapView, libraryId?: LibraryId) => void;
+    onActivateWorkspace: (libraryId: LibraryId) => void;
+    onUnloadWorkspace: (libraryId: LibraryId) => void;
+    onRenameWorkspace: (libraryId: LibraryId, title: string) => void;
     onPinBlock: (input: PinBlockInput) => void | Promise<void>;
     board: BoardControllerPort;
   }
@@ -147,18 +148,48 @@ export default forwardRef<
   const components = useMemo(() => getPanelComponents() as any, []);
   const activeMapRef = useRef(activeMap);
   const workspaceRef = useRef(workspace);
+  const workspacesRef = useRef(workspaces);
   const onActiveMapRef = useRef(onActiveMap);
   activeMapRef.current = activeMap;
   workspaceRef.current = workspace;
+  workspacesRef.current = workspaces;
   onActiveMapRef.current = onActiveMap;
   const dockTheme = resolved === "light" ? themeLight : themeAbyss;
   const apiRef = useRef<DockviewApi | null>(null);
   const pendingOpen = useRef<{
     mapId: string;
     nodeId: string;
+    libraryId?: LibraryId;
   } | null>(null);
   const [activePanelId, setActivePanelId] = useState<string | null>(null);
   const [lastActiveDocId, setLastActiveDocId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const persistLayout = () => {
+      const api = apiRef.current;
+      if (!api) {
+        return;
+      }
+      try {
+        window.localStorage.setItem(
+          DOCK_LAYOUT_KEY,
+          JSON.stringify(api.toJSON()),
+        );
+      } catch {
+        // Layout persistence is best effort.
+      }
+    };
+    // Dockview fires layout changes for panels, but explicit pointerup also
+    // captures the final sash size before the window is closed.
+    window.addEventListener("pointerup", persistLayout, true);
+    window.addEventListener("pagehide", persistLayout);
+    window.addEventListener("resize", persistLayout);
+    return () => {
+      window.removeEventListener("pointerup", persistLayout, true);
+      window.removeEventListener("pagehide", persistLayout);
+      window.removeEventListener("resize", persistLayout);
+    };
+  }, []);
 
   useEffect(() => {
     const api = apiRef.current;
@@ -195,47 +226,38 @@ export default forwardRef<
     });
   }, [workspace]);
 
-  function applyDefaultPaneSizes(api: DockviewApi) {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        api.getPanel("outline")?.group.api.setSize({ width: 240 });
-        api.getPanel("map")?.group.api.setSize({ width: 320 });
-      });
-    });
-  }
-
   function openDocument(
     mapId: string,
     nodeId: string,
     title?: string,
-    workspaceRoot?: string,
+    libraryId?: LibraryId,
   ) {
     const api = apiRef.current;
     if (!api) {
-      pendingOpen.current = { mapId, nodeId };
+      pendingOpen.current = { mapId, nodeId, libraryId };
       return;
     }
-    openBlockDocument(`${mapId}/${nodeId}`, title, workspaceRoot);
+    openBlockDocument(`${mapId}/${nodeId}`, title, libraryId);
   }
 
-  function openMap(mapId: string, workspaceRoot?: string) {
+  function openMap(mapId: string, libraryId?: LibraryId) {
     const api = apiRef.current;
     if (!api) {
       return;
     }
     const targetWorkspace =
-      workspaces.find((item) => item.root === workspaceRoot) ?? workspace;
+      workspaces.find((item) => item.id === libraryId) ?? workspace;
     const map = targetWorkspace?.maps.find((item) => item.id === mapId);
     const title = map?.title ?? "导图";
-    const params: MapParams = { mapId, workspaceRoot: targetWorkspace?.root };
+    const params: MapParams = { mapId, libraryId: targetWorkspace?.id };
     const mapPanels = api.panels.filter(
       (panel) => panel.api.component === "map",
     );
     const matching = mapPanels.find(
       (panel) =>
         panel.api.getParameters<MapParams>().mapId === mapId &&
-        panel.api.getParameters<MapParams>().workspaceRoot ===
-          targetWorkspace?.root,
+        panel.api.getParameters<MapParams>().libraryId ===
+          targetWorkspace?.id,
     );
     if (matching) {
       matching.api.updateParameters(params);
@@ -253,7 +275,7 @@ export default forwardRef<
       return;
     }
 
-    const panelId = `map_${(targetWorkspace?.root ?? "").replace(
+    const panelId = `map_${(targetWorkspace?.id ?? "").replace(
       /[^a-zA-Z0-9_-]/g,
       "_",
     )}_${mapId.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
@@ -314,19 +336,19 @@ export default forwardRef<
   function openBlockDocument(
     documentId: string,
     knownTitle?: string,
-    workspaceRoot?: string,
+    libraryId?: LibraryId,
   ) {
     const api = apiRef.current;
     if (!api) {
       return;
     }
-    const targetRoot = workspaceRoot ?? workspace?.root ?? "";
-    const panelId = `blockdoc_${targetRoot.replace(
+    const targetId = libraryId ?? workspace?.id ?? "";
+    const panelId = `blockdoc_${targetId.replace(
       /[^a-zA-Z0-9_-]/g,
       "_",
     )}_${documentId.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
     const targetWorkspace = workspaces.find(
-      (item) => item.root === targetRoot,
+      (item) => item.id === targetId,
     );
     const [mapId, nodeId] = documentId.split("/");
     const map = targetWorkspace?.maps.find((item) => item.id === mapId);
@@ -342,7 +364,7 @@ export default forwardRef<
       id: panelId,
       component: "blockdoc",
       title: title,
-      params: { documentId, workspaceRoot: targetRoot },
+      params: { documentId, libraryId: targetId },
     });
   }
 
@@ -394,7 +416,7 @@ export default forwardRef<
     const valid = new Set<string>();
     for (const item of workspaces) {
       for (const map of item.maps) {
-        valid.add(`${item.root}\u0000${map.id}`);
+        valid.add(`${item.id}\u0000${map.id}`);
       }
     }
     for (const panel of [...api.panels]) {
@@ -405,8 +427,8 @@ export default forwardRef<
       if (!params.mapId) {
         continue;
       }
-      const root = params.workspaceRoot ?? workspace?.root ?? "";
-      if (!valid.has(`${root}\u0000${params.mapId}`)) {
+      const libraryId = params.libraryId ?? workspace?.id ?? "";
+      if (!valid.has(`${libraryId}\u0000${params.mapId}`)) {
         panel.api.close();
       }
     }
@@ -421,7 +443,7 @@ export default forwardRef<
   }, [workspaces, workspace?.root]);
 
   function closeWorkspacePanels(
-    workspaceRoot: string,
+    libraryId: LibraryId,
     targetWorkspace?: WorkspaceView | null,
   ) {
     const api = apiRef.current;
@@ -431,17 +453,17 @@ export default forwardRef<
     const mapIds = new Set(
       (targetWorkspace?.maps ?? []).map((map) => map.id),
     );
-    const isActiveRoot = workspace?.root === workspaceRoot;
+    const isActive = workspace?.id === libraryId;
     for (const panel of [...api.panels]) {
       const params = panel.api.getParameters<{
-        workspaceRoot?: string;
+        libraryId?: LibraryId;
         mapId?: string;
         documentId?: string;
       }>();
       if (panel.api.component === "map") {
         const belongs =
-          params.workspaceRoot === workspaceRoot ||
-          (params.mapId ? mapIds.has(params.mapId) : isActiveRoot);
+          params.libraryId === libraryId ||
+          (params.mapId ? mapIds.has(params.mapId) : isActive);
         if (belongs) {
           panel.api.close();
         }
@@ -450,9 +472,9 @@ export default forwardRef<
       if (panel.api.component === "blockdoc") {
         const [mapId] = (params.documentId ?? "").split("/");
         const belongs =
-          params.workspaceRoot === workspaceRoot ||
+          params.libraryId === libraryId ||
           (mapId ? mapIds.has(mapId) : false) ||
-          (isActiveRoot && !params.workspaceRoot);
+          (isActive && !params.libraryId);
         if (belongs) {
           panel.api.close();
         }
@@ -480,6 +502,17 @@ export default forwardRef<
     buildDefaultLayout(api);
   }
 
+  function clearLayout() {
+    const api = apiRef.current;
+    if (!api) {
+      return;
+    }
+    recordConsoleEvent("panel", "清空停靠布局");
+    for (const panel of [...api.panels]) {
+      panel.api.close();
+    }
+  }
+
   useImperativeHandle(ref, () => ({
     openDocument,
     openMap,
@@ -489,6 +522,7 @@ export default forwardRef<
     togglePanel,
     closeWorkspacePanels,
     resetLayout,
+    clearLayout,
     getActivePanelId,
     activatePanel,
   }));
@@ -598,7 +632,7 @@ export default forwardRef<
       if (panel?.api.component === "map") {
         const params = panel.api.getParameters<{
           mapId?: string;
-          workspaceRoot?: string;
+          libraryId?: LibraryId;
         }>();
         const mapId =
           params?.mapId ??
@@ -607,7 +641,7 @@ export default forwardRef<
         if (mapId) {
           onActiveMapRef.current(
             mapId,
-            params?.workspaceRoot ?? workspaceRef.current?.root,
+            params?.libraryId ?? workspaceRef.current?.id,
           );
         }
       }
@@ -617,7 +651,7 @@ export default forwardRef<
         if (documentId) {
           const mapId = documentId.split("/")[0];
           if (mapId) {
-            onActiveMapRef.current(mapId, params.workspaceRoot);
+            onActiveMapRef.current(mapId, params.libraryId);
           }
           setLastActiveDocId(documentId);
           const node = resolveNodeById(documentId);
@@ -631,9 +665,8 @@ export default forwardRef<
     const pending = pendingOpen.current;
     if (pending) {
       pendingOpen.current = null;
-      openDocument(pending.mapId, pending.nodeId);
+      openDocument(pending.mapId, pending.nodeId, undefined, pending.libraryId);
     }
-    applyDefaultPaneSizes(event.api);
   }
 
   useEffect(() => {
@@ -647,12 +680,15 @@ export default forwardRef<
           continue;
         }
         const params = panel.api.getParameters<{
-          workspaceRoot?: string;
+          libraryId?: LibraryId;
           documentId?: string;
         }>();
+        const target = detail.libraryId
+          ? workspacesRef.current.find((item) => item.id === detail.libraryId)
+          : null;
         if (
           params.documentId === detail.documentId &&
-          (!detail.root || params.workspaceRoot === detail.root)
+          (!detail.libraryId || params.libraryId === target?.id)
         ) {
           panel.api.close();
         }
@@ -687,7 +723,7 @@ export default forwardRef<
         components={components}
         defaultTabComponent={WorkspaceTab}
         onReady={onReady}
-        dndStrategy="html5"
+        dndStrategy="pointer"
       />
     </PanelContext.Provider>
   );

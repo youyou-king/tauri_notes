@@ -5,21 +5,22 @@ import type {
   SaveBlock,
   StoredBlock,
 } from "../domain/importedDocument";
+import type { LibraryId } from "../types";
 
 export class TauriImportedDocumentRepository
   implements ImportedDocumentRepository
 {
-  constructor(private readonly workspaceRoot: string) {}
+  constructor(private readonly libraryId: LibraryId) {}
 
   list(): Promise<ImportedDocumentSummary[]> {
     return invoke("list_imported_documents", {
-      workspace: this.workspaceRoot,
+      libraryId: this.libraryId,
     });
   }
 
   loadBlocks(documentId: string): Promise<StoredBlock[]> {
     return invoke("load_document_blocks", {
-      workspace: this.workspaceRoot,
+      libraryId: this.libraryId,
       documentId,
     });
   }
@@ -30,7 +31,7 @@ export class TauriImportedDocumentRepository
     deleted: string[],
   ): Promise<void> {
     return invoke("save_imported_blocks", {
-      workspace: this.workspaceRoot,
+      libraryId: this.libraryId,
       documentId,
       blocks,
       deleted,

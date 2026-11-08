@@ -1,4 +1,4 @@
-export const DOCK_LAYOUT_KEY = "tauri-notes.dock-layout.v21";
+export const DOCK_LAYOUT_KEY = "tauri-notes.dock-layout.v22";
 
 export function resetDockLayout(): void {
   try {

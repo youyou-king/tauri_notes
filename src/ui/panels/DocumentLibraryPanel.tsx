@@ -8,7 +8,7 @@ export function DocumentLibraryPanel() {
   }
   return (
     <DocumentLibraryPane
-      workspaceRoot={context.workspace.root}
+      libraryId={context.workspace.id}
       mapId={context.activeMap.id}
     />
   );

@@ -12,6 +12,8 @@ import {
 import { useKeymapStore } from "../../application/stores/keymapStore";
 import { keymapService } from "../../application/keymapService";
 import { APP_EVENTS, emitAppEvent } from "../../kernel/events";
+import { Button } from "../design-system/Button";
+import { StateView } from "../design-system/StateView";
 
 const PLATFORM = resolveInputPlatform();
 
@@ -127,7 +129,13 @@ export function ShortcutSection() {
   }, [actions, busy, recording, saveBinding]);
 
   if (!keymap) {
-    return <p className="settings-empty">正在加载快捷键…</p>;
+    return (
+      <StateView
+        className="settings-empty"
+        tone="loading"
+        detail="正在加载快捷键…"
+      />
+    );
   }
 
   return (
@@ -143,15 +151,13 @@ export function ShortcutSection() {
         </p>
       )}
       <div className="shortcut-actions">
-        <button
-          type="button"
+        <Button
           disabled={busy}
           onClick={() => void save({ version: 2, bindings: [] })}
         >
           恢复默认快捷键
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
           disabled={busy}
           onClick={() => {
             void keymapService
@@ -165,9 +171,8 @@ export function ShortcutSection() {
           }}
         >
           导出
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
           disabled={busy}
           onClick={() => {
             void keymapService
@@ -184,7 +189,7 @@ export function ShortcutSection() {
           }}
         >
           导入
-        </button>
+        </Button>
       </div>
       <ul className="shortcut-list">
         {effective.map((action) => {
@@ -202,8 +207,7 @@ export function ShortcutSection() {
                   ? "未绑定"
                   : bindings.map(formatBinding).join(" / ")}
               </span>
-              <button
-                type="button"
+              <Button
                 disabled={busy}
                 className={recording === action.id ? "active" : ""}
                 onClick={() =>
@@ -211,7 +215,7 @@ export function ShortcutSection() {
                 }
               >
                 {recording === action.id ? "按下组合键…" : "重设"}
-              </button>
+              </Button>
             </li>
           );
         })}

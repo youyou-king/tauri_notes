@@ -2,6 +2,7 @@ import { appDataDir, join } from "@tauri-apps/api/path";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import type { LibraryPort } from "../../application/ports/libraryPort";
 import { managedLibraryService } from "../../application/managedLibraryService";
+import { asLibraryPath } from "../../types";
 
 async function defaultNotePath(): Promise<string> {
   try {
@@ -27,7 +28,7 @@ function createPathLibrary(): LibraryPort {
         filters: [{ name: "Notes 知识库", extensions: ["note"] }],
         title: "打开 .note 知识库",
       });
-      return typeof picked === "string" ? picked : null;
+      return typeof picked === "string" ? asLibraryPath(picked) : null;
     },
 
     async exportLibrary(source) {
@@ -40,7 +41,9 @@ function createPathLibrary(): LibraryPort {
       if (typeof picked !== "string") {
         return null;
       }
-      return managedLibraryService.export(source, picked);
+      return asLibraryPath(
+        await managedLibraryService.export(source, picked),
+      );
     },
 
     async pickNew() {
@@ -49,7 +52,7 @@ function createPathLibrary(): LibraryPort {
         defaultPath: await defaultNotePath(),
         filters: [{ name: "Notes 知识库", extensions: ["note"] }],
       });
-      return typeof picked === "string" ? picked : null;
+      return typeof picked === "string" ? asLibraryPath(picked) : null;
     },
   };
 }
@@ -73,10 +76,12 @@ export function createMobileLibrary(): LibraryPort {
         return null;
       }
       const imported = await managedLibraryService.import(picked);
-      return imported.path;
+      return asLibraryPath(imported.path);
     },
     async pickNew(title) {
-      return managedLibraryService.newPath(title ?? "未命名");
+      return asLibraryPath(
+        await managedLibraryService.newPath(title ?? "未命名"),
+      );
     },
     exportLibrary: paths.exportLibrary,
   };

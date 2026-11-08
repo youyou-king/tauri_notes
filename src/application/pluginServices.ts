@@ -2,6 +2,7 @@ import { assetService } from "./assetService";
 import { documentService } from "./documentService";
 import { mapService } from "./mapService";
 import { referenceClient } from "../infrastructure/tauriReferenceClient";
+import type { LibraryId } from "../types";
 import type { PluginManifest } from "../kernel/plugin";
 
 export function assertPluginCapability(
@@ -26,45 +27,45 @@ export function createPluginServices(manifest: PluginManifest) {
 
   return {
     document: {
-      list: (workspace: string) =>
-        guarded("document.read", () => documentService.list(workspace)),
-      loadBlocks: (workspace: string, documentId: string) =>
+      list: (libraryId: LibraryId) =>
+        guarded("document.read", () => documentService.list(libraryId)),
+      loadBlocks: (libraryId: LibraryId, documentId: string) =>
         guarded("document.read", () =>
-          documentService.loadBlocks(workspace, documentId),
+          documentService.loadBlocks(libraryId, documentId),
         ),
-      loadBlocksPreview: (workspace: string, blockIds: string[]) =>
+      loadBlocksPreview: (libraryId: LibraryId, blockIds: string[]) =>
         guarded("document.read", () =>
-          documentService.loadBlocksPreview(workspace, blockIds),
+          documentService.loadBlocksPreview(libraryId, blockIds),
         ),
-      getTitle: (workspace: string, documentId: string) =>
+      getTitle: (libraryId: LibraryId, documentId: string) =>
         guarded("document.read", () =>
-          documentService.getTitle(workspace, documentId),
+          documentService.getTitle(libraryId, documentId),
         ),
-      create: (workspace: string, mapId: string, title: string) =>
+      create: (libraryId: LibraryId, mapId: string, title: string) =>
         guarded("document.write", () =>
-          documentService.create(workspace, mapId, title),
+          documentService.create(libraryId, mapId, title),
         ),
-      rename: (workspace: string, documentId: string, title: string) =>
+      rename: (libraryId: LibraryId, documentId: string, title: string) =>
         guarded("document.write", () =>
-          documentService.rename(workspace, documentId, title),
+          documentService.rename(libraryId, documentId, title),
         ),
-      delete: (workspace: string, documentId: string) =>
+      delete: (libraryId: LibraryId, documentId: string) =>
         guarded("document.write", () =>
-          documentService.delete(workspace, documentId),
+          documentService.delete(libraryId, documentId),
         ),
     },
     maps: {
-      loadMap: (workspace: string, mapId: string) =>
-        guarded("board.read", () => mapService.loadMap(workspace, mapId)),
-      loadOutline: (workspace: string) =>
-        guarded("board.read", () => mapService.loadOutline(workspace)),
-      createDocumentForNode: (workspace: string, nodeId: string) =>
+      loadMap: (libraryId: LibraryId, mapId: string) =>
+        guarded("board.read", () => mapService.loadMap(libraryId, mapId)),
+      loadOutline: (libraryId: LibraryId) =>
+        guarded("board.read", () => mapService.loadOutline(libraryId)),
+      createDocumentForNode: (libraryId: LibraryId, nodeId: string) =>
         guarded("board.write", () =>
-          mapService.createDocumentForNode(workspace, nodeId),
+          mapService.createDocumentForNode(libraryId, nodeId),
         ),
-      createDocumentForRoot: (workspace: string, mapId: string) =>
+      createDocumentForRoot: (libraryId: LibraryId, mapId: string) =>
         guarded("board.write", () =>
-          mapService.createDocumentForRoot(workspace, mapId),
+          mapService.createDocumentForRoot(libraryId, mapId),
         ),
     },
     assets: {
@@ -72,23 +73,23 @@ export function createPluginServices(manifest: PluginManifest) {
         guarded("fs.write", () => assetService.saveImage(input)),
     },
     reference: {
-      listTargets: (workspace: string) =>
+      listTargets: (libraryId: LibraryId) =>
         guarded("reference.read", () =>
-          referenceClient.listTargets(workspace),
+          referenceClient.listTargets(libraryId),
         ),
-      preview: (workspace: string, referenceId: string) =>
+      preview: (libraryId: LibraryId, referenceId: string) =>
         guarded("reference.read", () =>
-          referenceClient.preview(workspace, referenceId),
+          referenceClient.preview(libraryId, referenceId),
         ),
       relink: (
-        workspace: string,
+        libraryId: LibraryId,
         referenceId: string,
         targetDocumentId: string,
         targetBlockId: string,
       ) =>
         guarded("reference.write", () =>
           referenceClient.relink(
-            workspace,
+            libraryId,
             referenceId,
             targetDocumentId,
             targetBlockId,

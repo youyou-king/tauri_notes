@@ -1,9 +1,21 @@
 export { useWorkspacePort, WorkspaceBridge } from "./workspace";
 export type { WorkspacePort } from "./workspace";
 export {
+  Button,
   confirmDialog,
   Dialog,
+  Field,
+  Icon,
+  IconButton,
+  ModalSurface,
+  PanelHeader,
+  PanelIcon,
+  PanelShell,
   renderMarkdownHtml,
+  Select,
+  StateView,
+  SurfaceHeader,
+  TextInput,
   usePanelContext,
 } from "./primitives";
 export {

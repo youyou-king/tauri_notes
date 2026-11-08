@@ -1,3 +1,5 @@
+import type { LibraryId } from "../types";
+
 export const APP_EVENTS = {
   settingsOpen: "settings:open",
   searchOpen: "search:open",
@@ -21,7 +23,7 @@ export type AppEventName =
   (typeof APP_EVENTS)[keyof typeof APP_EVENTS];
 
 type AppEventPayloads = {
-  "settings:open": void;
+  "settings:open": { sectionId?: string } | undefined;
   "search:open": void;
   "help:open": void;
   "board:open": void;
@@ -34,7 +36,7 @@ type AppEventPayloads = {
   "tauri-notes:document-changed": void;
   "tauri-notes:document-deleted": {
     documentId?: string;
-    root?: string;
+    libraryId?: LibraryId;
   };
   "tauri-notes:document-renamed": {
     documentId?: string;

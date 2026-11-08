@@ -17,7 +17,6 @@ import type { SharePort } from "../application/ports/sharePort";
  */
 export type ShellProps = ComponentProps<typeof DockWorkspace> & {
   pluginReady: boolean;
-  backend: string;
   busy: boolean;
   error: string | null;
   runCommand: (id: string) => void;

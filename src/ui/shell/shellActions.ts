@@ -6,8 +6,8 @@ import { APP_EVENTS, emitAppEvent } from "../../kernel/events";
  * call the same actions; plugins reach them through ui/sdk.
  */
 export const shellActions = {
-  openSettings(): void {
-    emitAppEvent(APP_EVENTS.settingsOpen);
+  openSettings(sectionId?: string): void {
+    emitAppEvent(APP_EVENTS.settingsOpen, { sectionId });
   },
   openSearch(): void {
     emitAppEvent(APP_EVENTS.searchOpen);

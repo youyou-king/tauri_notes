@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { Button } from "../design-system/Button";
+import { ModalSurface } from "../dialog/ModalSurface";
 
 export type MobileActionItem = {
   id: string;
@@ -17,53 +18,31 @@ export function MobileActionSheet({
   items: MobileActionItem[];
   onClose: () => void;
 }) {
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onClose]);
-
   return (
-    <div
+    <ModalSurface
       className="mobile-sheet-backdrop"
-      role="presentation"
-      onClick={(event) => {
-        if (event.target === event.currentTarget) {
-          onClose();
-        }
-      }}
+      panelClassName="mobile-sheet"
+      ariaLabel={title}
+      onClose={onClose}
     >
-      <div
-        className="mobile-sheet"
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-      >
-        <h3>{title}</h3>
-        <div className="mobile-sheet-actions">
-          {items.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={item.tone === "danger" ? "danger" : undefined}
-              disabled={item.disabled}
-              onClick={() => {
-                item.onSelect();
-              }}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-        <button type="button" className="mobile-sheet-cancel" onClick={onClose}>
-          取消
-        </button>
+      <h3>{title}</h3>
+      <div className="mobile-sheet-actions">
+        {items.map((item) => (
+          <Button
+            key={item.id}
+            variant={item.tone === "danger" ? "danger" : "secondary"}
+            disabled={item.disabled}
+            onClick={() => {
+              item.onSelect();
+            }}
+          >
+            {item.label}
+          </Button>
+        ))}
       </div>
-    </div>
+      <Button className="mobile-sheet-cancel" onClick={onClose}>
+        取消
+      </Button>
+    </ModalSurface>
   );
 }

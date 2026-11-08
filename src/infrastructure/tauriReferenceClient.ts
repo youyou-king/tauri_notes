@@ -1,4 +1,5 @@
 import { command } from "./tauri/client";
+import type { LibraryId } from "../types";
 
 export type ReferenceTarget = {
   blockId: string;
@@ -18,28 +19,28 @@ export type ReferencePreview = {
 };
 
 export const referenceClient = {
-  listTargets(workspace: string): Promise<ReferenceTarget[]> {
-    return command("list_reference_targets", { workspace });
+  listTargets(libraryId: LibraryId): Promise<ReferenceTarget[]> {
+    return command("list_reference_targets", { libraryId });
   },
 
   preview(
-    workspace: string,
+    libraryId: LibraryId,
     referenceId: string,
   ): Promise<ReferencePreview> {
     return command("load_reference_preview", {
-      workspace,
+      libraryId,
       referenceId,
     });
   },
 
   relink(
-    workspace: string,
+    libraryId: LibraryId,
     referenceId: string,
     targetDocumentId: string,
     targetBlockId: string,
   ): Promise<void> {
     return command("relink_reference", {
-      workspace,
+      libraryId,
       referenceId,
       targetDocumentId,
       targetBlockId,

@@ -1,4 +1,5 @@
 import type { ComponentType } from "react";
+import type { LibraryId } from "../../types";
 
 /**
  * Known shell renderers and their prop contracts. Plugins may still register
@@ -7,6 +8,7 @@ import type { ComponentType } from "react";
 export type UiRendererProps = {
   "document.importedView": {
     workspaceRoot: string;
+    libraryId: LibraryId;
     documentId?: string;
     panelId?: string;
   };

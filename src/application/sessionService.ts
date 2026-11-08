@@ -1,56 +1,27 @@
-import {
-  runMigrations,
-  type MigrationStep,
-} from "./migrationLedger";
+import type { LibraryId, LibraryPath } from "../types";
 
-export const SESSION_KEY = "tauri-notes.session.v1";
-export const SESSION_VERSION = 2;
-const TITLE_PREFIX = "tauri-notes.workspace-title:";
+export const SESSION_KEY = "tauri-notes.session";
+export const SESSION_VERSION = 4;
 
 type StoredSession = {
   version?: unknown;
-  roots?: unknown;
-  active?: unknown;
-  activeRoot?: unknown;
+  libraries?: unknown;
+  activeId?: unknown;
+  missing?: unknown;
   activeMapId?: unknown;
   selectedNodeId?: unknown;
   activePanelId?: unknown;
 };
 
-const SESSION_MIGRATIONS: MigrationStep<StoredSession>[] = [
-  {
-    version: 2,
-    migrate: (record) => ({
-      ...record,
-      activeRoot:
-        record.activeRoot ??
-        (typeof record.active === "string" ? record.active : null),
-      activeMapId:
-        typeof record.activeMapId === "string" ? record.activeMapId : null,
-      selectedNodeId:
-        typeof record.selectedNodeId === "string"
-          ? record.selectedNodeId
-          : null,
-    }),
-  },
-];
+export type SessionLibrary = {
+  id: LibraryId;
+  path: LibraryPath;
+};
 
-function migrateSession(record: StoredSession): StoredSession {
-  const version =
-    typeof record.version === "number" && Number.isFinite(record.version)
-      ? record.version
-      : 1;
-  if (version > SESSION_VERSION) {
-    return record;
-  }
-  const initial: StoredSession = { ...record, version };
-  return runMigrations(
-    initial,
-    version,
-    SESSION_VERSION,
-    SESSION_MIGRATIONS,
-  );
-}
+export type SessionMissingLibrary = {
+  id: LibraryId | null;
+  path: LibraryPath;
+};
 
 export type SessionSelection = {
   activeMapId: string | null;
@@ -60,11 +31,43 @@ export type SessionSelection = {
 
 export type SessionSnapshot = SessionSelection & {
   version: typeof SESSION_VERSION;
-  roots: string[];
-  activeRoot: string | null;
+  libraries: SessionLibrary[];
+  activeId: string | null;
+  missing: SessionMissingLibrary[];
   activePanelId: string | null;
 };
 
+function sessionLibraries(value: unknown): SessionLibrary[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter(
+    (item): item is SessionLibrary =>
+      Boolean(item) &&
+      typeof item === "object" &&
+      typeof (item as SessionLibrary).id === "string" &&
+      typeof (item as SessionLibrary).path === "string",
+  );
+}
+
+function sessionMissing(value: unknown): SessionMissingLibrary[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter(
+    (item): item is SessionMissingLibrary =>
+      Boolean(item) &&
+      typeof item === "object" &&
+      typeof (item as SessionMissingLibrary).path === "string" &&
+      (typeof (item as SessionMissingLibrary).id === "string" ||
+        (item as SessionMissingLibrary).id === null),
+  );
+}
+
+/**
+ * 会话只接受当前版本；版本不匹配视为无效会话并冷启动。
+ * 不保留迁移层。
+ */
 export function readSession(): SessionSnapshot | null {
   try {
     const raw = window.localStorage.getItem(SESSION_KEY);
@@ -72,35 +75,23 @@ export function readSession(): SessionSnapshot | null {
       return null;
     }
     const parsed = JSON.parse(raw) as StoredSession;
-    if (
-      typeof parsed.version === "number" &&
-      parsed.version > SESSION_VERSION
-    ) {
+    if (parsed.version !== SESSION_VERSION) {
       return null;
     }
-    const migrated = migrateSession(parsed);
     return {
       version: SESSION_VERSION,
-      roots: Array.isArray(migrated.roots)
-        ? migrated.roots.filter(
-            (root): root is string => typeof root === "string",
-          )
-        : [],
-      activeRoot:
-        typeof migrated.activeRoot === "string"
-          ? migrated.activeRoot
-          : null,
+      libraries: sessionLibraries(parsed.libraries),
+      activeId: typeof parsed.activeId === "string" ? parsed.activeId : null,
+      missing: sessionMissing(parsed.missing),
       activeMapId:
-        typeof migrated.activeMapId === "string"
-          ? migrated.activeMapId
-          : null,
+        typeof parsed.activeMapId === "string" ? parsed.activeMapId : null,
       selectedNodeId:
-        typeof migrated.selectedNodeId === "string"
-          ? migrated.selectedNodeId
+        typeof parsed.selectedNodeId === "string"
+          ? parsed.selectedNodeId
           : null,
       activePanelId:
-        typeof migrated.activePanelId === "string"
-          ? migrated.activePanelId
+        typeof parsed.activePanelId === "string"
+          ? parsed.activePanelId
           : null,
     };
   } catch {
@@ -109,34 +100,24 @@ export function readSession(): SessionSnapshot | null {
 }
 
 export function writeSession(
-  roots: string[],
-  activeRoot: string | null,
+  libraries: SessionLibrary[],
+  activeId: string | null,
   selection: SessionSelection = {
     activeMapId: null,
     selectedNodeId: null,
   },
+  missing: SessionMissingLibrary[] = [],
 ): void {
   window.localStorage.setItem(
     SESSION_KEY,
     JSON.stringify({
       version: SESSION_VERSION,
-      roots,
-      activeRoot,
+      libraries,
+      activeId,
+      missing,
       activeMapId: selection.activeMapId,
       selectedNodeId: selection.selectedNodeId,
       activePanelId: selection.activePanelId ?? null,
     }),
   );
-}
-
-export function readWorkspaceTitle(root: string): string | null {
-  return window.localStorage.getItem(`${TITLE_PREFIX}${root}`);
-}
-
-export function writeWorkspaceTitle(root: string, title: string): void {
-  window.localStorage.setItem(`${TITLE_PREFIX}${root}`, title);
-}
-
-export function clearWorkspaceTitle(root: string): void {
-  window.localStorage.removeItem(`${TITLE_PREFIX}${root}`);
 }

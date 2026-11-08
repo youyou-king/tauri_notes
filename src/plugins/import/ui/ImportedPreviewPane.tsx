@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import { createPluginServices } from "../../../application/pluginServices";
 import { recordConsoleEvent } from "../../../application/consoleLogStore";
+import type { LibraryId } from "../../../types";
 import { importFeature } from "../manifest";
 import { flattenMindMap } from "../../../lib/mindMap";
 import {
@@ -48,7 +49,7 @@ import { EditorFormatToolbar } from "./EditorFormatToolbar";
 import { EditorStatusBar } from "./EditorStatusBar";
 import { useEditorField } from "./useEditorField";
 
-function blockSignature(block: {
+function blockFingerprint(block: {
   orderKey: string;
   contentJson: string;
 }): string {
@@ -66,16 +67,18 @@ function fileDataUrl(file: File): Promise<string> {
 
 export default function ImportedPreviewPane({
   workspaceRoot,
+  libraryId,
   documentId,
   panelId,
 }: {
   workspaceRoot: string;
+  libraryId: LibraryId;
   documentId?: string;
   panelId?: string;
 }) {
   const repository = useMemo(
-    () => new TauriImportedDocumentRepository(workspaceRoot),
-    [workspaceRoot],
+    () => new TauriImportedDocumentRepository(libraryId),
+    [libraryId],
   );
   const context = usePanelContext();
   const setPanelDirty = context?.setPanelDirty;
@@ -129,7 +132,7 @@ export default function ImportedPreviewPane({
     }
     let cancelled = false;
     void pluginServices.document
-      .getTitle(workspaceRoot, activeDocumentId)
+      .getTitle(libraryId, activeDocumentId)
       .then((title) => {
         if (!cancelled) {
           setDocumentTitle(title);
@@ -143,7 +146,7 @@ export default function ImportedPreviewPane({
     return () => {
       cancelled = true;
     };
-  }, [activeDocumentId, workspaceRoot]);
+  }, [activeDocumentId, libraryId]);
 
   useEffect(() => {
     if (!activeDocumentId) {
@@ -156,7 +159,7 @@ export default function ImportedPreviewPane({
         return;
       }
       void pluginServices.document
-        .getTitle(workspaceRoot, activeDocumentId)
+        .getTitle(libraryId, activeDocumentId)
         .then((title) => {
           setDocumentTitle(title);
         })
@@ -171,7 +174,7 @@ export default function ImportedPreviewPane({
     return () => {
       unsubscribers.forEach((unsubscribe) => unsubscribe());
     };
-  }, [activeDocumentId, workspaceRoot]);
+  }, [activeDocumentId, libraryId]);
 
   const editor = useEditor({
     extensions: [
@@ -185,6 +188,7 @@ export default function ImportedPreviewPane({
       BlockGroup,
       ViewportBlock.configure({
         workspaceRoot,
+        libraryId,
         onPickViewport: (request: ViewportPickRequest) =>
           setViewportRequest(request),
       }),
@@ -245,7 +249,7 @@ export default function ImportedPreviewPane({
         const activeIds = new Set(blocks.map((block) => block.id));
         const changed = blocks.filter(
           (block) =>
-            savedRef.current.get(block.id) !== blockSignature(block),
+            savedRef.current.get(block.id) !== blockFingerprint(block),
         );
         const deleted = [...savedRef.current.keys()].filter(
           (id) => !activeIds.has(id),
@@ -262,7 +266,7 @@ export default function ImportedPreviewPane({
           .saveBlocks(selectedRef.current, changed, deleted)
           .then(() => {
             blocks.forEach((block) =>
-              savedRef.current.set(block.id, blockSignature(block)),
+              savedRef.current.set(block.id, blockFingerprint(block)),
             );
             deleted.forEach((id) => savedRef.current.delete(id));
             setStatus("已保存");
@@ -367,7 +371,7 @@ export default function ImportedPreviewPane({
         const serialized = documentToSaveBlocks(editor.getJSON());
         savedRef.current = new Map(
           serialized.map(
-            (block) => [block.id, blockSignature(block)] as const,
+            (block) => [block.id, blockFingerprint(block)] as const,
           ),
         );
         loadingRef.current = false;
@@ -398,7 +402,7 @@ export default function ImportedPreviewPane({
         const note = workspaceRoot.toLowerCase().endsWith(".note");
         const dataUrl = note ? await fileDataUrl(file) : "";
         const relative = await pluginServices.assets.saveImage({
-          workspace: workspaceRoot,
+          libraryId,
           documentId: activeDocumentId,
           fileName: file.name,
           bytes: Array.from(new Uint8Array(buffer)),
@@ -568,7 +572,7 @@ export default function ImportedPreviewPane({
       return;
     }
     try {
-      const map = await pluginServices.maps.loadMap(workspaceRoot, mapId);
+      const map = await pluginServices.maps.loadMap(libraryId, mapId);
       const nodes = flattenMindMap(map.root).filter(
         (item) => item.id !== map.root.id,
       );
@@ -592,11 +596,11 @@ export default function ImportedPreviewPane({
           setStatus("这个标题已经对应当前文档");
           return;
         }
-        context.onActivateWorkspace(workspaceRoot);
+        context.onActivateWorkspace(libraryId);
         context.openBlockDocument(
           node.documentId,
           node.title,
-          workspaceRoot,
+          libraryId,
         );
         recordConsoleEvent("document", "跳转 H1 节点", node.title);
         return;
@@ -616,17 +620,17 @@ export default function ImportedPreviewPane({
       }
       setStatus("正在创建文档…");
       const updated = await pluginServices.maps.createDocumentForNode(
-        workspaceRoot,
+        libraryId,
         node.id,
       );
       emitAppEvent(APP_EVENTS.mapsChanged);
       emitAppEvent(APP_EVENTS.documentChanged);
       if (updated.documentId) {
-        context.onActivateWorkspace(workspaceRoot);
+        context.onActivateWorkspace(libraryId);
         context.openBlockDocument(
           updated.documentId,
           updated.title,
-          workspaceRoot,
+          libraryId,
         );
         recordConsoleEvent("document", "创建并打开 H1 文档", updated.title);
       }
@@ -914,12 +918,33 @@ export default function ImportedPreviewPane({
       dom.removeEventListener("click", listener, true);
       dom.removeEventListener("mousedown", onPointerDown, true);
     };
-  }, [activeDocumentId, context, editor, workspaceRoot]);
+  }, [activeDocumentId, context, editor, workspaceRoot, libraryId]);
 
   const ViewportSelectionPanel = getUiRenderer("viewport.selection");
 
   return (
     <div className="imported-preview-pane">
+      {editing && (
+        <div className="block-toolbar-stack">
+        {editor && (
+          <EditorFormatToolbar
+            editor={editor}
+            insertTable={insertTable}
+            insertEmptyViewport={insertEmptyViewport}
+          />
+        )}
+        {selectedBlock && (
+          <BlockLayoutToolbar
+            selectedBlock={selectedBlock}
+            onMove={(delta) => moveBlock(delta)}
+            onDuplicate={duplicateBlock}
+            onDelete={deleteBlock}
+            onUngroup={ungroupBlock}
+            onUpdateLayout={updateLayout}
+          />
+        )}
+        </div>
+      )}
       <div
         className="imported-preview-surface"
         onDragOver={(event) => {
@@ -952,25 +977,6 @@ export default function ImportedPreviewPane({
         onMouseLeave={clearAtomPreview}
         onMouseDown={clearAtomPreview}
       >
-        <div className="block-toolbar-stack">
-        {editing && editor && (
-          <EditorFormatToolbar
-            editor={editor}
-            insertTable={insertTable}
-            insertEmptyViewport={insertEmptyViewport}
-          />
-        )}
-        {editing && selectedBlock && (
-          <BlockLayoutToolbar
-            selectedBlock={selectedBlock}
-            onMove={(delta) => moveBlock(delta)}
-            onDuplicate={duplicateBlock}
-            onDelete={deleteBlock}
-            onUngroup={ungroupBlock}
-            onUpdateLayout={updateLayout}
-          />
-        )}
-        </div>
         <div className="block-document-title-row">
           <div
             className="block-document-title block-document-title-readonly"
@@ -993,3 +999,4 @@ export default function ImportedPreviewPane({
     </div>
   );
 }
+
