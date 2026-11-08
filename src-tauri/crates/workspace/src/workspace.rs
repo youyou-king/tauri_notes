@@ -13,16 +13,14 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 
-use tauri_notes_document::document::{BlockKind, split_into_blocks};
+use tauri_notes_document::document::{split_into_blocks, BlockKind};
 use tauri_notes_document::map_store;
 use tauri_notes_storage::database;
 
-
-const SCHEMA_VERSION: u32 = 1;
+use crate::library::{ensure_directory_identity, ensure_library_identity, LibraryId};
 
 #[derive(Debug, Deserialize)]
 struct WorkspaceMeta {
-    schema_version: u32,
     title: String,
 }
 
@@ -53,6 +51,7 @@ struct TreeNode {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceView {
+    pub id: LibraryId,
     pub root: String,
     pub title: String,
     pub maps: Vec<MapView>,
@@ -178,7 +177,7 @@ fn backup_document(path: &Path, content: &str) -> Result<(), String> {
 pub(crate) fn write_atomic(path: &Path, content: &str) -> Result<(), String> {
     if path.exists() {
         let old = fs::read_to_string(path)
-            .map_err(|error| io_err(&format!("读取旧版本 {}", path.display()), error))?;
+            .map_err(|error| io_err(&format!("读取现有内容 {}", path.display()), error))?;
         backup_document(path, &old)?;
     }
 
@@ -194,6 +193,14 @@ pub(crate) fn write_atomic(path: &Path, content: &str) -> Result<(), String> {
 
 fn io_err(context: &str, error: impl std::fmt::Display) -> String {
     format!("{context}: {error}")
+}
+
+/// 替换书库时清理 SQLite 可能留下的附属日志，保证新库只有一个文件。
+fn remove_note_sidecars(path: &Path) {
+    for suffix in ["-wal", "-shm"] {
+        let sidecar = format!("{}{}", path.display(), suffix);
+        let _ = fs::remove_file(sidecar);
+    }
 }
 
 struct CachedDocument {
@@ -238,8 +245,7 @@ fn read_cached_document(path: &Path) -> Option<String> {
 fn read_json<T: for<'de> Deserialize<'de>>(path: &Path) -> Result<T, String> {
     let text = fs::read_to_string(path)
         .map_err(|error| io_err(&format!("读取 {}", path.display()), error))?;
-    serde_json::from_str(&text)
-        .map_err(|error| io_err(&format!("解析 {}", path.display()), error))
+    serde_json::from_str(&text).map_err(|error| io_err(&format!("解析 {}", path.display()), error))
 }
 
 /// 防止 `map id / node id` 逃出工作区目录。
@@ -284,14 +290,8 @@ pub fn open_workspace(path: String) -> Result<WorkspaceView, String> {
     }
 
     let meta: WorkspaceMeta = read_json(&root.join("meta.json"))?;
-    if meta.schema_version != SCHEMA_VERSION {
-        return Err(format!(
-            "不支持的 .notes schema_version={}（期望 {}）",
-            meta.schema_version, SCHEMA_VERSION
-        ));
-    }
-
     let index: MapIndex = read_json(&root.join("maps.json"))?;
+    let identity = ensure_directory_identity(&root, Some(&meta.title))?;
     let mut maps = Vec::with_capacity(index.maps.len());
     for entry in &index.maps {
         if !safe_id(&entry.id) || !root.join(&entry.id).join("tree.json").is_file() {
@@ -301,8 +301,9 @@ pub fn open_workspace(path: String) -> Result<WorkspaceView, String> {
     }
 
     Ok(WorkspaceView {
+        id: identity.metadata.id,
         root: root.to_string_lossy().into_owned(),
-        title: meta.title,
+        title: identity.metadata.title,
         maps,
     })
 }
@@ -622,8 +623,7 @@ pub fn merge_blocks(
     let content = fs::read_to_string(&path)
         .map_err(|error| io_err(&format!("读取 {}", path.display()), error))?;
     let blocks = split_into_blocks(&content);
-    let (Some(previous), Some(current)) =
-        (blocks.get(block_index - 1), blocks.get(block_index))
+    let (Some(previous), Some(current)) = (blocks.get(block_index - 1), blocks.get(block_index))
     else {
         return Err(format!("块不存在: {block_index}"));
     };
@@ -725,10 +725,7 @@ pub async fn create_note_file(path: String, title: String) -> Result<WorkspaceVi
         }
         fs::remove_file(path_ref)
             .map_err(|error| io_err(&format!("替换 {}", path_ref.display()), error))?;
-        for suffix in ["-wal", "-shm"] {
-            let sidecar = format!("{}{}", path_ref.display(), suffix);
-            let _ = fs::remove_file(sidecar);
-        }
+        remove_note_sidecars(path_ref);
     }
     if let Some(parent) = path_ref.parent() {
         fs::create_dir_all(parent)
@@ -758,6 +755,7 @@ pub async fn create_note_file(path: String, title: String) -> Result<WorkspaceVi
         .await
         .map_err(|error| format!("创建默认导图失败: {error}"))?;
     drop(connection);
+    let _ = ensure_library_identity(path_ref, Some(title)).await?;
     open_note_workspace(path).await
 }
 
@@ -766,14 +764,18 @@ pub async fn open_note_workspace(path: String) -> Result<WorkspaceView, String> 
     if !path_ref.is_file() {
         return Err(format!("不是 .note 文件: {path}"));
     }
+    let fallback_title = path_ref
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .unwrap_or("知识库")
+        .to_string();
+    let identity = ensure_library_identity(path_ref, Some(&fallback_title)).await?;
     let rows = {
         let mut connection = database::open_for_import(&path).await?;
-        sqlx::query_as::<_, (String, String)>(
-            "SELECT id, title FROM maps ORDER BY created_at, id",
-        )
-        .fetch_all(&mut *connection)
-        .await
-        .map_err(|error| format!("读取导图失败: {error}"))?
+        sqlx::query_as::<_, (String, String)>("SELECT id, title FROM maps ORDER BY created_at, id")
+            .fetch_all(&mut *connection)
+            .await
+            .map_err(|error| format!("读取导图失败: {error}"))?
     };
     if rows.is_empty() {
         return Err("知识库里没有导图".into());
@@ -796,22 +798,14 @@ pub async fn open_note_workspace(path: String) -> Result<WorkspaceView, String> 
                 id: "root".to_string(),
                 title: map_title,
                 has_document: false,
-                children: mind
-                    .root
-                    .children
-                    .into_iter()
-                    .map(to_node)
-                    .collect(),
+                children: mind.root.children.into_iter().map(to_node).collect(),
             },
         });
     }
     Ok(WorkspaceView {
+        id: identity.metadata.id,
         root: path.clone(),
-        title: path_ref
-            .file_stem()
-            .and_then(|stem| stem.to_str())
-            .unwrap_or("知识库")
-            .to_string(),
+        title: identity.metadata.title,
         maps,
     })
 }
@@ -820,13 +814,6 @@ pub async fn save_note_file(path: String) -> Result<String, String> {
     let path_ref = Path::new(&path);
     if !path_ref.is_file() {
         return Err(format!("不是 .note 文件: {path}"));
-    }
-    {
-        let mut connection = database::open_for_import(&path).await?;
-        sqlx::query("PRAGMA wal_checkpoint(TRUNCATE)")
-            .execute(&mut *connection)
-            .await
-            .map_err(|error| format!("checkpoint 失败: {error}"))?;
     }
     let file_name = path_ref
         .file_name()
@@ -873,21 +860,17 @@ mod tests {
             .join("..")
             .join("resources")
             .join("help.note");
-        // Never open the repository fixture read-write: SQLite would create
-        // WAL/SHM files next to the tracked help.note.
-        let root = std::env::temp_dir().join(format!(
-            "tauri-notes-help-fixture-{}",
-            std::process::id()
-        ));
+        // 复制到临时目录，避免修改仓库内的 help.note fixture。
+        let root =
+            std::env::temp_dir().join(format!("tauri-notes-help-fixture-{}", std::process::id()));
         fs::create_dir_all(&root).unwrap();
         let path = root.join("help.note");
         fs::copy(&fixture, &path).unwrap();
-        let view = block_on(open_note_workspace(
-            path.to_string_lossy().into_owned(),
-        ))
-        .expect("help.note should open");
+        let view = block_on(open_note_workspace(path.to_string_lossy().into_owned()))
+            .expect("help.note should open");
         assert_eq!(view.maps.len(), 1);
         assert_eq!(view.maps[0].title, "使用帮助");
+        assert!(view.id.as_str().starts_with("lib_"));
         assert!(!view.maps[0].root.children.is_empty());
         drop(view);
         let _ = fs::remove_dir_all(root);
@@ -918,6 +901,7 @@ mod tests {
         fs::write(docs.join("node_001.md"), "# 根节点\n\n正文").unwrap();
 
         let view = open_workspace(root.to_string_lossy().into_owned()).unwrap();
+        assert!(view.id.as_str().starts_with("lib_"));
         assert_eq!(view.title, "测试知识库");
         assert_eq!(view.maps.len(), 1);
         assert_eq!(view.maps[0].root.children.len(), 1);
@@ -963,9 +947,7 @@ mod tests {
             std::fs::read_to_string(docs.join("node_001.md")).unwrap(),
             "# 根节点\n\n修改后的正文"
         );
-        let backups: Vec<_> = std::fs::read_dir(docs.join(".backup"))
-            .unwrap()
-            .collect();
+        let backups: Vec<_> = std::fs::read_dir(docs.join(".backup")).unwrap().collect();
         assert_eq!(backups.len(), 1);
 
         // 整篇回写用于撤销：恢复旧内容。

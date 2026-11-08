@@ -1,15 +1,5 @@
+# 脚本按类别组织：一类脚本一个 crate，命令作为该 crate 的子命令。
+# 新增类别时在这里登记对应目录，不要按单个命令拆 crate。
 [workspace]
 resolver = "2"
-members = [
-    "mobile-test-core",
-    "mobile-doctor",
-    "mobile-devices",
-    "mobile-start",
-    "mobile-up",
-    "mobile-launch",
-    "mobile-install",
-    "mobile-screenshot",
-    "mobile-reset",
-    "mobile-stop",
-    "mobile-smoke",
-]
+members = ["mobile", "installer", "release", "verify"]

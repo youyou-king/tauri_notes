@@ -1,9 +1,9 @@
-use tauri_notes_storage::database;
 use serde::{Deserialize, Serialize};
 use sqlx::Connection;
 use std::fs;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
+use tauri_notes_storage::database;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -59,10 +59,10 @@ fn fnv(value: &str) -> u32 {
 }
 
 fn read_board(path: &Path) -> Result<OldBoard, String> {
-    let text = fs::read_to_string(path)
-        .map_err(|error| format!("读取 {}: {error}", path.display()))?;
-    let board: OldBoard = serde_json::from_str(&text)
-        .map_err(|error| format!("解析 {}: {error}", path.display()))?;
+    let text =
+        fs::read_to_string(path).map_err(|error| format!("读取 {}: {error}", path.display()))?;
+    let board: OldBoard =
+        serde_json::from_str(&text).map_err(|error| format!("解析 {}: {error}", path.display()))?;
     if board.version != 1 {
         return Err(format!(
             "不支持的 board 版本 {}: {}",

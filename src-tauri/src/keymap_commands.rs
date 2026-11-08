@@ -40,7 +40,6 @@ pub struct KeymapView {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct KeymapFile {
-    #[serde(default = "default_version")]
     pub version: u32,
     #[serde(default)]
     pub bindings: Vec<KeymapBinding>,
@@ -98,9 +97,7 @@ fn validate_keymap(keymap: &KeymapFile) -> Result<(), String> {
             ));
         }
         if binding.platform != "mobile" && !has_key {
-            return Err(format!(
-                "bindings[{index}] 的桌面绑定必须提供 key 或 code"
-            ));
+            return Err(format!("bindings[{index}] 的桌面绑定必须提供 key 或 code"));
         }
     }
     Ok(())
@@ -110,8 +107,7 @@ fn read_keymap(path: &PathBuf) -> Result<KeymapFile, String> {
     if !path.is_file() {
         return Ok(KeymapFile::default());
     }
-    let text = fs::read_to_string(path)
-        .map_err(|error| format!("读取 keymap 失败: {error}"))?;
+    let text = fs::read_to_string(path).map_err(|error| format!("读取 keymap 失败: {error}"))?;
     let parsed: KeymapFile =
         toml::from_str(&text).map_err(|error| format!("解析 keymap 失败: {error}"))?;
     validate_keymap(&parsed)?;
@@ -199,8 +195,7 @@ fn merge_keymap(existing: Option<&str>, keymap: &KeymapFile) -> Result<String, S
 fn write_keymap(path: &PathBuf, keymap: &KeymapFile) -> Result<(), String> {
     validate_keymap(keymap)?;
     if let Some(directory) = path.parent() {
-        fs::create_dir_all(directory)
-            .map_err(|error| format!("创建配置目录失败: {error}"))?;
+        fs::create_dir_all(directory).map_err(|error| format!("创建配置目录失败: {error}"))?;
     }
     let existing = fs::read_to_string(path).ok();
     let text = merge_keymap(existing.as_deref(), keymap)?;

@@ -1,0 +1,16 @@
+[package]
+name = "verify"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "全量验证：前端、Rust、脚本、构建与安装器"
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "verify"
+path = "src/main.rs"
+
+[dependencies]
+installer = { path = "../installer" }

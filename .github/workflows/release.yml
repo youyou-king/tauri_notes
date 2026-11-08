@@ -32,7 +32,7 @@ jobs:
       - run: npm run tauri build -- --no-bundle
       - name: Build custom installer
         shell: pwsh
-        run: ./scripts/build-installer.ps1 -Output "Tauri Notes Setup.exe"
+        run: cargo run --quiet --manifest-path scripts/Cargo.toml -p installer -- build --output "Tauri Notes Setup.exe"
       - name: Write checksums
         shell: pwsh
         run: |

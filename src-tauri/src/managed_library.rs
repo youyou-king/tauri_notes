@@ -3,7 +3,9 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
-use tauri_notes_storage::database;
+use tauri_notes_workspace::library::{ensure_library_identity, LibraryIdentity};
+
+use crate::library_registry::{normalize_path, LibraryRegistry};
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -73,29 +75,24 @@ fn safe_title(title: &str) -> String {
     }
 }
 
-pub fn new_library_path(
-    title: &str,
-    data_dir: &Path,
-) -> Result<PathBuf, String> {
+pub fn new_library_path(title: &str, data_dir: &Path) -> Result<PathBuf, String> {
     let dir = libraries_dir(data_dir);
-    fs::create_dir_all(&dir)
-        .map_err(|error| format!("创建移动书库失败：{error}"))?;
+    fs::create_dir_all(&dir).map_err(|error| format!("创建移动知识库失败：{error}"))?;
     Ok(unique_target(&dir, &safe_title(title)))
 }
 
-fn summary_for(path: &Path) -> ManagedLibrarySummary {
-    let id = path
-        .file_stem()
-        .and_then(|value| value.to_str())
-        .unwrap_or("library")
-        .to_string();
-    ManagedLibrarySummary {
-        title: id.clone(),
-        id,
+async fn summary_for(data_dir: &Path, path: &Path) -> Result<ManagedLibrarySummary, String> {
+    let identity: LibraryIdentity = ensure_library_identity(path, None).await?;
+    LibraryRegistry::update(data_dir, |registry| {
+        registry.register(&identity.metadata, path)?;
+        Ok(())
+    })?;
+    Ok(ManagedLibrarySummary {
+        id: identity.metadata.id.to_string(),
+        title: identity.metadata.title,
         path: path.to_string_lossy().into_owned(),
-    }
+    })
 }
-
 
 /// Android's save dialog returns a `content://` URI; copy through the
 /// platform content resolver via the fs plugin instead of treating it as a
@@ -112,30 +109,23 @@ pub async fn export_library_uri(
     if !source.is_file() {
         return Err(format!("不是 .note 文件：{}", source.display()));
     }
-    let source_text = source.to_string_lossy().into_owned();
-    database::checkpoint_workspace(&source_text).await?;
 
-    let url = url::Url::parse(destination)
-        .map_err(|error| format!("导出目标 URI 无效：{error}"))?;
+    let url =
+        url::Url::parse(destination).map_err(|error| format!("导出目标 URI 无效：{error}"))?;
     let mut options = OpenOptions::new();
     options.write(true).create(true).truncate(true);
     let mut target = app
         .fs()
         .open(FilePath::Url(url), options)
         .map_err(|error| format!("打开导出目标失败：{error}"))?;
-    let mut input = fs::File::open(source)
-        .map_err(|error| format!("读取书库失败：{error}"))?;
-    std::io::copy(&mut input, &mut target)
-        .map_err(|error| format!("写入导出文件失败：{error}"))?;
+    let mut input = fs::File::open(source).map_err(|error| format!("读取知识库失败：{error}"))?;
+    std::io::copy(&mut input, &mut target).map_err(|error| format!("写入导出文件失败：{error}"))?;
     Ok(destination.to_string())
 }
 
-/// Copies a managed library to an explicit destination after the same
-/// checkpoint used for import. The caller owns destination confirmation.
-pub async fn export_library(
-    source: &Path,
-    destination: &Path,
-) -> Result<String, String> {
+/// Copies a managed library to an explicit destination. The caller owns
+/// destination confirmation.
+pub async fn export_library(source: &Path, destination: &Path) -> Result<String, String> {
     if !source.is_file() {
         return Err(format!("不是 .note 文件：{}", source.display()));
     }
@@ -143,16 +133,11 @@ pub async fn export_library(
         return Err("导出目标必须是 .note 文件".to_string());
     }
     if let Some(parent) = destination.parent() {
-        fs::create_dir_all(parent)
-            .map_err(|error| format!("创建导出目录失败：{error}"))?;
+        fs::create_dir_all(parent).map_err(|error| format!("创建导出目录失败：{error}"))?;
     }
-    let source_text = source.to_string_lossy().into_owned();
-    database::checkpoint_workspace(&source_text).await?;
-    fs::copy(source, destination)
-        .map_err(|error| format!("导出书库失败：{error}"))?;
+    fs::copy(source, destination).map_err(|error| format!("导出知识库失败：{error}"))?;
     Ok(destination.to_string_lossy().into_owned())
 }
-
 
 /// Android's file picker returns a `content://` URI; copy through the
 /// platform content resolver instead of treating it as a filesystem path.
@@ -164,11 +149,9 @@ pub async fn import_library_uri(
 ) -> Result<ManagedLibrarySummary, String> {
     use tauri_plugin_fs::{FilePath, FsExt, OpenOptions};
 
-    let url = url::Url::parse(source_uri)
-        .map_err(|error| format!("导入源 URI 无效：{error}"))?;
+    let url = url::Url::parse(source_uri).map_err(|error| format!("导入源 URI 无效：{error}"))?;
     let dir = libraries_dir(data_dir);
-    fs::create_dir_all(&dir)
-        .map_err(|error| format!("创建移动书库失败：{error}"))?;
+    fs::create_dir_all(&dir).map_err(|error| format!("创建移动知识库失败：{error}"))?;
     let target = unique_target(&dir, "imported");
     let mut options = OpenOptions::new();
     options.read(true);
@@ -176,38 +159,32 @@ pub async fn import_library_uri(
         .fs()
         .open(FilePath::Url(url), options)
         .map_err(|error| format!("读取导入文件失败：{error}"))?;
-    let mut output = fs::File::create(&target)
-        .map_err(|error| format!("创建导入文件失败：{error}"))?;
+    let mut output =
+        fs::File::create(&target).map_err(|error| format!("创建导入文件失败：{error}"))?;
     std::io::copy(&mut input, &mut output).map_err(|error| {
         let _ = fs::remove_file(&target);
         format!("导入文件失败：{error}")
     })?;
-    Ok(summary_for(&target))
+    Ok(summary_for(data_dir, &target).await?)
 }
 
 pub fn list_libraries(data_dir: &Path) -> Result<Vec<ManagedLibrarySummary>, String> {
-    let dir = libraries_dir(data_dir);
-    if !dir.exists() {
-        return Ok(Vec::new());
-    }
-    let mut libraries = Vec::new();
-    for entry in
-        fs::read_dir(&dir).map_err(|error| format!("读取移动书库失败：{error}"))?
-    {
-        let entry = entry.map_err(|error| error.to_string())?;
-        let path = entry.path();
-        if path.is_file()
-            && path.extension().and_then(|value| value.to_str()) == Some("note")
-        {
-            libraries.push(summary_for(&path));
-        }
-    }
-    libraries.sort_by(|left, right| left.id.cmp(&right.id));
+    let dir = normalize_path(&libraries_dir(data_dir))?;
+    let registry = LibraryRegistry::load(data_dir)?;
+    let mut libraries: Vec<ManagedLibrarySummary> = registry
+        .entries()
+        .filter(|(_, entry)| Path::new(&entry.path).starts_with(&dir))
+        .map(|(_, entry)| ManagedLibrarySummary {
+            id: entry.id.to_string(),
+            title: entry.title.clone(),
+            path: entry.path.clone(),
+        })
+        .collect();
+    libraries.sort_by(|left, right| left.title.cmp(&right.title));
     Ok(libraries)
 }
 
-/// Copies an external `.note` into the App library after a SQLite checkpoint,
-/// so WAL contents are not lost.
+/// Copies an external `.note` into the App library.
 pub async fn import_library(
     source: &Path,
     data_dir: &Path,
@@ -219,44 +196,52 @@ pub async fn import_library(
         return Err("只能导入 .note 文件".to_string());
     }
     let dir = libraries_dir(data_dir);
-    fs::create_dir_all(&dir)
-        .map_err(|error| format!("创建移动书库失败：{error}"))?;
+    fs::create_dir_all(&dir).map_err(|error| format!("创建移动知识库失败：{error}"))?;
     if source.starts_with(&dir) {
-        return Ok(summary_for(source));
+        return summary_for(data_dir, source).await;
     }
-
-    let source_text = source.to_string_lossy().into_owned();
-    database::checkpoint_workspace(&source_text).await?;
 
     let target = unique_target(&dir, &safe_stem(source));
     fs::copy(source, &target).map_err(|error| {
         let _ = fs::remove_file(&target);
-        format!("复制到移动书库失败：{error}")
+        format!("复制到移动知识库失败：{error}")
     })?;
-    Ok(summary_for(&target))
+    summary_for(data_dir, &target).await
 }
 
 #[cfg(test)]
 mod tests {
     use super::{list_libraries, unique_target};
+    use crate::library_registry::LibraryRegistry;
     use std::fs;
+    use tauri_notes_workspace::library::{LibraryId, LibraryKind, LibraryMetadata};
 
     fn temp_root(name: &str) -> std::path::PathBuf {
-        std::env::temp_dir().join(format!(
-            "tauri-notes-managed-{name}-{}",
-            std::process::id()
-        ))
+        std::env::temp_dir().join(format!("tauri-notes-managed-{name}-{}", std::process::id()))
     }
 
     #[test]
-    fn lists_only_note_files() {
+    fn lists_registered_note_files() {
         let root = temp_root("list");
         fs::create_dir_all(root.join("libraries")).unwrap();
-        fs::write(root.join("libraries/a.note"), "a").unwrap();
+        let note = root.join("libraries/a.note");
+        fs::write(&note, b"").unwrap();
         fs::write(root.join("libraries/b.txt"), "b").unwrap();
+        LibraryRegistry::update(&root, |registry| {
+            registry.register(
+                &LibraryMetadata {
+                    id: LibraryId::parse("lib_a").unwrap(),
+                    title: "A".to_string(),
+                    kind: LibraryKind::Note,
+                },
+                &note,
+            )?;
+            Ok(())
+        })
+        .unwrap();
         let libraries = list_libraries(&root).unwrap();
         assert_eq!(libraries.len(), 1);
-        assert_eq!(libraries[0].id, "a");
+        assert_eq!(libraries[0].id, "lib_a");
         fs::remove_dir_all(root).unwrap();
     }
 

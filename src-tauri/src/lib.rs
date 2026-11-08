@@ -1,20 +1,24 @@
 mod board_commands;
+mod command_error;
 mod commands;
+mod content_commands;
 #[cfg(desktop)]
 mod desktop;
 mod document_commands;
-mod import_commands;
 mod help;
+mod import_commands;
 mod keymap_commands;
+mod library_commands;
+mod library_registry;
+mod library_resolver;
 mod managed_library;
-mod content_commands;
-mod command_error;
+mod map_commands;
 #[cfg(mobile)]
 mod mobile;
-#[cfg(mobile)]
-mod share;
 mod platform_commands;
 mod platform_state;
+#[cfg(mobile)]
+mod share;
 mod storage_commands;
 mod workspace_commands;
 
@@ -24,8 +28,9 @@ pub use tauri_notes_document::{document_store, map_store};
 pub use tauri_notes_storage::{database, sqlite};
 
 use std::collections::HashSet;
-use tauri::Manager;
+use std::fs;
 use std::sync::Mutex;
+use tauri::Manager;
 use tauri_notes_plugin_api::{validate_manifest, PluginManifest};
 use tauri_notes_plugin_runtime::plan_activation;
 
@@ -50,8 +55,13 @@ fn wide(value: &str) -> Vec<u16> {
 
 #[cfg(windows)]
 fn is_restricted_process() -> bool {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
     let output = std::process::Command::new("whoami")
         .arg("/groups")
+        // A GUI-subsystem app spawning a console program can otherwise flash
+        // a console window on every startup.
+        .creation_flags(CREATE_NO_WINDOW)
         .output();
     let Ok(output) = output else {
         return false;
@@ -103,23 +113,22 @@ pub(crate) fn startup_note_arg() -> Option<String> {
     note_arg(&args)
 }
 
-#[cfg(desktop)]
 #[tauri::command]
 fn take_pending_note_file() -> Option<String> {
-    PENDING_NOTE.lock().ok().and_then(|mut pending| pending.take())
+    PENDING_NOTE
+        .lock()
+        .ok()
+        .and_then(|mut pending| pending.take())
 }
 
-#[cfg(desktop)]
 #[tauri::command]
 fn register_note_association(
     state: tauri::State<'_, platform_state::PlatformState>,
 ) -> Result<(), String> {
-    let exe = std::env::current_exe()
-        .map_err(|error| format!("获取程序路径失败: {error}"))?;
+    let exe = std::env::current_exe().map_err(|error| format!("获取程序路径失败: {error}"))?;
     state.adapter.register_file_association(&exe)
 }
 
-#[cfg(desktop)]
 #[tauri::command]
 fn unregister_note_association(
     state: tauri::State<'_, platform_state::PlatformState>,
@@ -127,23 +136,69 @@ fn unregister_note_association(
     state.adapter.unregister_file_association()
 }
 
+#[tauri::command]
+fn file_association_status(state: tauri::State<'_, platform_state::PlatformState>) -> bool {
+    state.adapter.is_file_association_registered()
+}
 
 #[tauri::command]
 fn help_note_path(app: tauri::AppHandle) -> Result<String, String> {
-    if let Ok(exe) = std::env::current_exe() {
+    let source = if let Ok(exe) = std::env::current_exe() {
         if let Some(dir) = exe.parent() {
             let candidate = dir.join("help.note");
             if candidate.is_file() {
-                return Ok(candidate.to_string_lossy().into_owned());
+                Some(candidate)
+            } else {
+                None
             }
+        } else {
+            None
+        }
+    } else {
+        None
+    }
+    .or_else(|| {
+        let dev_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
+        let resource_dir = app.path().resource_dir().ok();
+        help::resolve_help_note(resource_dir.as_deref(), &dev_root)
+    })
+    .or_else(|| {
+        let dev_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
+        let resource_dir = app.path().resource_dir().ok();
+        help::resolve_help_note(resource_dir.as_deref(), &dev_root)
+    });
+
+    // Help is a read-only template. Copy it to an isolated cache directory so
+    // neither the installation directory nor the repository resource is
+    // written. Platforms without a filesystem resource path use the bytes
+    // compiled into the binary.
+    let cache = app
+        .path()
+        .app_cache_dir()
+        .map_err(|error| format!("获取缓存目录失败：{error}"))?
+        .join("help");
+    fs::create_dir_all(&cache).map_err(|error| format!("创建缓存目录失败：{error}"))?;
+    let stamp = source
+        .as_ref()
+        .and_then(|path| fs::metadata(path).ok())
+        .and_then(|metadata| metadata.modified().ok())
+        .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|duration| duration.as_millis())
+        .unwrap_or_else(|| u128::from(help::content_hash(help::BUNDLED_HELP)));
+    let version_dir = cache.join(stamp.to_string());
+    fs::create_dir_all(&version_dir)
+        .map_err(|error| format!("创建帮助缓存版本目录失败：{error}"))?;
+    let target = version_dir.join("使用帮助.note");
+    if !target.exists() {
+        if let Some(source) = source {
+            fs::copy(&source, &target)
+                .map_err(|error| format!("复制帮助知识库失败：{error}"))?;
+        } else {
+            fs::write(&target, help::BUNDLED_HELP)
+                .map_err(|error| format!("写入内置帮助知识库失败：{error}"))?;
         }
     }
-    let dev_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
-    let resource_dir = app.path().resource_dir().ok();
-    if let Some(path) = help::resolve_help_note(resource_dir.as_deref(), &dev_root) {
-        return Ok(path.to_string_lossy().into_owned());
-    }
-    Err("未找到帮助知识库 help.note".into())
+    Ok(target.to_string_lossy().into_owned())
 }
 
 #[tauri::command]
@@ -154,8 +209,7 @@ fn validate_plugin_manifest(
     let parsed: PluginManifest =
         serde_json::from_value(manifest).map_err(|error| error.to_string())?;
     let allowed = allowed_capabilities.unwrap_or_default();
-    let allowed_refs: HashSet<&str> =
-        allowed.iter().map(String::as_str).collect();
+    let allowed_refs: HashSet<&str> = allowed.iter().map(String::as_str).collect();
     Ok(validate_manifest(&parsed, &allowed_refs))
 }
 
@@ -203,10 +257,7 @@ async fn export_managed_library(
 
 #[cfg(mobile)]
 #[tauri::command]
-fn share_managed_library(
-    app: tauri::AppHandle,
-    path: String,
-) -> Result<(), String> {
+fn share_managed_library(app: tauri::AppHandle, path: String) -> Result<(), String> {
     let state = app.state::<share::ShareHandle<tauri::Wry>>();
     share::share_library(&state, &path)
 }
@@ -224,14 +275,11 @@ async fn import_managed_library(
     }
     #[cfg(desktop)]
     let _ = &app;
-    managed_library::import_library(std::path::Path::new(&source), &data_dir)
-        .await
+    managed_library::import_library(std::path::Path::new(&source), &data_dir).await
 }
 
 #[tauri::command]
-fn plan_plugin_activation(
-    manifests: Vec<PluginManifest>,
-) -> Result<Vec<String>, Vec<String>> {
+fn plan_plugin_activation(manifests: Vec<PluginManifest>) -> Result<Vec<String>, Vec<String>> {
     plan_activation(&manifests)
 }
 
@@ -251,16 +299,19 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .invoke_handler(tauri::generate_handler![
-            #[cfg(desktop)]
             take_pending_note_file,
-            #[cfg(desktop)]
             register_note_association,
-            #[cfg(desktop)]
             unregister_note_association,
+            file_association_status,
             help_note_path,
             validate_plugin_manifest,
             plugin_sdk_version,
             platform_commands::platform_info,
+            library_commands::register_library,
+            library_commands::open_library,
+            library_commands::rename_library,
+            library_commands::relocate_library,
+            library_commands::forget_library,
             list_managed_libraries,
             import_managed_library,
             export_managed_library,
@@ -272,23 +323,9 @@ pub fn run() {
             keymap_commands::export_keymap,
             keymap_commands::import_keymap,
             plan_plugin_activation,
-            workspace_commands::open_workspace,
             workspace_commands::create_note_file,
-            workspace_commands::open_note_workspace,
             workspace_commands::save_note_file,
-            workspace_commands::read_document,
-            workspace_commands::document_modified,
-            workspace_commands::index_document,
-            workspace_commands::save_block,
-            workspace_commands::split_block,
-            workspace_commands::merge_blocks,
-            workspace_commands::save_block_range,
-            workspace_commands::write_document,
-            workspace_commands::delete_blocks,
-            workspace_commands::insert_blocks,
-            workspace_commands::search_workspace,
             workspace_commands::search_blocks_db,
-            storage_commands::initialize_database,
             storage_commands::database_status,
             storage_commands::backup_database,
             storage_commands::verify_database,
@@ -306,18 +343,18 @@ pub fn run() {
             document_commands::restore_imported_document,
             document_commands::delete_imported_document,
             document_commands::load_document_tree,
-            document_commands::load_mind_map,
-            document_commands::load_outline,
-            document_commands::create_mind_map,
-            document_commands::rename_mind_map,
-            document_commands::delete_mind_map,
-            document_commands::delete_map_node,
-            document_commands::create_map_node,
-            document_commands::rename_map_node,
-            document_commands::set_map_node_position,
-            document_commands::create_document_for_map_root,
-            document_commands::create_document_for_map_node,
-            document_commands::bind_document_to_map_node,
+            map_commands::load_mind_map,
+            map_commands::load_outline,
+            map_commands::create_mind_map,
+            map_commands::rename_mind_map,
+            map_commands::delete_mind_map,
+            map_commands::delete_map_node,
+            map_commands::create_map_node,
+            map_commands::rename_map_node,
+            map_commands::set_map_node_positions,
+            map_commands::create_document_for_map_root,
+            map_commands::create_document_for_map_node,
+            map_commands::bind_document_to_map_node,
             import_commands::import_boards,
             board_commands::list_boards_db,
             board_commands::read_board_db,

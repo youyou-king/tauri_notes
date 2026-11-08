@@ -1,0 +1,15 @@
+[package]
+name = "release"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "版本同步"
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "release"
+path = "src/main.rs"
+
+[dependencies]

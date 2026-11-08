@@ -30,17 +30,16 @@ pub trait PlatformAdapter: Send + Sync {
         PlatformCapabilities::default()
     }
 
-    /// Legacy theme directory used by pre-portable installs.
-    fn legacy_theme_dir(&self) -> Option<PathBuf> {
-        None
-    }
-
     fn register_file_association(&self, _exe: &Path) -> Result<(), String> {
         Err("当前平台暂不支持自动注册文件关联".to_string())
     }
 
     fn unregister_file_association(&self) -> Result<(), String> {
         Err("当前平台暂不支持自动注册文件关联".to_string())
+    }
+
+    fn is_file_association_registered(&self) -> bool {
+        false
     }
 }
 
@@ -105,28 +104,18 @@ impl PlatformAdapter for NativePlatform {
 
     fn data_dir(&self) -> Result<PathBuf, String> {
         let exe = std::env::current_exe().map_err(|error| error.to_string())?;
-        let parent = exe
-            .parent()
-            .ok_or_else(|| "无法确定程序目录".to_string())?;
+        let parent = exe.parent().ok_or_else(|| "无法确定程序目录".to_string())?;
         Ok(parent.join("data"))
     }
 
     fn cache_dir(&self) -> Result<PathBuf, String> {
         let exe = std::env::current_exe().map_err(|error| error.to_string())?;
-        let parent = exe
-            .parent()
-            .ok_or_else(|| "无法确定程序目录".to_string())?;
+        let parent = exe.parent().ok_or_else(|| "无法确定程序目录".to_string())?;
         Ok(parent.join("cache"))
     }
 
     fn system_theme(&self) -> SystemTheme {
         SystemTheme::Unknown
-    }
-
-    fn legacy_theme_dir(&self) -> Option<PathBuf> {
-        std::env::var_os("APPDATA")
-            .map(PathBuf::from)
-            .map(|root| root.join("com.example.tauri-notes").join("themes"))
     }
 
     fn register_file_association(&self, exe: &Path) -> Result<(), String> {
@@ -177,6 +166,23 @@ impl PlatformAdapter for NativePlatform {
         Ok(())
     }
 
+    fn is_file_association_registered(&self) -> bool {
+        use std::os::windows::process::CommandExt;
+
+        std::process::Command::new("reg")
+            .args(["query", "HKCU\\Software\\Classes\\.note", "/ve"])
+            .creation_flags(0x08000000)
+            .output()
+            .ok()
+            .filter(|output| output.status.success())
+            .map(|output| {
+                String::from_utf8_lossy(&output.stdout)
+                    .to_ascii_lowercase()
+                    .contains("taurinotes.note")
+            })
+            .unwrap_or(false)
+    }
+
     fn capabilities(&self) -> PlatformCapabilities {
         PlatformCapabilities {
             file_association: true,
@@ -225,7 +231,11 @@ impl PlatformAdapter for NativePlatform {
     fn data_dir(&self) -> Result<PathBuf, String> {
         std::env::var_os("XDG_DATA_HOME")
             .map(PathBuf::from)
-            .or_else(|| self.home_dir().ok().map(|home| home.join(".local").join("share")))
+            .or_else(|| {
+                self.home_dir()
+                    .ok()
+                    .map(|home| home.join(".local").join("share"))
+            })
             .map(|root| root.join("tauri-notes"))
             .ok_or_else(|| "无法确定数据目录".to_string())
     }
@@ -255,10 +265,8 @@ pub fn replace_file(from: &Path, to: &Path) -> Result<(), String> {
             MoveFileExW, MOVEFILE_REPLACE_EXISTING, MOVEFILE_WRITE_THROUGH,
         };
 
-        let from: Vec<u16> =
-            from.as_os_str().encode_wide().chain(Some(0)).collect();
-        let to: Vec<u16> =
-            to.as_os_str().encode_wide().chain(Some(0)).collect();
+        let from: Vec<u16> = from.as_os_str().encode_wide().chain(Some(0)).collect();
+        let to: Vec<u16> = to.as_os_str().encode_wide().chain(Some(0)).collect();
         let ok = unsafe {
             MoveFileExW(
                 from.as_ptr(),
@@ -267,18 +275,14 @@ pub fn replace_file(from: &Path, to: &Path) -> Result<(), String> {
             )
         };
         if ok == 0 {
-            return Err(format!(
-                "原子替换失败: {}",
-                std::io::Error::last_os_error()
-            ));
+            return Err(format!("原子替换失败: {}", std::io::Error::last_os_error()));
         }
         Ok(())
     }
 
     #[cfg(not(windows))]
     {
-        fs::rename(from, to)
-            .map_err(|error| format!("替换 {} 失败: {error}", to.display()))
+        fs::rename(from, to).map_err(|error| format!("替换 {} 失败: {error}", to.display()))
     }
 }
 
@@ -302,16 +306,12 @@ mod tests {
             PathBuf::from("/sandbox/data"),
             PathBuf::from("/sandbox/cache"),
         );
-        assert_eq!(
-            platform.data_dir().unwrap(),
-            PathBuf::from("/sandbox/data")
-        );
+        assert_eq!(platform.data_dir().unwrap(), PathBuf::from("/sandbox/data"));
         let capabilities = platform.capabilities();
         assert!(capabilities.share);
         assert!(capabilities.safe_area);
         assert!(capabilities.virtual_keyboard);
         assert!(!capabilities.file_association);
-        assert!(platform.legacy_theme_dir().is_none());
     }
 
     #[test]
@@ -337,9 +337,6 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn windows_capabilities_include_file_association() {
-        assert!(
-            NativePlatform::new().capabilities().file_association
-        );
-        assert!(NativePlatform::new().legacy_theme_dir().is_some());
+        assert!(NativePlatform::new().capabilities().file_association);
     }
 }

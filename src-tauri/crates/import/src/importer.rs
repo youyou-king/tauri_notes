@@ -1,5 +1,3 @@
-use tauri_notes_storage::database;
-use tauri_notes_document::document::{BlockKind, split_into_blocks};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sqlx::{Connection, SqliteConnection};
@@ -7,6 +5,8 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
+use tauri_notes_document::document::{split_into_blocks, BlockKind};
+use tauri_notes_storage::database;
 
 #[derive(Debug, Deserialize)]
 struct MapIndex {
@@ -73,10 +73,9 @@ fn safe_id(value: &str) -> bool {
 }
 
 fn read_json<T: for<'de> Deserialize<'de>>(path: &Path) -> Result<T, String> {
-    let text = fs::read_to_string(path)
-        .map_err(|error| format!("读取 {}: {error}", path.display()))?;
-    serde_json::from_str(&text)
-        .map_err(|error| format!("解析 {}: {error}", path.display()))
+    let text =
+        fs::read_to_string(path).map_err(|error| format!("读取 {}: {error}", path.display()))?;
+    serde_json::from_str(&text).map_err(|error| format!("解析 {}: {error}", path.display()))
 }
 
 fn timestamp() -> String {
@@ -140,11 +139,7 @@ fn kind_name(kind: BlockKind) -> &'static str {
     }
 }
 
-fn parse_document(
-    document_id: &str,
-    title: &str,
-    source: &str,
-) -> ImportDocument {
+fn parse_document(document_id: &str, title: &str, source: &str) -> ImportDocument {
     let specs = split_into_blocks(source);
     let mut blocks = Vec::new();
     let mut pending_id: Option<String> = None;
@@ -175,10 +170,7 @@ fn parse_document(
         let markdown = content_lines.join("\n").trim().to_string();
         if !markdown.is_empty() {
             let block_id = pending_id.take().unwrap_or_else(|| {
-                format!(
-                    "block_imp_{:08x}",
-                    fnv(&format!("{document_id}:{index}"))
-                )
+                format!("block_imp_{:08x}", fnv(&format!("{document_id}:{index}")))
             });
             let block_type = kind_name(spec.kind).to_string();
             let (width_span, height_mode, height_px) = match spec.kind {
@@ -279,8 +271,7 @@ fn collect_documents(
             let document_id = format!("{map_id}/{}", node.id);
             let mut document = parse_document(&document_id, &node.title, &source);
             document.map_id = map_id.to_string();
-            document.parent_id =
-                parent_id.map(|parent| format!("{map_id}/{parent}"));
+            document.parent_id = parent_id.map(|parent| format!("{map_id}/{parent}"));
             document.order_key = order_key.to_string();
             if document.blocks.is_empty() {
                 *skipped_empty += 1;

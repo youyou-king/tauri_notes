@@ -123,8 +123,7 @@ pub fn save_image_asset(
         .join(safe_segment(map_id))
         .join("docs")
         .join("assets");
-    fs::create_dir_all(&assets_dir)
-        .map_err(|error| format!("创建 assets 目录失败: {error}"))?;
+    fs::create_dir_all(&assets_dir).map_err(|error| format!("创建 assets 目录失败: {error}"))?;
     let stamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|duration| duration.as_nanos())
@@ -166,8 +165,7 @@ pub fn copy_image_asset(
         .join(safe_segment(map_id))
         .join("docs")
         .join("assets");
-    fs::create_dir_all(&assets_dir)
-        .map_err(|error| format!("创建 assets 目录失败: {error}"))?;
+    fs::create_dir_all(&assets_dir).map_err(|error| format!("创建 assets 目录失败: {error}"))?;
 
     let stamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -176,8 +174,7 @@ pub fn copy_image_asset(
     let digest = fnv(&format!("{}:{}", source_path, stamp));
     let file_name = format!("image_{stamp:x}_{digest:08x}.{extension}");
     let destination = assets_dir.join(&file_name);
-    fs::copy(source, &destination)
-        .map_err(|error| format!("复制图片失败: {error}"))?;
+    fs::copy(source, &destination).map_err(|error| format!("复制图片失败: {error}"))?;
 
     Ok(format!("assets/{file_name}"))
 }
@@ -195,10 +192,8 @@ mod tests {
 
     #[test]
     fn copies_image_into_document_assets() {
-        let workspace = std::env::temp_dir().join(format!(
-            "tauri-notes-assets-{}",
-            std::process::id()
-        ));
+        let workspace =
+            std::env::temp_dir().join(format!("tauri-notes-assets-{}", std::process::id()));
         let source = workspace.join("source.png");
         fs::create_dir_all(&workspace).expect("workspace");
         fs::write(&source, [0x89, b'P', b'N', b'G']).expect("source");
@@ -212,14 +207,13 @@ mod tests {
 
         assert!(relative.starts_with("assets/image_"));
         assert!(relative.ends_with(".png"));
-        let copied = workspace
-            .join("map_001")
-            .join("docs")
-            .join(&relative);
+        let copied = workspace.join("map_001").join("docs").join(&relative);
         assert!(copied.is_file());
-        assert_eq!(fs::read(copied).expect("bytes"), vec![0x89, b'P', b'N', b'G']);
+        assert_eq!(
+            fs::read(copied).expect("bytes"),
+            vec![0x89, b'P', b'N', b'G']
+        );
 
         fs::remove_dir_all(workspace).ok();
     }
 }
-

@@ -1,7 +1,7 @@
-use tauri_notes_storage::database;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sqlx::Connection;
+use tauri_notes_storage::database;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -66,8 +66,7 @@ fn heading_text(plain_text: &str) -> String {
     plain_text.trim_start_matches('#').trim().to_string()
 }
 
-pub async fn list_imported_documents(    workspace: String,
-) -> Result<Vec<ImportedDocument>, String> {
+pub async fn list_imported_documents(workspace: String) -> Result<Vec<ImportedDocument>, String> {
     let mut connection = database::open_for_import(&workspace).await?;
     let rows: Vec<(String, String, i64)> = sqlx::query_as(
         "SELECT d.id, d.title, COUNT(b.id)
@@ -119,19 +118,17 @@ pub async fn load_document_blocks(
     .await
     .map_err(|error| format!("读取文档块失败: {error}"))?;
 
-    let linked: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM map_nodes WHERE document_id = ?1")
-            .bind(&document_id)
-            .fetch_one(&mut *connection)
-            .await
-            .map_err(|error| format!("读取文档节点失败: {error}"))?;
+    let linked: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM map_nodes WHERE document_id = ?1")
+        .bind(&document_id)
+        .fetch_one(&mut *connection)
+        .await
+        .map_err(|error| format!("读取文档节点失败: {error}"))?;
     if linked > 0 {
-        let title: Option<String> =
-            sqlx::query_scalar("SELECT title FROM documents WHERE id = ?1")
-                .bind(&document_id)
-                .fetch_optional(&mut *connection)
-                .await
-                .map_err(|error| format!("读取文档标题失败: {error}"))?;
+        let title: Option<String> = sqlx::query_scalar("SELECT title FROM documents WHERE id = ?1")
+            .bind(&document_id)
+            .fetch_optional(&mut *connection)
+            .await
+            .map_err(|error| format!("读取文档标题失败: {error}"))?;
         if let Some(title) = title {
             let self_heading_ids = rows
                 .iter()
@@ -261,9 +258,7 @@ fn fnv(value: &str) -> u32 {
     hash
 }
 
-pub async fn index_blocks_db(
-    workspace: String,
-) -> Result<Vec<IndexedDbBlock>, String> {
+pub async fn index_blocks_db(workspace: String) -> Result<Vec<IndexedDbBlock>, String> {
     let mut connection = database::open_for_import(&workspace).await?;
     let rows = sqlx::query_as::<_, (String, String, String, String, String, String)>(
         "SELECT b.id, b.document_id, d.title, b.type, b.plain_text, b.content_json
@@ -426,27 +421,23 @@ pub async fn rename_imported_document(
         .duration_since(std::time::UNIX_EPOCH)
         .map(|duration| duration.as_secs().to_string())
         .unwrap_or_default();
-    let result = sqlx::query(
-        "UPDATE documents SET title = ?1, updated_at = ?2 WHERE id = ?3",
-    )
-    .bind(title)
-    .bind(&now)
-    .bind(&document_id)
-    .execute(&mut *transaction)
-    .await
-    .map_err(|error| format!("重命名失败: {error}"))?;
+    let result = sqlx::query("UPDATE documents SET title = ?1, updated_at = ?2 WHERE id = ?3")
+        .bind(title)
+        .bind(&now)
+        .bind(&document_id)
+        .execute(&mut *transaction)
+        .await
+        .map_err(|error| format!("重命名失败: {error}"))?;
     if result.rows_affected() == 0 {
         return Err("文档不存在".into());
     }
-    sqlx::query(
-        "UPDATE map_nodes SET title = ?1, updated_at = ?2 WHERE document_id = ?3",
-    )
-    .bind(title)
-    .bind(&now)
-    .bind(&document_id)
-    .execute(&mut *transaction)
-    .await
-    .map_err(|error| format!("同步导图节点标题失败: {error}"))?;
+    sqlx::query("UPDATE map_nodes SET title = ?1, updated_at = ?2 WHERE document_id = ?3")
+        .bind(title)
+        .bind(&now)
+        .bind(&document_id)
+        .execute(&mut *transaction)
+        .await
+        .map_err(|error| format!("同步导图节点标题失败: {error}"))?;
     let links = sqlx::query_as::<_, (Option<String>, Option<String>)>(
         "SELECT heading_block_id, parent_id FROM map_nodes WHERE document_id = ?1",
     )
@@ -545,9 +536,7 @@ pub async fn delete_imported_document(
     Ok(())
 }
 
-pub async fn list_deleted_documents(
-    workspace: String,
-) -> Result<Vec<ImportedDocument>, String> {
+pub async fn list_deleted_documents(workspace: String) -> Result<Vec<ImportedDocument>, String> {
     let mut connection = database::open_for_import(&workspace).await?;
     let rows: Vec<(String, String, i64)> = sqlx::query_as(
         "SELECT d.id, d.title, COUNT(b.id)
@@ -575,13 +564,11 @@ pub async fn restore_imported_document(
     document_id: String,
 ) -> Result<(), String> {
     let mut connection = database::open_for_import(&workspace).await?;
-    sqlx::query(
-        "UPDATE documents SET deleted_at = NULL WHERE id = ?1",
-    )
-    .bind(&document_id)
-    .execute(&mut *connection)
-    .await
-    .map_err(|error| format!("恢复文档失败: {error}"))?;
+    sqlx::query("UPDATE documents SET deleted_at = NULL WHERE id = ?1")
+        .bind(&document_id)
+        .execute(&mut *connection)
+        .await
+        .map_err(|error| format!("恢复文档失败: {error}"))?;
     Ok(())
 }
 
@@ -595,9 +582,7 @@ pub struct DocumentTreeNode {
     pub order_key: String,
 }
 
-pub async fn load_document_tree(
-    workspace: String,
-) -> Result<Vec<DocumentTreeNode>, String> {
+pub async fn load_document_tree(workspace: String) -> Result<Vec<DocumentTreeNode>, String> {
     let mut connection = database::open_for_import(&workspace).await?;
     let rows = sqlx::query_as::<_, (String, String, Option<String>, String, String)>(
         "SELECT map_id, id, parent_id, title, order_key
@@ -756,9 +741,8 @@ pub async fn save_imported_blocks(
 #[cfg(test)]
 mod tests {
     use super::{
-        create_imported_document, delete_imported_document,
-        list_deleted_documents, list_imported_documents,
-        restore_imported_document,
+        create_imported_document, delete_imported_document, list_deleted_documents,
+        list_imported_documents, restore_imported_document,
     };
     use std::fs;
     use std::path::PathBuf;
@@ -796,20 +780,14 @@ mod tests {
         let path = root.to_string_lossy().into_owned();
         block_on(async {
             database::initialize_database(path.clone()).await.unwrap();
-            create_imported_document(
-                path.clone(),
-                "map-1".into(),
-                "回收站测试".into(),
-            )
-            .await
-            .unwrap();
+            create_imported_document(path.clone(), "map-1".into(), "回收站测试".into())
+                .await
+                .unwrap();
             assert_eq!(
                 list_imported_documents(path.clone()).await.unwrap().len(),
                 1
             );
-            let id = list_imported_documents(path.clone())
-                .await
-                .unwrap()[0]
+            let id = list_imported_documents(path.clone()).await.unwrap()[0]
                 .id
                 .clone();
             delete_imported_document(path.clone(), id.clone())
@@ -819,13 +797,8 @@ mod tests {
                 .await
                 .unwrap()
                 .is_empty());
-            assert_eq!(
-                list_deleted_documents(path.clone()).await.unwrap().len(),
-                1
-            );
-            restore_imported_document(path.clone(), id)
-                .await
-                .unwrap();
+            assert_eq!(list_deleted_documents(path.clone()).await.unwrap().len(), 1);
+            restore_imported_document(path.clone(), id).await.unwrap();
             assert_eq!(
                 list_imported_documents(path.clone()).await.unwrap().len(),
                 1

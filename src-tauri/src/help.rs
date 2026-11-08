@@ -2,12 +2,19 @@ use std::path::{Path, PathBuf};
 
 const HELP_FILE: &str = "help.note";
 
+/// Help is compiled into the binary as the final fallback for platforms
+/// without a writable resource path (notably Android).
+pub const BUNDLED_HELP: &[u8] = include_bytes!("../../resources/help.note");
+
+pub fn content_hash(bytes: &[u8]) -> u64 {
+    bytes.iter().fold(0xcbf29ce484222325, |hash, byte| {
+        (hash ^ u64::from(*byte)).wrapping_mul(0x100000001b3)
+    })
+}
+
 /// Resolve the bundled help workspace. Release builds read Tauri resources;
 /// development can fall back to the repository `resources/` directory.
-pub fn resolve_help_note(
-    resource_dir: Option<&Path>,
-    dev_root: &Path,
-) -> Option<PathBuf> {
+pub fn resolve_help_note(resource_dir: Option<&Path>, dev_root: &Path) -> Option<PathBuf> {
     if let Some(resource_dir) = resource_dir {
         for candidate in [
             resource_dir.join("resources").join(HELP_FILE),
@@ -28,10 +35,7 @@ mod tests {
     use std::fs;
 
     fn temp_root(name: &str) -> std::path::PathBuf {
-        std::env::temp_dir().join(format!(
-            "tauri-notes-help-{name}-{}",
-            std::process::id()
-        ))
+        std::env::temp_dir().join(format!("tauri-notes-help-{name}-{}", std::process::id()))
     }
 
     #[test]

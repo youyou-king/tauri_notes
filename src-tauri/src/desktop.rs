@@ -6,7 +6,11 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     if let Some(path) = crate::startup_note_arg() {
         queue_note_path(path);
     }
-    let profile = if cfg!(debug_assertions) { "dev" } else { "release" };
+    let profile = if cfg!(debug_assertions) {
+        "dev"
+    } else {
+        "release"
+    };
     let data_dir = std::env::current_exe()
         .ok()
         .and_then(|exe| exe.parent().map(|dir| dir.to_path_buf()))
@@ -25,15 +29,12 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         ))
     })?;
 
-    let mut builder = WebviewWindowBuilder::new(
-        app,
-        "main",
-        WebviewUrl::App("index.html".into()),
-    )
-    .title("Tauri Notes")
-    .inner_size(1100.0, 760.0)
-    .min_inner_size(900.0, 600.0)
-    .data_directory(data_dir);
+    let mut builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
+        .title("Tauri Notes")
+        .inner_size(1100.0, 760.0)
+        .min_inner_size(900.0, 600.0)
+        .decorations(false)
+        .data_directory(data_dir);
 
     // Keep the WebView sandbox by default. The escape hatch exists for
     // environments where WebView2 cannot start with its sandbox.
@@ -42,7 +43,8 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let window = builder
-        // 关闭 Tauri 原生拖放处理器，否则 WebView2 内 Dockview 标签拖拽失效。
+        // Native file drop is not part of the shell; keep WebView2 drag/drop
+        // from competing with Dockview's pointer-based panel dragging.
         .disable_drag_drop_handler()
         .build()
         .map_err(|error| std::io::Error::other(format!("创建窗口失败: {error}")))?;
@@ -52,9 +54,7 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// Adds desktop-only plugins, window creation, and file-open routing.
-pub fn configure(
-    builder: tauri::Builder<tauri::Wry>,
-) -> tauri::Builder<tauri::Wry> {
+pub fn configure(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry> {
     builder
         .manage(PlatformState::desktop())
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {

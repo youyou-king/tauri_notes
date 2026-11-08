@@ -1,0 +1,16 @@
+[package]
+name = "installer"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Windows 安装器构建、载荷校验与安装校验"
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "installer"
+path = "src/main.rs"
+
+[dependencies]
+sha2 = "0.10"

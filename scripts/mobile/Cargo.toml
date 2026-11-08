@@ -1,0 +1,13 @@
+[package]
+name = "mobile"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Android 模拟器脚本（mobile 子命令）"
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "mobile"
+path = "src/main.rs"

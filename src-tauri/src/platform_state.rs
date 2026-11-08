@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use tauri_notes_platform::{NativePlatform, PlatformAdapter};
 #[cfg(mobile)]
 use tauri_notes_platform::MobilePlatform;
+use tauri_notes_platform::{NativePlatform, PlatformAdapter};
 
 /// Single injection point for platform services. Commands receive this from
 /// Tauri state and never build NativePlatform/MobilePlatform themselves.
@@ -22,7 +22,11 @@ impl PlatformState {
     }
 
     #[cfg(mobile)]
-    pub fn mobile(home: std::path::PathBuf, data: std::path::PathBuf, cache: std::path::PathBuf) -> Self {
+    pub fn mobile(
+        home: std::path::PathBuf,
+        data: std::path::PathBuf,
+        cache: std::path::PathBuf,
+    ) -> Self {
         Self {
             adapter: Arc::new(MobilePlatform::new(home, data, cache)),
             kind: "mobile",

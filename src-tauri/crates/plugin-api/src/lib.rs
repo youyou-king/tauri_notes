@@ -3,10 +3,6 @@ use std::collections::{BTreeMap, HashSet};
 
 pub const SDK_VERSION: u32 = 1;
 
-fn default_sdk_version() -> u32 {
-    SDK_VERSION
-}
-
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum PluginKind {
@@ -19,7 +15,6 @@ pub enum PluginKind {
 #[serde(rename_all = "camelCase")]
 pub struct PluginManifest {
     pub schema: u32,
-    #[serde(default = "default_sdk_version")]
     pub sdk_version: u32,
     pub id: String,
     pub name: String,
@@ -35,7 +30,7 @@ pub struct PluginManifest {
     pub contributes: BTreeMap<String, Vec<String>>,
 }
 
-const CONTRIBUTION_KINDS: [&str; 9] = [
+const CONTRIBUTION_KINDS: [&str; 8] = [
     "commands",
     "panels",
     "toolbarItems",
@@ -44,15 +39,14 @@ const CONTRIBUTION_KINDS: [&str; 9] = [
     "blockTypes",
     "mapNodeTypes",
     "appearancePacks",
-    "migrations",
 ];
 
 fn valid_id(value: &str) -> bool {
     !value.is_empty()
         && value.len() <= 41
-        && value
-            .chars()
-            .all(|character| character.is_ascii_lowercase() || character.is_ascii_digit() || character == '-')
+        && value.chars().all(|character| {
+            character.is_ascii_lowercase() || character.is_ascii_digit() || character == '-'
+        })
         && value
             .chars()
             .next()
@@ -63,9 +57,9 @@ fn valid_semver(value: &str) -> bool {
     let core = value.split(['-', '+']).next().unwrap_or_default();
     let parts = core.split('.').collect::<Vec<_>>();
     parts.len() == 3
-        && parts
-            .iter()
-            .all(|part| !part.is_empty() && part.chars().all(|character| character.is_ascii_digit()))
+        && parts.iter().all(|part| {
+            !part.is_empty() && part.chars().all(|character| character.is_ascii_digit())
+        })
 }
 
 pub fn validate_manifest(
@@ -142,7 +136,9 @@ mod tests {
     fn rejects_bad_id_and_unknown_capability() {
         let mut value = manifest("Board");
         value.capabilities.push("fs.write".to_string());
-        value.contributes.insert("unknown".to_string(), vec!["x".into()]);
+        value
+            .contributes
+            .insert("unknown".to_string(), vec!["x".into()]);
         let errors = validate_manifest(&value, &HashSet::new());
         assert!(errors.iter().any(|error| error.contains("id")));
         assert!(errors.iter().any(|error| error.contains("fs.write")));

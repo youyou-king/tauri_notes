@@ -3,9 +3,7 @@ use tauri_notes_plugin_api::PluginManifest;
 
 /// Resolves a deterministic activation order. The order follows the input
 /// order whenever the dependency graph allows it.
-pub fn plan_activation(
-    manifests: &[PluginManifest],
-) -> Result<Vec<String>, Vec<String>> {
+pub fn plan_activation(manifests: &[PluginManifest]) -> Result<Vec<String>, Vec<String>> {
     let mut errors = Vec::new();
     let mut ids = BTreeSet::new();
     for manifest in manifests {
@@ -43,10 +41,7 @@ pub fn plan_activation(
         let mut count = 0;
         for dependency in &manifest.dependencies {
             let Some(dependency_id) = provider.get(dependency) else {
-                errors.push(format!(
-                    "插件 {} 缺少依赖：{dependency}",
-                    manifest.id
-                ));
+                errors.push(format!("插件 {} 缺少依赖：{dependency}", manifest.id));
                 continue;
             };
             if dependency_id == &manifest.id {
@@ -145,18 +140,14 @@ mod tests {
         let missing = plan_activation(&[manifest("board", &["storage"])]).unwrap_err();
         assert!(missing.iter().any(|error| error.contains("storage")));
 
-        let duplicate = plan_activation(&[manifest("board", &[]), manifest("board", &[])])
-            .unwrap_err();
+        let duplicate =
+            plan_activation(&[manifest("board", &[]), manifest("board", &[])]).unwrap_err();
         assert!(duplicate.iter().any(|error| error.contains("重复")));
     }
 
     #[test]
     fn reports_cycles() {
-        let errors = plan_activation(&[
-            manifest("a", &["b"]),
-            manifest("b", &["a"]),
-        ])
-        .unwrap_err();
+        let errors = plan_activation(&[manifest("a", &["b"]), manifest("b", &["a"])]).unwrap_err();
         assert!(errors.iter().any(|error| error.contains("循环依赖")));
     }
 }

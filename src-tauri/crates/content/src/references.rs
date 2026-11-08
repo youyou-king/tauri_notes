@@ -1,5 +1,5 @@
-use tauri_notes_storage::database;
 use serde::Serialize;
+use tauri_notes_storage::database;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -11,9 +11,7 @@ pub struct ReferenceTarget {
     pub preview: String,
 }
 
-pub async fn list_reference_targets(
-    workspace: String,
-) -> Result<Vec<ReferenceTarget>, String> {
+pub async fn list_reference_targets(workspace: String) -> Result<Vec<ReferenceTarget>, String> {
     let mut connection = database::open_for_import(&workspace).await?;
     let rows = sqlx::query_as::<_, (String, String, String, String, String)>(
         "SELECT b.id, b.document_id, d.title, b.type, b.plain_text

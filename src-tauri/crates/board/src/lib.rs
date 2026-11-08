@@ -1,7 +1,7 @@
-use tauri_notes_storage::database;
 use serde::{Deserialize, Serialize};
 use sqlx::Connection;
 use std::time::{SystemTime, UNIX_EPOCH};
+use tauri_notes_storage::database;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -94,18 +94,27 @@ pub async fn list_boards_db(workspace: String) -> Result<Vec<BoardSummary>, Stri
 
 pub async fn read_board_db(workspace: String, board_id: String) -> Result<Board, String> {
     let mut connection = database::open_for_import(&workspace).await?;
-    let board = sqlx::query_as::<_, (String, String)>(
-        "SELECT id, title FROM boards WHERE id = ?1",
-    )
-    .bind(&board_id)
-    .fetch_optional(&mut *connection)
-    .await
-    .map_err(|error| format!("读取对照板失败: {error}"))?
-    .ok_or_else(|| "对照板不存在".to_string())?;
+    let board = sqlx::query_as::<_, (String, String)>("SELECT id, title FROM boards WHERE id = ?1")
+        .bind(&board_id)
+        .fetch_optional(&mut *connection)
+        .await
+        .map_err(|error| format!("读取对照板失败: {error}"))?
+        .ok_or_else(|| "对照板不存在".to_string())?;
 
     let rows = sqlx::query_as::<
         _,
-        (String, i64, i64, f64, i64, String, String, Option<String>, Option<String>, Option<String>),
+        (
+            String,
+            i64,
+            i64,
+            f64,
+            i64,
+            String,
+            String,
+            Option<String>,
+            Option<String>,
+            Option<String>,
+        ),
     >(
         "SELECT i.id, i.span, i.height_px, i.zoom, i.collapsed,
                 r.target_document_id, r.target_block_id,

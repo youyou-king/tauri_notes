@@ -19,7 +19,7 @@ pub fn connect_options(path: &Path) -> SqliteConnectOptions {
     SqliteConnectOptions::new()
         .filename(path)
         .create_if_missing(true)
-        .journal_mode(SqliteJournalMode::Wal)
+        .journal_mode(SqliteJournalMode::Delete)
         .foreign_keys(true)
         .busy_timeout(Duration::from_secs(5))
 }
