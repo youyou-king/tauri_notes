@@ -26,6 +26,13 @@ docs/Rust-crates.md
 3. 如果是开发规则，链接到本文件或对应专题文档；
 4. 不提交安装包、构建产物或本地环境文件。
 
+## 代码规范
+
+- 注释统一使用中文，说明“为什么”和“注意什么”，不逐行复述代码；
+- 命名、格式和错误信息保持简洁、通俗，能直接看懂；
+- Rust 代码提交前运行 `cargo fmt` 和 `cargo clippy`；
+- 脚本按类别放在 `scripts/` 的 crate 中，一类脚本一个 crate，命令作为子命令。
+
 ## 开发环境
 
 ```powershell
@@ -45,7 +52,7 @@ npm run dev
 ```text
 src/kernel/       稳定内核、契约、命令、事件、面板、SDK
 src/plugins/      功能插件
-src/runtime/      Runtime 组合根、Shell 选择（Phase 1 已落地）
+src/runtime/      Runtime 组合根、Shell 选择
 src/app/          应用编排、用例 hook、工具栏组件
 src/application/  服务、端口、Zustand store、状态层
 src/infrastructure/ Tauri IPC / 仓储
@@ -66,7 +73,7 @@ src-tauri/        Rust 组合根、命令包装与 crates
 - plugin crate 依赖 `tauri-notes-plugin-api` 和内核契约；
 - 插件不依赖其他插件的实现；
 - 前端插件只从 `src/kernel/sdk` 和 `src/ui/sdk` 获取公共能力；
-- `src/architecture.test.ts` 会检查前端边界；
+- `tests/architecture/architecture.test.ts` 会检查前端边界；
 - Rust workspace 结构见 [`docs/Rust-crates.md`](docs/Rust-crates.md)；
 - 平台身份只能在 runtime 组合根出现，页面和 use case 不写平台分支；
 - Shell 只负责布局，操作差异进入 Action/Binding，行为共享在 use case；
@@ -111,8 +118,8 @@ src/plugins/<id>/
 
 ## 架构改进
 
-当前架构审查、优先级和分阶段任务见
-[`docs/架构审视与改进计划.md`](docs/架构审视与改进计划.md)。
+当前架构边界、状态契约和专题方案见
+[`docs/README.md`](docs/README.md)、[`docs/状态架构契约.md`](docs/状态架构契约.md)。
 
 涉及插件运行时、安全、迁移或发布流程的改动，应先更新对应任务状态和
 验收条件，再进入实现。
@@ -132,7 +139,7 @@ src/ui/settings/
 - 快捷键 `Ctrl/Cmd + ,` 可以打开设置；
 - 主题菜单的“外观设置…”只是另一个入口，不是唯一入口；
 - 功能插件只贡献 `settingsSections`，不能拥有设置入口；
-- 插件管理器是核心设置区 `core.plugins`，不依赖任何功能插件；`manager` id 只用于兼容旧禁用列表。
+- 插件管理器是核心设置区 `core.plugins`，不依赖任何功能插件。
 
 ## 验证
 
@@ -140,15 +147,26 @@ src/ui/settings/
 npm run check        # TypeScript + Vitest
 npm run e2e          # Playwright E2E / 视觉回归
 npm run build        # 前端生产构建
-npm run verify:all   # 全量门禁 + 安装包
+npm run verify:all   # 全量门禁（Windows 含安装包）
 ```
+
+前端测试布局：
+
+```text
+tests/unit/         单元/组件测试，目录镜像 src
+tests/architecture/ 架构、契约、发布门禁测试
+tests/setup.ts      jsdom 共享 setup
+e2e/                Playwright
+```
+
+不再把 `.test.ts(x)` 放在 `src` 内。
 
 当前基线：
 
 ```text
 前端单元测试    248 个通过
-Rust 测试        54 个通过
-E2E / 视觉回归   38 个通过
+Rust workspace     cargo test 通过
+E2E / 视觉回归    见 CI
 ```
 
 Rust：
@@ -163,28 +181,27 @@ cargo clippy --workspace --all-targets -- -D warnings
 
 要求：JDK 21、Android SDK 37、NDK 27、Rust `aarch64-linux-android` target。
 
-如果 SDK 放在项目内（`tools/android-sdk/`）：
+仓库不携带 Android SDK。请先自行安装 SDK，并按本机路径设置环境变量：
 
 ```powershell
-$env:ANDROID_HOME = "$PWD\tools\android-sdk"
+$env:ANDROID_HOME = "D:\Android\sdk"
+$env:ANDROID_SDK_ROOT = $env:ANDROID_HOME
 $env:ANDROID_NDK_HOME = "$env:ANDROID_HOME\ndk\27.0.12077973"
 rustup target add aarch64-linux-android
 npm run tauri -- android build --debug --apk --target aarch64
 ```
 
-否则按系统环境中的 `ANDROID_HOME` / `ANDROID_NDK_HOME` 构建。
-
 产物在 `src-tauri/gen/android/app/build/outputs/apk/`。CI 中的 `android` workflow 也可手动触发并上传 APK。
 
 ### Android 模拟器运行
 
-移动端测试工具在 `scripts/` 下，是一个 Rust workspace；每个命令是一个独立 crate：
+移动端测试工具在 `scripts/` 下，是一个 Rust workspace；脚本按类别组织，一个类别一个 crate（当前为 `mobile`），命令以子命令提供：
 
 ```bash
-cargo run --quiet --manifest-path scripts/Cargo.toml -p mobile-doctor
-cargo run --quiet --manifest-path scripts/Cargo.toml -p mobile-up
-cargo run --quiet --manifest-path scripts/Cargo.toml -p mobile-smoke
-cargo run --quiet --manifest-path scripts/Cargo.toml -p mobile-screenshot
+cargo run --quiet --manifest-path scripts/Cargo.toml -p mobile -- doctor
+cargo run --quiet --manifest-path scripts/Cargo.toml -p mobile -- up
+cargo run --quiet --manifest-path scripts/Cargo.toml -p mobile -- smoke
+cargo run --quiet --manifest-path scripts/Cargo.toml -p mobile -- screenshot
 ```
 
 也可以用 npm 别名：
@@ -196,16 +213,16 @@ npm run mobile:smoke
 npm run mobile:screenshot
 ```
 
-脚本优先使用项目内 `tools/android-sdk/`，其次才查 `ANDROID_HOME` / `ANDROID_SDK_ROOT` 或常见 SDK 目录；也可以显式指定：
+脚本不再读取项目内的 SDK；查找顺序为 `--sdk`、`ANDROID_HOME`、`ANDROID_SDK_ROOT`、`PATH` 中的 `adb`、常见 SDK 目录。模拟器使用运行者自己的 AVD 目录。
 
 ```bash
-cargo run --quiet --manifest-path scripts/Cargo.toml -p mobile-up -- --sdk D:/Android/sdk --avd tn_test
+cargo run --quiet --manifest-path scripts/Cargo.toml -p mobile -- up --sdk D:/Android/sdk --avd tn_test
 ```
 
 APK 安装：
 
 ```bash
-cargo run --quiet --manifest-path scripts/Cargo.toml -p mobile-install -- --apk path/to/app.apk
+cargo run --quiet --manifest-path scripts/Cargo.toml -p mobile -- install --apk path/to/app.apk
 ```
 
 模拟器需要对应架构的 APK；CI 的 arm64 包不能直接装到 x86_64 模拟器。
@@ -214,12 +231,12 @@ cargo run --quiet --manifest-path scripts/Cargo.toml -p mobile-install -- --apk 
 
 - 当前实现变化时更新 `README.md`、`CHANGELOG.md` 和相关专题文档；
 - 架构变化同步更新 `docs/状态架构契约.md`、`docs/插件化实施记录.md` 和对应平台方案；
-- 发布新版本时更新版本号、`CHANGELOG.md`、`docs/重构验收报告.md`；
+- 发布新版本时更新版本号、`CHANGELOG.md` 和当前架构文档；
 - 不把安装包提交进 Git，发布使用 GitHub Releases。
 
 ## 发布
 
-版本以 `package.json` 为源，`scripts/version.mjs` 负责同步：
+版本以 `package.json` 为源，脚本 crate `release` 负责同步：
 
 ```text
 npm run version:set 0.1.2

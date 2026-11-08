@@ -17,28 +17,25 @@ https://github.com/youyou-king/tauri_notes/releases
 
 ## 当前架构
 
-- `.note` 单文件知识库：SQLite + WAL；
+- `.note` 单文件知识库：SQLite；
 - 块级 Markdown 文档：Tiptap / ProseMirror 编辑，前端按块虚拟化；
 - Dockview 面板：大纲、文档、导图、对照板、控制台、文档库；
 - React Flow 导图；
 - SQLite 搜索；
 - 深色 / 浅色 / 跟随系统 / 自定义主题；
-- `.tnlook` 外观包：预览、应用、签名信任、dark/light variant 切换；
+- `.tnlook` 外观包：预览、应用、dark/light variant 切换；
 - 编辑器、主题、工作区和面板状态按单一数据源收敛；
 - 顶栏“设置”是 shell 入口，插件管理器不依赖主题插件；
-- Windows 安装器、卸载器和 `.note` 文件关联；
+- Windows 安装器、卸载器；`.note` 文件关联在“设置 → 文件关联”中管理；
 - 移动端 Android 已初始化并在模拟器验证；iOS 尚未初始化。
 
 架构说明：
 
 - [`docs/README.md`](docs/README.md) — 完整文档索引
-- [`docs/架构审视与改进计划.md`](docs/架构审视与改进计划.md) — 风险、优先级与分阶段计划
 - [`docs/输入与移动端架构审计.md`](docs/输入与移动端架构审计.md) — Action / Input Router / keymap 与移动端一致性
-- [`docs/系统架构审计.md`](docs/系统架构审计.md) — 数据访问、持久化、契约与移动端目标审计
-- [`docs/平台抽象与移动端重构方案.md`](docs/平台抽象与移动端重构方案.md) — 运行时组合根、Shell、端口与移动端重构顺序
+- [`docs/平台抽象与移动端重构方案.md`](docs/平台抽象与移动端重构方案.md) — Runtime、Shell、端口与平台适配器
 - [`docs/技术架构与插件化方案.md`](docs/技术架构与插件化方案.md)
 - [`docs/状态架构契约.md`](docs/状态架构契约.md)
-- [`docs/重构验收报告.md`](docs/重构验收报告.md)
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — 开发与插件规范
 
 ## 技术栈
@@ -62,7 +59,7 @@ npm run tauri dev
 
 首次启动不自动打开示例知识库；无知识库时显示空工作区，可通过“知识库”菜单新建或打开。带 `.note` 参数启动时会直接打开该文件。
 
-顶部“帮助”按钮打开内置使用帮助知识库，源文件位于 `resources/help.note`。
+顶部“帮助”按钮打开内置帮助知识库，源文件位于 `resources/help.note`。
 
 顶部“设置”按钮或 `Ctrl/Cmd + ,` 打开设置；插件管理在“设置 → 插件”，数据库校验、备份和回收站恢复在“设置 → 数据”。
 
@@ -77,8 +74,8 @@ npm run dev
 ## 验证
 
 ```powershell
-npm run check        # TypeScript + 242 个前端单元测试
-npm run e2e          # 37 个 Playwright E2E / 视觉回归
+npm run check        # TypeScript + 288 个前端单元测试
+npm run e2e          # Playwright E2E / 视觉回归
 cd src-tauri
 cargo test -p tauri-notes --lib
 
@@ -90,6 +87,13 @@ cargo test -p tauri-notes-storage --lib
 cargo test -p tauri-notes-content --lib
 cargo test -p tauri-notes-board --lib
 cargo test -p tauri-notes-document --lib
+```
+
+脚本 crate（仓库根目录）：
+
+```powershell
+cargo test --manifest-path scripts/Cargo.toml --workspace
+cargo clippy --manifest-path scripts/Cargo.toml --workspace --all-targets -- -D warnings
 ```
 
 完整验证和打包：
@@ -110,6 +114,7 @@ CI 工作流：
 frontend: ubuntu
 e2e: ubuntu
 rust-crates: Windows / macOS / Ubuntu
+script-crates: Ubuntu
 desktop-build: Windows / macOS / Ubuntu
 ```
 
@@ -120,36 +125,23 @@ npm ci
 npm run tauri build -- --no-bundle
 ```
 
+Windows 分支额外执行安装器构建、载荷校验和解包校验（`cargo run -p installer -- ...`）。
+
 Linux 安装 WebKitGTK / appindicator / rsvg / patchelf 依赖。
 
-重构验收与剩余事项见：
+当前架构边界见：
 
-- [`docs/重构验收报告.md`](docs/重构验收报告.md)
+- [`docs/书库身份重构方案.md`](docs/书库身份重构方案.md)
 - [`docs/状态架构契约.md`](docs/状态架构契约.md)
-
-## 外观包签名
-
-`.tnlook` 支持可选 ECDSA P-256 发布者签名：
-
-- 签名覆盖 `appearance.json`（含 integrity 清单）；
-- 导入时校验签名；
-- 未信任的发布者需在导入面板确认；
-- 签名脚本：
-
-```powershell
-node scripts/sign-appearance-pack.mjs appearance.json private-key.pem "发布者名称"
-```
-
-生成后的 `appearance.json` 重新打包为 `.tnlook` 即可。
 
 ## 移动端测试
 
-移动端测试工具是 [`scripts/`](scripts/README.md) 下的 Rust workspace，每个命令一个 crate：
+移动端（Android 模拟器）脚本集中在 [`scripts/mobile`](scripts/mobile) 一个 crate 中，命令以子命令提供：
 
 ```bash
-cargo run --quiet --manifest-path scripts/Cargo.toml -p mobile-doctor
-cargo run --quiet --manifest-path scripts/Cargo.toml -p mobile-up
-cargo run --quiet --manifest-path scripts/Cargo.toml -p mobile-screenshot
+cargo run --quiet --manifest-path scripts/Cargo.toml -p mobile -- doctor
+cargo run --quiet --manifest-path scripts/Cargo.toml -p mobile -- up
+cargo run --quiet --manifest-path scripts/Cargo.toml -p mobile -- screenshot
 ```
 
 也可以使用 npm 别名：
@@ -160,7 +152,7 @@ npm run mobile:up
 npm run mobile:screenshot
 ```
 
-脚本优先使用项目内 `tools/android-sdk/`；该目录不提交。详细参数和 Windows/macOS/Linux 的 SDK 发现规则见 [scripts/README.md](scripts/README.md)。
+`scripts/` 按“一类脚本一个 crate”组织；脚本使用运行者自行安装并配置的 Android SDK（`ANDROID_HOME` / `ANDROID_SDK_ROOT`），仓库不携带 SDK。详细命令、参数和 Windows/macOS/Linux 的 SDK 发现规则见 [scripts/README.md](scripts/README.md)。
 
 ## 主要目录
 
@@ -186,12 +178,12 @@ tauri_notes/
 ├── resources/help.note      # 内置使用帮助知识库
 ├── e2e/                     # Playwright 冒烟与视觉回归
 ├── installer/custom/        # 安装器 / 卸载器 C# 源码
-└── scripts/                 # 构建/验证脚本 + 移动端 Rust workspace
+└── scripts/                 # 按类别组织的 Rust 脚本 crate
     ├── Cargo.toml           # scripts workspace
-    ├── mobile-test-core/    # SDK / adb / emulator 公共库
-    ├── mobile-doctor/       # 每个命令一个 crate
-    ├── mobile-start/
-    └── ...
+    ├── mobile/              # 移动端（Android 模拟器）
+    ├── installer/           # Windows 安装器构建与校验
+    ├── release/             # 版本同步
+    └── verify/              # 全量验证
 ```
 
 ## 编辑器
@@ -211,7 +203,7 @@ tauri_notes/
 - 浅色主题采用暖中性色，Dockview 会随主题切换；
 - 自定义主题通过主题编辑器导入、导出和保存；
 - `.tnlook` 外观包由 `appearanceRuntime` 管理，完整保存 dark/light 资源；
-- 发布者签名、SHA-256 完整性、对比度预览和回退均可用。
+- SHA-256 完整性、对比度预览和回退均可用。
 
 ## 安装包
 

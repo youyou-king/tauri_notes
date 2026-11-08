@@ -1,8 +1,10 @@
 # 设计文档索引
 
-> 更新：2026-11-01  
-> 当前版本：Tauri Notes v0.1.1  
-> 当前实现：Tauri 2 + React 19 + Tiptap/ProseMirror 全块编辑器 + SQLite `.note`。  
+> 更新：2026-11-04
+>
+> 当前版本：Tauri Notes v0.1.1
+>
+> 当前实现：Tauri 2 + React 19 + Tiptap/ProseMirror 全块编辑器 + SQLite `.note`。
 > 发布记录：<https://github.com/youyou-king/tauri_notes/releases>
 
 ## 当前文档
@@ -11,9 +13,7 @@
 | --- | --- | --- |
 | [技术架构与插件化方案](技术架构与插件化方案.md) | 内核 + 功能/能力/数据插件、Tauri 分层、平台移植、耦合治理 | **已实施，持续维护** |
 | [插件化实施记录](插件化实施记录.md) | 当前状态摘要与验证基线 | **当前维护记录** |
-| [插件化实施记录（历史）](插件化实施记录-历史.md) | 各阶段实际完成内容与历史基线 | 历史归档 |
 | [ADR 索引](adr/README.md) | 已落地的架构决策与边界 | **已实施** |
-| [重构验收报告](重构验收报告.md) | 重构项完成度、验证基线与发布状态 | **当前验收** |
 | [状态架构契约](状态架构契约.md) | 状态所有权、单一数据源、派生快照、迁移顺序 | **已实施** |
 | [全块编辑器架构](全块编辑器架构.md) | 单 Tiptap 实例、12 列块布局、SQLite 块存储、导入与视口 | **已实施，持续维护** |
 | [布局架构](布局架构.md) | AppShell / 面板 / 编辑区的尺寸与滚动契约 | **面板与编辑器均已更新** |
@@ -27,16 +27,15 @@
 | 文件 | 角色 |
 | --- | --- |
 | [贡献指南](../CONTRIBUTING.md) | 开发环境、架构边界、插件规则、状态规则、验证与发布 |
-| [架构审视与改进计划](架构审视与改进计划.md) | 发现登记、P0/P1/P2 优先级、分阶段任务和 fitness functions |
 | [输入与移动端架构审计](输入与移动端架构审计.md) | Action / Input Router / keymap 与移动端体验一致性审计 |
-| [平台抽象与移动端重构方案](平台抽象与移动端重构方案.md) | 运行时组合根、Shell、端口、Action 与 Rust 平台边界的定制方案 |
-| [系统架构审计](系统架构审计.md) | 数据访问、持久化、契约、移动端目标与备份审计 |
+| [平台抽象与移动端重构方案](平台抽象与移动端重构方案.md) | Runtime、Shell、端口、平台适配器与移动端边界 |
+| [书库身份重构方案](书库身份重构方案.md) | 已完成：LibraryId 身份层 + LibraryPath 文件 I/O 边界，不保留旧会话/标题兼容 |
 | [ADR-008](adr/ADR-008-android-identifier.md) | Android 合法包名与桌面 identifier 分离 | **已实施** |
 | [ADR-009](adr/ADR-009-android-content-uri-export.md) | Android content URI 读写（导入/导出） | **已实施** |
 | [ADR-010](adr/ADR-010-android-system-share.md) | Android 系统分享通过 FileProvider + Sharesheet | **已实施** |
 | [ADR-007](adr/ADR-007-config-format-boundaries.md) | 配置用 TOML、运行时状态用 JSON、内容用 SQLite |
-| [主题插件](主题插件.md) | 主题运行时、`.tnlook`、签名与测试 |
-| [Rust crates](Rust-crates.md) | Rust workspace 结构、职责和依赖规则 |
+| [主题插件](主题插件.md) | 主题运行时、`.tnlook` 与测试 |
+| [Rust crates](Rust-crates.md) | Rust workspace 结构、职责、脚本 crate 和依赖规则 |
 | [移动端真机检查清单](移动端真机检查清单.md)、[Android 模拟器验收](Android模拟器验收.md) | 390/600/768、手势、键盘、书库、生命周期手工验收 | 待真机执行 |
 
 ## 已清理文档
@@ -59,13 +58,13 @@
 6. **状态层已收敛**：
    - 编辑器：`useEditorField` 按 `selectedBlock` / `toolbar` / `stats` 字段订阅；
    - 主题：`useBaseThemeTokens` 管理 base token，appearance pack 管理 overlay（ADR-006）；
-   - 工作区：`activeRoot` + `selectActiveWorkspace` 派生当前工作区；
+   - 工作区：`activeId` + `selectActiveWorkspace` 派生当前工作区；
    - 面板：活动 map/blockdoc 同步选中状态，session 恢复 activity panel，文档脏状态上报 `usePanelStore`。
 7. **设置入口属于 shell**：核心工具栏“设置”、`settings.open` 和 `Ctrl/Cmd + ,`；主题菜单只是另一个入口；插件管理器是核心设置区 `core.plugins`。
 8. **验收基线**：
-   - 前端单元测试 248 个；
-   - Rust 单元测试 54 个；
-   - Playwright E2E / 视觉回归 37 个；
+   - 前端单元测试 288 个；
+   - Rust workspace 测试 `cargo test --workspace`；
+   - Playwright E2E / 视觉回归 37 个通过；
    - 安装包载荷、解包流程已在 Windows CI 验证；
    - 真实中文 IME 仍需在目标输入法环境人工确认。
 9. **首次启动不自动打开示例**：没有会话时保持空工作区，通过“知识库”菜单新建或打开。
@@ -73,7 +72,7 @@
 11. **“控制台”面板**记录命令、知识库、面板、文档、主题和异常，可复制和清空。
 12. **安装器、应用和卸载器使用 `asInvoker`**，不请求管理员权限；默认只写入用户选择的安装目录，系统集成仅在用户勾选时创建。
 13. **发布物不进入 Git**：安装包作为 GitHub Releases 资产发布，源码仓库不保存二进制。
-14. **使用帮助**：`help.note` 已补充回收站、数据校验与备份、设置入口；可从顶部“帮助”打开。
+14. **使用帮助**：`help.note` 已补充布局与分屏、导图位置与视口持久化、外观菜单、回收站、数据校验与备份；可从顶部“帮助”打开。
 15. **移动端 Android 工程已落地，iOS 尚未初始化**：Android 15 模拟器已验证 390×844、新建/导入、导出和系统分享；Runtime + Shell 的 Phase 1、Library/Dialog/DocumentActions/WorkspacePresenter/Navigation/Share 端口、document/library Action、Rust 入口拆分、PlatformState 注入、平台命令 cfg 注册与 ThemeStore 已落地；完整顺序见 [平台抽象与移动端重构方案](平台抽象与移动端重构方案.md)。
 16. **远程笔记/多端同步**：列为待讨论，不进入当前平台重构范围；约束和待决策项见方案第 19 节。
 
@@ -82,9 +81,9 @@
 - 项目只保留根 `README.md` 和本索引两个 README；
 - 模块说明放到本目录的专题文档，不再为源码目录创建 README；
 - 当前实现变化时，优先更新 `状态架构契约`、`插件化实施记录`、`全块编辑器架构`、`平台抽象与移动端重构方案` 和根 `README.md`；
-- 历史验证记录中的测试数字保留当时基线，不作为当前门禁；当前基线以根 `README.md` 和 `重构验收报告` 为准；
+- 历史验证记录中的测试数字保留当时基线，不作为当前门禁；当前基线以根 `README.md` 和 `npm test` / `cargo test` 为准；
 - 架构与插件契约变化时，同步更新 `技术架构与插件化方案` 和根 `CONTRIBUTING.md`；
-- 发布新版本时同步更新版本号、`CHANGELOG.md` 和 `重构验收报告`。
+- 发布新版本时同步更新版本号、`CHANGELOG.md` 和当前架构文档。
 
 ## 本次清理
 

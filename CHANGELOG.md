@@ -2,10 +2,79 @@
 
 ## Unreleased
 
+### 修复
+
+- Android：`take_pending_note_file` 在移动端同样注册，启动空状态不再显示“命令未找到”提示。
+- 移动端脚本把 adb / emulator 临时目录固定到项目 `.tmp/mobile`，避免系统 TEMP 权限问题。
+- 移动端 `start` / `up` 把 emulator 输出写入 `.tmp/mobile/emulator.log`，启动超时会附带日志路径。
+- 移除项目内 `tools/android-sdk`、`tools/android-avd`、`tools/android-home` 以及对应的 `.gitignore` 规则；Android SDK 与 AVD 改由运行者自行配置。
+
 ### 架构
 
-- `scripts/` 新增 Rust workspace：每个移动端测试命令一个 crate（doctor / devices / start / up / launch / install / smoke / screenshot / reset / stop），共享 `mobile-test-core`。
-- 移动端脚本优先使用项目内 `tools/android-sdk/`（已 gitignore）；模拟器使用项目内 AVD/home。
+- `scripts/` 脚本按类别组织：移动端（Android）命令合并为一个 `mobile` crate，以子命令提供（doctor / devices / start / up / launch / install / smoke / screenshot / reset / stop）。
+- `scripts/` 其余脚本全部改为 Rust crate：`installer`（安装器构建/校验）、`release`（版本同步）、`verify`（全量验证）；npm、CI 和文档同步更新。
+- 移动端脚本使用运行者自行配置的 Android SDK（`ANDROID_HOME` / `ANDROID_SDK_ROOT`），不再读取项目内 SDK；AVD 也使用用户自己的目录。
+- 书库身份改为稳定 `LibraryId`：`.notes/meta.json` 与 `.note` 的 `library_meta` 保存 ID，应用数据目录的 `libraries.json` 做索引；`WorkspaceView` 返回 `id`，会话 v4，移动 Shell 只按 library id 导航，路径只作为内部位置。
+- 旧库首次打开自动补 ID；复制冲突时给副本分配新 ID；标题只按 library id 持久化。
+- 会话 v4 持久化无法打开的书库 `missing` 列表；启动时可重新定位或移除，不再静默丢弃。
+- `workspaceStore` 当前书库只保留 `activeId`；Dockview 面板参数、活动导图、工作区激活/卸载/重命名都使用 `libraryId`；Dockview 布局 key 升到 v22，旧布局不再读取；文档/导图变更刷新优先按 library id 重新打开，前端不再直接调用 path-open wrapper。
+- Board / ImportedDocument / Map 的 Tauri 命令和前端服务改为接收 `LibraryId`，由后端 registry 解析当前位置；`documentService`、`boardService`、`mapService` 不再接收 `workspaceRoot`。
+- 标题改为单一真相源：新增 `rename_library`，同时更新 `.note` / `.notes` metadata 与 registry；删除前端 `library-title:<id>` 存储。
+- registry 升级到 v3，条目只保留 `id/path/title`；旧格式直接冷启动。书库移动/重定位会关闭旧路径连接池。
+- storage close/verify/backup、reference、search、asset 的 workspace 参数改为 `LibraryId`；删除未使用的块级 path 命令。
+- `LibraryId` 收紧为 `lib_` 前缀模板类型，后端 `parse` 同步校验前缀，路径字符串无法再直接传入身份 API。
+- registry 写入增加跨进程锁，并使用 `load → mutate → save` 事务，避免并发覆盖；managed library 列表改为 registry 子集。
+- library 命令统一返回 `CommandError`，前端 IPC 边界可以按 code/message 分类。
+- `document_commands` 拆分出 `map_commands`，导入文档和导图命令不再混在同一模块。
+- 删除主题 legacy 目录迁移、插件旧前缀迁移、`migrationLedger`、旧历史文档，以及未使用的 `list_libraries` / `initialize_database` 命令。
+- 明确只读书库策略：`.note` 和 `.notes` 都不支持直接打开，返回“复制到可写目录”的明确错误；删除 `persisted:false` 临时身份路径。
+- 修复 Windows 目录 ReadOnly 属性被误判为不可写：可写性判断下沉到 `LibraryAccess`，`.note` 用 SQLite 写事务确认、`.notes` 用真实 `meta.json` 写入确认，不再读取目录 ReadOnly 属性，也不再对已打开的 `.note` 做写打开探测；移除前端误导性的“目录无写入权限”提示。
+- bootstrap / `database_status` / `import_markdown_workspace` / `import_boards` 改为 `LibraryId`，初始化阶段不再按路径建索引。
+- `documentDeleted` 事件改为携带 `libraryId`；移动端和文档库不再用 `workspaceRoot` 作为身份兜底。
+- `LibraryPath` 收紧为 brand 类型，路径选择器返回值统一经过 `asLibraryPath`，普通字符串不能直接进入文件位置 API。
+- 删除外观包签名与信任功能：移除签名 schema、ECDSA 校验、trusted-publisher 存储、信任按钮、作者/发布者字段、签名脚本和签名测试。
+- 删除 SQLite schema migration 兼容层：移除 `schema_migrations`、migration 1–8、迁移前备份和旧库升级测试；`.note` 现在按当前 schema 一次性创建。
+- 桌面窗口改为无边框自定义标题栏：删除原生白色标题栏和工具栏状态文字，最小化/最大化/关闭统一放进工具栏右侧，品牌图标改为统一蓝色。
+- 文件关联从“知识库”菜单移入“设置 → 文件关联”；视图菜单改为“清空布局”；核心命令名称统一由 `commandLabels` 提供，去掉“保存”“重置布局”“使用帮助”等不一致叫法。
+- 移动端改为画布优先布局：全屏导图、悬浮顶栏、悬浮视图胶囊与左侧导航抽屉；文档模式使用稳定紧凑顶栏；删除固定 `MobileHeader` / `MobileTabBar`。
+- 移动端导航与控件改为有上限的流式尺寸：顶栏、按钮、字号、图标按宽度小幅放大并在平板封顶；触摸目标不小于 44dp；顶栏、正文和抽屉限制最大宽度。
+- 移动抽屉的顶层名称与知识库子菜单复用桌面命令数据，补齐新建/打开/备份知识库入口，避免两端选项漂移。
+- 删除移动顶栏右侧“更多”按钮，避免与侧边栏重复；搜索和看板移入“视图”子菜单。
+- 移动顶栏把“打开导航”固定在左侧，返回箭头独立放在右侧；两者不再共用同一个按钮。
+- 思维导图默认改为从左到右的横向树布局；新增画布右上角“整理导图布局”按钮，可忽略手动位置重新排列并持久化。
+- 导图节点固定为布局高度（根节点 52、普通节点 44），使渲染后的节点中轴线与布局中心一致；不同高度节点之间连线保持水平。
+- 移动端底部栏改为持久存在的“导图 / 大纲 / 文档”视图切换器；知识库管理移入侧边栏，大纲复用桌面树组件并读取当前导图。
+- 移动端底部标签改为桌面式拖放：拖动时显示左/右/上/下/中心停靠区，释放后按方向创建分屏或移动已有视图，不再用“上滑固定分屏”。
+- 文档标签改用“当前文档或最近打开的文档”作为回退目标，因此没有文档窗格时也能切换或拖拽分屏。
+- 分屏比例按上下/左右方向分别持久化，拖动中间分隔条可在 25%–75% 范围内调整。
+- 大纲树节点抽离到 `ui/outline`，桌面拖放通过适配器注入；移动端不再从 `OutlinePanel` 间接引入 Dockview 面板代码。
+- 大纲拖放适配器独立为可测试模块，覆盖 note-document 与 cross-panel 两种载荷。
+- 导图拖动结束时通过单个事务批量保存整张可见布局，而不是逐节点连接数据库；新增 `position_saved` 标记，`(0,0)` 不再被误判为“尚未定位”。
+- 删除旧版本兼容层：不再迁移旧 `map_nodes` 根结构、不再为旧库补 `position_saved` 列、不再接受旧版移动布局存储、不再保留单节点位置命令和旧 keymap 缺省版本。
+- 书库启动只读取当前数据库状态；删除旧 Markdown/board 自动导入路径，启动辅助模块改为 `libraryStatus`。
+- 知识库注册表只接受当前版本；低版本或高版本都直接报错，不再静默丢弃旧注册表。
+- 删除旧 `manager` 插件保留 id 和插件 SDK 缺省版本；插件 id 与版本均按当前契约严格校验。
+- E2E 选择器更新到当前外观菜单、移动底部 Dock、导航抽屉、知识库菜单和文档操作菜单，完整基线 37 个通过。
+- 统一模态层到 `ModalSurface`：对话框、搜索面板、移动 ActionSheet、导航抽屉和知识库管理共用遮罩、焦点陷阱、Esc 与层级栈；嵌套弹窗只关闭顶层。
+- 新增 `Button` / `IconButton` / `Field` / `TextInput` / `Select` / `StateView` / `PanelShell` / `SurfaceHeader` UI 原语，并迁移主题编辑器、主题菜单、设置页、对话框、控制台、文档库、看板/导入选择器、移动导航/知识库管理/大纲/文档操作的关键控件与空状态；基础样式集中在 `primitives.css`。
+- 新增 `Popover` 原语统一浮层定位、边界收拢和上翻；`ToolbarMenu` / `ContextMenu` 共用 `Popover` 与 `useDismissableLayer`，模态背景不会误关上层菜单。
+- 新增 `Icon` / `PanelIcon` 原语，统一对话框关闭、移动导航/返回、控制台、面板标签、主题菜单和窗口控制图标；状态视图扩展到看板、导图、引用选择和设置空态。
+- 新增 `ui/design-system` 架构说明与门禁测试：业务 `<select>` 只能通过 `Select`，原生模态禁止使用，`role="dialog"` 只允许 `ModalSurface`。
+- 修复移动端导航抽屉全屏：`ModalSurface` 现在挂载到 `.app[data-shell]`，保留移动端 CSS 变量；抽屉宽度增加 `300px` fallback，并新增 E2E 宽度断言。
+- 移动端移除导航抽屉的“视图”和“外观”入口；双端设置移除“外观 / 数据 / 引用”区，删除对应设置组件与主题菜单中的“外观设置…”入口。
+- 移动端文档编辑态改为固定操作栏，编辑区内部滚动；格式/布局工具栏移到滚动区外的固定网格行，位于顶栏下方，并增加真实滚动位置 E2E 断言。
+- 移动端悬浮 chrome 统一为同一组 token（背景、边框、圆角、阴影、模糊），顶栏 / 底栏 / 编辑工具栏 / 状态胶囊共用；编辑工具栏增加 12px 侧边距并移出滚动区，去掉底部预留遮罩，正文延伸到悬浮底栏后方。
+- 移动端分屏分隔线改为透明拖拽带 + 悬浮胶囊握把 + 圆形退出按钮，去除整条边框和背景；分屏尺寸改为共享变量，焦点环改为柔和内边框。
+- 修复移动端编辑态上下黑色遮罩：保存/完成移入顶栏，移除全宽操作条；文档 shell 背景与编辑区一致；格式工具栏固定偏移到顶栏下方。
+- 非模态 `ViewportSelectionPanel` 从 `role="dialog"` 改为 `complementary`，架构测试禁止 `ModalSurface` 之外声明 `role="dialog"`。
+- 内置 `help.note` 更新到当前 schema，并新增“布局、分屏与持久化”章节，修正“主题/外观”、菜单名称和清空布局说明。
+- 统一桌面与移动端对话框：新建节点、重命名、确认和提示全部使用同一套 `Dialog`，移除 `window.prompt` 和移动端独立 DOM 对话框。
+- 桌面 Dockview 在分隔条 pointerup、窗口 resize 和 pagehide 时保存布局，确保面板宽度在下次启动时恢复。
+- 删除启动时无条件覆盖保存布局的 outline/map 默认宽度，恢复的 Dockview 尺寸不再被重置。
+- 导图缩放/平移视口按库和导图持久化；恢复时不再无条件 fitView，面板尺寸变化也不会重置用户视口。
+- Windows 启动检查 `whoami` 使用 CREATE_NO_WINDOW，避免命令行窗口一闪而过。
+- `mobile up` 在应用缺失时自动安装 APK；`install` 按设备 ABI 选择 x86_64/arm64 输出，`launch` 未安装时返回明确提示。
+- 不保留旧版本兼容：v3 及更早会话直接冷启动，旧 `workspace-title:<root>` 标题和旧 mobile-shell 路径状态不再读取，后端 path-open Tauri 命令已删除。
 
 - 设置入口升级为 shell 能力：核心工具栏“设置”、`settings.open`、`Ctrl/Cmd + ,`；
 - 主题菜单不再拥有唯一设置入口；
@@ -126,5 +195,5 @@
 - 首个公开发布；
 - Tauri 2 + React 19 桌面应用；
 - 知识库、导图、文档编辑、看板、搜索、导入；
-- `.tnlook` 外观包、签名信任、主题回退；
+- `.tnlook` 外观包、主题回退；
 - 三平台 CI、单元测试、E2E 和视觉回归。

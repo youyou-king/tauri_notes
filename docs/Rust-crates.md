@@ -1,8 +1,8 @@
 # Rust crates
 
-Rust 侧插件与内核 crate。
+Rust 侧插件、内核与脚本 crate。
 
-> 最后核对：2026-11-01 | 当前版本 v0.1.1 | 基线 248 / 54 / 38
+> 最后核对：2026-11-04 | 当前版本 v0.1.1 | 验证以 npm test / cargo test 为准
 
 ## 布局
 
@@ -19,6 +19,21 @@ src-tauri/crates/
 ├─ storage/           tauri-notes-storage
 └─ theme/             tauri-notes-theme
 ```
+
+## 脚本 crate
+
+`scripts/` 下的脚本同样按类别组织：一类脚本一个 crate，命令通过子命令提供。
+
+```text
+scripts/
+├─ Cargo.toml     # 脚本 workspace
+├─ mobile/        # 移动端（Android 模拟器）
+├─ installer/     # Windows 安装器构建与校验
+├─ release/       # 版本同步
+└─ verify/        # 全量验证
+```
+
+见 [scripts/README.md](../scripts/README.md)。
 
 ## 职责
 
@@ -47,7 +62,7 @@ platform
 
 storage
 ├─ sqlite connection / path helpers
-├─ schema migrations
+├─ schema creation
 └─ database status / backup
 
 content
@@ -69,7 +84,7 @@ document
 
 import
 ├─ markdown workspace import
-└─ legacy board import
+└─ board import
 
 workspace
 ├─ workspace / .note open
@@ -80,15 +95,14 @@ workspace
 managed_library（app 层）
 ├─ App 私有 libraries/ 列表
 ├─ 新建 managed path
-├─ 导入前 WAL checkpoint
+├─ 导入/导出
 ├─ 复制外部 .note
-└─ 导出前 checkpoint
+└─ 导出 .note
 
 theme
-├─ ThemeStore（注入 data/legacy 目录）
+├─ ThemeStore（注入 data 目录）
 ├─ custom theme list / save / delete
-├─ theme id validation
-└─ legacy theme migration
+└─ theme id validation
 ```
 
 ## 规则
