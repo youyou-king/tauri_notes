@@ -74,7 +74,7 @@ npm run dev
 ## 验证
 
 ```powershell
-npm run check        # TypeScript + 288 个前端单元测试
+npm run check        # TypeScript + 290 个前端单元测试
 npm run e2e          # Playwright E2E / 视觉回归
 cd src-tauri
 cargo test -p tauri-notes --lib

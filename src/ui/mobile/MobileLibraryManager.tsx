@@ -8,16 +8,16 @@ export function MobileLibraryManager({
   workspaceId,
   onOpen,
   onImport,
-  onShare,
   onExport,
+  onDelete,
   onClose,
 }: {
   libraries: ManagedLibrarySummary[];
   workspaceId: string;
   onOpen: (path: string) => void;
   onImport: () => void;
-  onShare: (item: ManagedLibrarySummary) => void;
   onExport: (item: ManagedLibrarySummary) => void;
+  onDelete: (item: ManagedLibrarySummary) => void;
   onClose: () => void;
 }) {
   return (
@@ -43,8 +43,8 @@ export function MobileLibraryManager({
           onOpen(path);
         }}
         onImport={onImport}
-        onShare={onShare}
         onExport={onExport}
+        onDelete={onDelete}
       />
     </ModalSurface>
   );

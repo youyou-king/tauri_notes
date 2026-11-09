@@ -15,14 +15,14 @@ describe("MobileManagedLibraries", () => {
   it("opens a library and reports export", () => {
     const onOpen = vi.fn();
     const onExport = vi.fn();
-    const onShare = vi.fn();
+    const onDelete = vi.fn();
     render(
       <MobileManagedLibraries
         libraries={[library]}
         workspaceId="demo"
         onOpen={onOpen}
         onImport={vi.fn()}
-        onShare={onShare}
+        onDelete={onDelete}
         onExport={onExport}
       />,
     );
@@ -31,6 +31,23 @@ describe("MobileManagedLibraries", () => {
     expect(onOpen).toHaveBeenCalledWith("/app/libraries/demo.note");
     fireEvent.click(screen.getByLabelText("导出 Demo"));
     expect(onExport).toHaveBeenCalledWith(library);
+    expect((screen.getByLabelText("删除 Demo") as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("deletes a non-active library", () => {
+    const onDelete = vi.fn();
+    render(
+      <MobileManagedLibraries
+        libraries={[library]}
+        workspaceId="other"
+        onOpen={vi.fn()}
+        onImport={vi.fn()}
+        onExport={vi.fn()}
+        onDelete={onDelete}
+      />,
+    );
+    fireEvent.click(screen.getByLabelText("删除 Demo"));
+    expect(onDelete).toHaveBeenCalledWith(library);
   });
 
   it("imports from the empty state and section header", () => {
@@ -41,7 +58,7 @@ describe("MobileManagedLibraries", () => {
         workspaceId={null}
         onOpen={vi.fn()}
         onImport={onImport}
-        onShare={vi.fn()}
+        onDelete={vi.fn()}
         onExport={vi.fn()}
       />,
     );

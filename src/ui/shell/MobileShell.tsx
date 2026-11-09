@@ -1,9 +1,5 @@
 import { useEffect, useState } from "react";
 import {
-  managedLibraryService,
-  type ManagedLibrarySummary,
-} from "../../application/managedLibraryService";
-import {
   useMobileShellStore,
   type MobileDropPlacement,
   type MobileView,
@@ -15,7 +11,6 @@ import {
 import { useSwipeBack } from "../interaction/useSwipeBack";
 import { useRuntimeServices } from "../../runtime";
 import { runDocumentAction } from "../../app/documentActions";
-import { runLibraryAction } from "../../app/libraryActions";
 import { documentService } from "../../application/documentService";
 import type { BoardControllerPort } from "../../kernel/panel/boardPort";
 import { getUiRenderer } from "../../kernel/sdk";
@@ -31,9 +26,9 @@ import { workspaceService } from "../../application/workspaceService";
 import type { PanelContextValue } from "../panels/PanelContext";
 import MindMap from "../../components/MindMap";
 import type { MapView, NodeView, WorkspaceView } from "../../types";
-import { asLibraryPath } from "../../types";
 import { shellActions } from "./shellActions";
 import { Button } from "../design-system/Button";
+import { message } from "../design-system/Message";
 import { APP_EVENTS, emitAppEvent, onAppEvent } from "../../kernel/events";
 import { MobileDocumentPane } from "../mobile/MobileDocumentPane";
 import { MobileDocumentActionSheet } from "../mobile/MobileDocumentActionSheet";
@@ -42,6 +37,7 @@ import { MobileDock } from "../mobile/MobileDock";
 import { MobileNavDrawer } from "../mobile/MobileNavDrawer";
 import { MobileOutlineView } from "../mobile/MobileOutlineView";
 import { MobileLibraryManager } from "../mobile/MobileLibraryManager";
+import { useManagedLibraries } from "../mobile/useManagedLibraries";
 import { MobileWorkspace } from "../mobile/MobileWorkspace";
 import { MobileDockDropOverlay } from "../mobile/MobileDockDropOverlay";
 import type { MobileDragPoint } from "../mobile/MobileDock";
@@ -90,7 +86,7 @@ export function MobileShell({
     reset: resetMobile,
     setEditing,
   } = useMobileShellStore();
-  const { dialogs, documentActions, navigation, library, lifecycle, share } =
+  const { dialogs, documentActions, navigation, library, lifecycle } =
     useRuntimeServices();
   const keymap = useKeymapStore((state) => state.document);
   const loadKeymap = useKeymapStore((state) => state.load);
@@ -103,9 +99,18 @@ export function MobileShell({
     point: MobileDragPoint;
     placement: MobileDropPlacement;
   } | null>(null);
-  const [managedLibraries, setManagedLibraries] = useState<
-    ManagedLibrarySummary[]
-  >([]);
+  const {
+    libraries: managedLibraries,
+    deleteLibrary,
+    exportLibrary,
+    importLibrary,
+  } = useManagedLibraries({
+    open: libraryManagerOpen,
+    workspaceId: workspace?.id ?? null,
+    library,
+    dialogs,
+    onOpenPath: (path) => void onOpenWorkspacePath?.(path),
+  });
   const [documentTitle, setDocumentTitle] = useState("文档");
   const map = activeMap ?? workspace?.maps[0] ?? null;
   const primaryView = views[0];
@@ -155,28 +160,6 @@ export function MobileShell({
       }
     });
   }, [lifecycle]);
-
-  useEffect(() => {
-    if (!libraryManagerOpen) {
-      return;
-    }
-    let cancelled = false;
-    void managedLibraryService
-      .list()
-      .then((libraries) => {
-        if (!cancelled) {
-          setManagedLibraries(Array.isArray(libraries) ? libraries : []);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setManagedLibraries([]);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [libraryManagerOpen, workspace?.root]);
 
   useEffect(() => {
     if (!activeDocumentId || !workspace) {
@@ -291,9 +274,9 @@ export function MobileShell({
         workspace.root,
         /\.note$/i.test(workspace.root),
       );
-      dialogs.alert(`备份完成：${path}`);
+      message.success(`备份完成：${path}`);
     } catch (error) {
-      dialogs.alert(String(error));
+      message.error(String(error));
     }
   };
 
@@ -311,46 +294,6 @@ export function MobileShell({
     (item) => item.menu === "knowledge",
   );
 
-  const shareManagedLibrary = async (item: ManagedLibrarySummary) => {
-    try {
-      await runLibraryAction("library.share", {
-        platform: "mobile",
-        library,
-        source: asLibraryPath(item.path),
-        share,
-      });
-    } catch (error) {
-      dialogs.alert(String(error));
-    }
-  };
-
-  const exportManagedLibrary = async (item: ManagedLibrarySummary) => {
-    try {
-      await runLibraryAction("library.export", {
-        platform: "mobile",
-        library,
-        source: asLibraryPath(item.path),
-        onExported: (path) => dialogs.alert(`已导出到 ${path}`),
-      });
-    } catch (error) {
-      dialogs.alert(String(error));
-    }
-  };
-
-  const importManagedLibrary = async () => {
-    try {
-      await runLibraryAction("library.import", {
-        platform: "mobile",
-        library,
-        onImported: (path) => {
-          void onOpenWorkspacePath?.(path);
-        },
-      });
-    } catch (error) {
-      dialogs.alert(String(error));
-    }
-  };
-
   const openDocumentFromAction = async (document: MobileDocumentLink) => {
     try {
       await runDocumentAction("document.open", {
@@ -364,7 +307,7 @@ export function MobileShell({
         documentActions,
       });
     } catch (error) {
-      dialogs.alert(String(error));
+      message.error(String(error));
     }
   };
 
@@ -381,7 +324,7 @@ export function MobileShell({
         documentActions,
       });
     } catch (error) {
-      dialogs.alert(String(error));
+      message.error(String(error));
     }
   };
 
@@ -406,7 +349,7 @@ export function MobileShell({
         },
       });
     } catch (error) {
-      dialogs.alert(String(error));
+      message.error(String(error));
     }
   };
 
@@ -622,9 +565,9 @@ export function MobileShell({
           libraries={managedLibraries}
           workspaceId={workspace.id}
           onOpen={(path) => void onOpenWorkspacePath?.(path)}
-          onImport={() => void importManagedLibrary()}
-          onShare={(item) => void shareManagedLibrary(item)}
-          onExport={(item) => void exportManagedLibrary(item)}
+          onImport={() => void importLibrary()}
+          onExport={(item) => void exportLibrary(item)}
+          onDelete={(item) => void deleteLibrary(item)}
           onClose={() => setLibraryManagerOpen(false)}
         />
       )}

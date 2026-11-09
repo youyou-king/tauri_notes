@@ -7,6 +7,7 @@ export {
   Field,
   Icon,
   IconButton,
+  message,
   ModalSurface,
   PanelHeader,
   PanelIcon,

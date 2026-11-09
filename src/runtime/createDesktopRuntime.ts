@@ -6,7 +6,6 @@ import { createAppDialogs } from "./services/dialogs";
 import { createDesktopDocumentActions } from "./services/documentActions";
 import { createWorkspacePresenter } from "./services/workspacePresenter";
 import { createWebLifecycle } from "./services/lifecycle";
-import { createDesktopShare } from "./services/share";
 import { createDesktopNavigation } from "./services/navigation";
 
 export function createDesktopRuntime(profile: ShellProfile): Runtime {
@@ -21,7 +20,6 @@ export function createDesktopRuntime(profile: ShellProfile): Runtime {
       workspacePresenter: createWorkspacePresenter(),
       navigation: createDesktopNavigation(),
       lifecycle: createWebLifecycle(),
-      share: createDesktopShare(),
     },
   };
 }

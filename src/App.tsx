@@ -13,6 +13,7 @@ import {
 import { usePanelStore } from "./application/stores/panelStore";
 import { recordConsoleEvent } from "./application/consoleLogStore";
 import { AppDialogHost } from "./ui/dialog/appDialog";
+import { MessageHost } from "./ui/design-system/Message";
 import "./app/navCommands";
 import "./app/actions";
 import { useAppShell } from "./app/useAppShell";
@@ -329,6 +330,7 @@ function App() {
       <PluginOverlays />
       <SettingsHost />
       <AppDialogHost />
+      <MessageHost />
         <MissingLibrariesNotice
           items={missingLibraries}
           onRelocate={(item) => void relocateMissing(item)}

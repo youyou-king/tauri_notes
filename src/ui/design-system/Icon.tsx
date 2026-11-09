@@ -8,6 +8,19 @@ const PATHS: Record<string, ReactNode> = {
   ),
   back: <path d="M8 3 4 8l4 5M4 8h8" />,
   close: <path d="m4 4 8 8M12 4l-8 8" />,
+  check: <path d="m3.5 8.5 3 3 6-7" />,
+  alert: (
+    <>
+      <path d="M8 2.5 14 13H2z" />
+      <path d="M8 6v3.5M8 11.5h.01" />
+    </>
+  ),
+  info: (
+    <>
+      <circle cx="8" cy="8" r="5.5" />
+      <path d="M8 7.2v4M8 5.2h.01" />
+    </>
+  ),
   minimize: <path d="M3 8h10" />,
   maximize: <rect x="3.5" y="3.5" width="9" height="9" rx="1" />,
   restore: (

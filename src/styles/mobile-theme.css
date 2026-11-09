@@ -976,7 +976,8 @@
   cursor: pointer;
 }
 
-.mobile-managed-library-export {
+.mobile-managed-library-export,
+.mobile-managed-library-delete {
   padding: 6px 8px;
   border: 1px solid var(--border);
   border-radius: 6px;

@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
-use tauri_notes_workspace::library::{ensure_library_identity, LibraryIdentity};
+use tauri_notes_workspace::library::{ensure_library_identity, LibraryId, LibraryIdentity};
 
 use crate::library_registry::{normalize_path, LibraryRegistry};
 
@@ -79,6 +79,46 @@ pub fn new_library_path(title: &str, data_dir: &Path) -> Result<PathBuf, String>
     let dir = libraries_dir(data_dir);
     fs::create_dir_all(&dir).map_err(|error| format!("创建移动知识库失败：{error}"))?;
     Ok(unique_target(&dir, &safe_title(title)))
+}
+
+/// Deletes a library only when it lives inside the app-private library
+/// directory, then removes its registry entry and SQLite sidecars.
+pub fn delete_library(path: &Path, data_dir: &Path) -> Result<(), String> {
+    let dir = normalize_path(&libraries_dir(data_dir))?;
+    let target = normalize_path(path)?;
+    let target_path = Path::new(&target);
+    if target_path == Path::new(&dir) || !target_path.starts_with(Path::new(&dir)) {
+        return Err("只能删除移动端托管知识库".to_string());
+    }
+    if target_path.extension().and_then(|value| value.to_str()) != Some("note") {
+        return Err("只能删除 .note 知识库".to_string());
+    }
+    if !target_path.is_file() {
+        return Err(format!("知识库不存在：{}", target_path.display()));
+    }
+
+    LibraryRegistry::update(data_dir, |registry| {
+        if let Some((id, _)) = registry.find_by_path(target_path) {
+            registry.remove(&LibraryId::parse(id)?);
+        }
+        Ok(())
+    })?;
+
+    fs::remove_file(target_path)
+        .map_err(|error| format!("删除知识库失败：{error}"))?;
+    for suffix in ["-wal", "-shm"] {
+        let sidecar = target_path.with_file_name(format!(
+            "{}{suffix}",
+            target_path
+                .file_name()
+                .and_then(|value| value.to_str())
+                .unwrap_or_default()
+        ));
+        if sidecar.exists() {
+            let _ = fs::remove_file(sidecar);
+        }
+    }
+    Ok(())
 }
 
 async fn summary_for(data_dir: &Path, path: &Path) -> Result<ManagedLibrarySummary, String> {

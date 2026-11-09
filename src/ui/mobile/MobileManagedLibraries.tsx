@@ -7,14 +7,14 @@ export function MobileManagedLibraries({
   onOpen,
   onImport,
   onExport,
-  onShare,
+  onDelete,
 }: {
   libraries: ManagedLibrarySummary[];
   workspaceId: string | null;
   onOpen: (path: string) => void;
   onImport: () => void;
   onExport: (library: ManagedLibrarySummary) => void;
-  onShare: (library: ManagedLibrarySummary) => void;
+  onDelete: (library: ManagedLibrarySummary) => void;
 }) {
   const isActive = (item: ManagedLibrarySummary) =>
     workspaceId !== null && item.id === workspaceId;
@@ -47,19 +47,22 @@ export function MobileManagedLibraries({
               </Button>
               <Button
                 type="button"
-                className="mobile-managed-library-share"
-                aria-label={`分享 ${item.title}`}
-                onClick={() => onShare(item)}
-              >
-                分享
-              </Button>
-              <Button
-                type="button"
                 className="mobile-managed-library-export"
                 aria-label={`导出 ${item.title}`}
                 onClick={() => onExport(item)}
               >
                 导出
+              </Button>
+              <Button
+                type="button"
+                variant="danger"
+                className="mobile-managed-library-delete"
+                aria-label={`删除 ${item.title}`}
+                disabled={isActive(item)}
+                title={isActive(item) ? "当前打开的知识库不能删除" : undefined}
+                onClick={() => onDelete(item)}
+              >
+                删除
               </Button>
             </div>
           ))}

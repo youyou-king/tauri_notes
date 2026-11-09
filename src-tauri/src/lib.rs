@@ -237,6 +237,15 @@ fn new_managed_library_path(
 }
 
 #[tauri::command]
+fn delete_managed_library(
+    state: tauri::State<'_, platform_state::PlatformState>,
+    path: String,
+) -> Result<(), String> {
+    let data_dir = { state.adapter.data_dir()? };
+    managed_library::delete_library(std::path::Path::new(&path), &data_dir)
+}
+
+#[tauri::command]
 async fn export_managed_library(
     app: tauri::AppHandle,
     source: String,
@@ -315,6 +324,7 @@ pub fn run() {
             list_managed_libraries,
             import_managed_library,
             export_managed_library,
+            delete_managed_library,
             new_managed_library_path,
             #[cfg(mobile)]
             share_managed_library,

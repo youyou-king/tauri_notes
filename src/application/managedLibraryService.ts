@@ -20,6 +20,9 @@ export const managedLibraryService = {
   newPath(title: string): Promise<string> {
     return invoke<string>("new_managed_library_path", { title });
   },
+  delete(path: string): Promise<void> {
+    return invoke<void>("delete_managed_library", { path });
+  },
   export(source: string, destination: string): Promise<string> {
     return invoke<string>("export_managed_library", {
       source,

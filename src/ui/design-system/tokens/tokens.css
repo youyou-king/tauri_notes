@@ -18,6 +18,7 @@
     --color-accent: var(--accent);
     --danger: #e06c75;
     --success: #7fbf8f;
+    --warning: #e6a23c;
 
     --map-canvas-bg: #0f1218;
     --map-dot: #2a3345;
@@ -38,6 +39,7 @@
   :root[data-theme="light"] {
     --danger: #b4232f;
     --success: #2f7d4f;
+    --warning: #b7791f;
     --map-canvas-bg: #f8f8f5;
     --map-dot: #dcdcd5;
     --map-control-bg: #ffffff;

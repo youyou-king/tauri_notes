@@ -16,6 +16,7 @@ The shell owns presentation primitives; feature plugins consume them through
 | `PanelHeader` / `PanelShell` | dock panel frame and header slots |
 | `SurfaceHeader` | non-dialog surface title, subtitle, actions and close |
 | `StateView` | empty, loading and error states |
+| `MessageHost` / `message` | transient top-center messages with semantic tones |
 
 ## Rules
 
@@ -27,6 +28,7 @@ The shell owns presentation primitives; feature plugins consume them through
   the design system implementation.
 - Browser-native `window.prompt`, `window.alert` and `window.confirm` are
   forbidden.
+- Non-blocking feedback uses `message`; blocking decisions use `Dialog`.
 - Tree rows, menu items, editor toolbars and window chrome are semantic
   widgets. They may use native elements for their semantics, but must consume
   design tokens and must not reimplement modal, popover or form primitives.

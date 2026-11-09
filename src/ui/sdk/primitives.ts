@@ -1,6 +1,7 @@
 export { Button, IconButton } from "../design-system/Button";
 export { Field, Select, TextInput } from "../design-system/Field";
 export { Icon } from "../design-system/Icon";
+export { message } from "../design-system/Message";
 export { PanelIcon } from "../design-system/PanelIcon";
 export { StateView } from "../design-system/StateView";
 export { PanelHeader, PanelShell } from "../design-system/PanelShell";
